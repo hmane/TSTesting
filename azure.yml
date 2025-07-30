@@ -14,7 +14,7 @@ parameters:
 - name: runVeracodeScan
   displayName: 'Run Veracode Scan'
   type: boolean
-  default: ${{ eq(variables['Build.SourceBranchName'], 'uat') }}
+  default: false
 
 variables:
   buildConfiguration: 'Release'
@@ -256,7 +256,7 @@ stages:
 - stage: SecurityScan
   displayName: 'Veracode Security Scan'
   dependsOn: Build
-  condition: and(succeeded(), eq('${{ parameters.runVeracodeScan }}', true))
+  condition: and(succeeded(), or(eq('${{ parameters.runVeracodeScan }}', true), eq(variables['Build.SourceBranchName'], 'uat')))
   variables:
     VeracodeScanVersion: $[ stageDependencies.Build.BuildJob.outputs['ExtractVersion.VeracodeScanVersion'] ]
     VeracodeZipFileName: $[ stageDependencies.Build.BuildJob.outputs['PrepareVeracode.VeracodeZipFileName'] ]
