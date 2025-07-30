@@ -23,7 +23,6 @@ variables:
   appProfileName: 'YourAppProfile' # Replace with your Veracode app profile name
   # Container configuration
   containerImage: 'your-container-registry/dotnet-framework-build:latest' # Replace with your container image
-  containerEndpoint: 'your-container-endpoint' # Replace with your container registry service connection
   poolName: 'your-pool-name' # Replace with your agent pool name
   # File paths
   solutionPath: 'YourSolution.sln' # Replace with your solution file path
@@ -39,7 +38,7 @@ stages:
       name: $(poolName)
     container:
       image: $(containerImage)
-      endpoint: $(containerEndpoint)
+      endpoint: 'your-container-registry-service-connection'  # Replace with your actual service connection name
       options: --user root
     steps:
     - checkout: self
@@ -114,34 +113,75 @@ stages:
           Write-Host "Veracode scan version: $scanVersion"
           Write-Host "##vso[task.setvariable variable=VeracodeScanVersion;isOutput=true]$scanVersion"
 
-    # Install required tools in container (if not already present)
+    # Setup Build Environment (optional - skip if tools already available)
     - task: PowerShell@2
       displayName: 'Setup Build Environment'
+      continueOnError: true
       inputs:
         targetType: 'inline'
         script: |
-          Write-Host "Setting up build environment in container..."
+          Write-Host "Checking build environment in container..."
           
           # Check if running in Linux container
           if ($PSVersionTable.Platform -eq "Unix") {
               Write-Host "Detected Linux container environment"
               
-              # Install wine and related tools for .NET Framework builds on Linux
-              apt-get update
-              apt-get install -y wget software-properties-common
+              # Check if required tools are already available
+              $hasMonoMSBuild = Get-Command msbuild -ErrorAction SilentlyContinue
+              $hasNuget = Get-Command nuget -ErrorAction SilentlyContinue
               
-              # Add Microsoft package repository
-              wget -q https://packages.microsoft.com/config/ubuntu/20.04/packages-microsoft-prod.deb
-              dpkg -i packages-microsoft-prod.deb
-              apt-get update
+              if ($hasMonoMSBuild -and $hasNuget) {
+                  Write-Host "Required tools already available:"
+                  Write-Host "  - MSBuild: $($hasMonoMSBuild.Source)"
+                  Write-Host "  - NuGet: $($hasNuget.Source)"
+                  Write-Host "Skipping package installation"
+                  return
+              }
               
-              # Install .NET Framework targeting pack and build tools
-              apt-get install -y mono-complete msbuild nuget
+              Write-Host "Some tools missing, attempting to install..."
+              Write-Host "Note: This step may fail if container doesn't have sudo/root permissions"
               
-              Write-Host "Linux build environment setup complete"
+              try {
+                  # Try to install packages (may fail without proper permissions)
+                  apt-get update
+                  apt-get install -y wget software-properties-common
+                  
+                  # Add Microsoft package repository
+                  wget -q https://packages.microsoft.com/config/ubuntu/20.04/packages-microsoft-prod.deb
+                  dpkg -i packages-microsoft-prod.deb
+                  apt-get update
+                  
+                  # Install .NET Framework targeting pack and build tools
+                  apt-get install -y mono-complete msbuild nuget
+                  
+                  Write-Host "Linux build environment setup completed successfully"
+              } catch {
+                  Write-Warning "Failed to install packages: $_"
+                  Write-Warning "Make sure your container image has the required build tools pre-installed:"
+                  Write-Warning "  - mono-complete"
+                  Write-Warning "  - msbuild" 
+                  Write-Warning "  - nuget"
+                  Write-Warning "Or run the container with appropriate permissions"
+              }
+              
           } else {
               Write-Host "Detected Windows container environment"
-              # Windows container - tools should already be available
+              
+              # Check if tools are available
+              $hasMSBuild = Get-Command MSBuild -ErrorAction SilentlyContinue
+              $hasNuget = Get-Command nuget -ErrorAction SilentlyContinue
+              
+              if ($hasMSBuild) {
+                  Write-Host "MSBuild available: $($hasMSBuild.Source)"
+              } else {
+                  Write-Warning "MSBuild not found - ensure your Windows container has Build Tools installed"
+              }
+              
+              if ($hasNuget) {
+                  Write-Host "NuGet available: $($hasNuget.Source)"
+              } else {
+                  Write-Warning "NuGet not found - it should be available in Windows containers"
+              }
           }
 
     # Restore NuGet packages
@@ -378,7 +418,7 @@ stages:
       name: $(poolName)
     container:
       image: $(containerImage)
-      endpoint: $(containerEndpoint)
+      endpoint: 'your-container-registry-service-connection'  # Replace with your actual service connection name
       options: --user root
     steps:
     - checkout: none
@@ -433,7 +473,7 @@ stages:
       name: $(poolName)
     container:
       image: $(containerImage)
-      endpoint: $(containerEndpoint)
+      endpoint: 'your-container-registry-service-connection'  # Replace with your actual service connection name
       options: --user root
     steps:
     - checkout: none
