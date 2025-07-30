@@ -28,10 +28,6 @@ variables:
   # File paths
   solutionPath: 'YourSolution.sln' # Replace with your solution file path
   mainProjectPath: 'src/MainProject/MainProject.csproj' # Replace with your main project path (for NuGet and Veracode)
-  # Version suffix based on branch
-  versionSuffix: ${{ 
-    eq(variables['Build.SourceBranchName'], 'uat') and '-beta' or
-    (eq(variables['Build.SourceBranchName'], 'prod') and '' or '-dev') }}
 
 stages:
 - stage: Build
@@ -49,6 +45,28 @@ stages:
     - checkout: self
       fetchDepth: 1
 
+    # Determine version suffix based on branch
+    - task: PowerShell@2
+      displayName: 'Determine Version Suffix'
+      name: 'DetermineVersionSuffix'
+      inputs:
+        targetType: 'inline'
+        script: |
+          $branchName = "$(Build.SourceBranchName)"
+          Write-Host "Current branch: $branchName"
+          
+          # Determine version suffix based on branch
+          if ($branchName -eq "uat") {
+              $versionSuffix = "-beta"
+          } elseif ($branchName -eq "prod") {
+              $versionSuffix = ""
+          } else {
+              $versionSuffix = "-dev"
+          }
+          
+          Write-Host "Version suffix: '$versionSuffix'"
+          Write-Host "##vso[task.setvariable variable=VersionSuffix;isOutput=true]$versionSuffix"
+
     # Get project version for Veracode scan naming
     - task: PowerShell@2
       displayName: 'Extract Project Version'
@@ -58,7 +76,9 @@ stages:
         script: |
           Write-Host "Extracting project version from: $(mainProjectPath)"
           
-          $projectFile = "$(Build.SourcesDirectory)/$(mainProjectPath)"
+          # Normalize path separators for cross-platform compatibility
+          $projectPath = "$(mainProjectPath)".Replace('\', '/')
+          $projectFile = Join-Path "$(Build.SourcesDirectory)" $projectPath
           
           if (-not (Test-Path $projectFile)) {
               throw "Project file not found: $projectFile"
@@ -125,25 +145,79 @@ stages:
           }
 
     # Restore NuGet packages
-    - task: NuGetToolInstaller@1
-      displayName: 'Install NuGet Tool'
-      inputs:
-        versionSpec: 'latest'
-
-    - task: NuGetCommand@2
+    - task: PowerShell@2
       displayName: 'Restore NuGet Packages'
       inputs:
-        restoreSolution: '$(solutionPath)'
-        feedsToUse: 'select'
+        targetType: 'inline'
+        script: |
+          Write-Host "Restoring NuGet packages..."
+          
+          # Check if running in Linux container
+          if ($PSVersionTable.Platform -eq "Unix") {
+              # Use nuget restore on Linux
+              & nuget restore "$(solutionPath)"
+          } else {
+              # Use NuGet task on Windows - install tool first if needed
+              if (!(Get-Command nuget -ErrorAction SilentlyContinue)) {
+                  Write-Host "Installing NuGet tool..."
+                  # NuGet should be available in Windows containers
+              }
+              & nuget restore "$(solutionPath)"
+          }
+          
+          if ($LASTEXITCODE -ne 0) {
+              throw "NuGet restore failed with exit code $LASTEXITCODE"
+          }
+          
+          Write-Host "NuGet restore completed successfully"
 
-    # Build the solution using MSBuild@1
-    - task: MSBuild@1
+    # Build the solution (container-aware)
+    - task: PowerShell@2
       displayName: 'Build Solution'
       inputs:
-        solution: '$(solutionPath)'
-        msbuildArchitecture: 'x64'
-        platform: 'Any CPU'
-        configuration: '$(buildConfiguration)'
+        targetType: 'inline'
+        script: |
+          Write-Host "Building solution: $(solutionPath)"
+          
+          $solutionFile = "$(Build.SourcesDirectory)/$(solutionPath)"
+          
+          if (-not (Test-Path $solutionFile)) {
+              throw "Solution file not found: $solutionFile"
+          }
+          
+          # Check if running in Linux container
+          if ($PSVersionTable.Platform -eq "Unix") {
+              Write-Host "Building with MSBuild on Linux..."
+              
+              # Use msbuild for Linux
+              $buildArgs = @(
+                  $solutionFile,
+                  "/p:Configuration=$(buildConfiguration)",
+                  "/p:Platform=`"Any CPU`"",
+                  "/verbosity:minimal"
+              )
+              
+              & msbuild @buildArgs
+              
+          } else {
+              Write-Host "Building with MSBuild on Windows..."
+              
+              # Use MSBuild for Windows
+              $buildArgs = @(
+                  $solutionFile,
+                  "/p:Configuration=$(buildConfiguration)",
+                  "/p:Platform=`"Any CPU`"",
+                  "/verbosity:minimal"
+              )
+              
+              & MSBuild @buildArgs
+          }
+          
+          if ($LASTEXITCODE -ne 0) {
+              throw "Build failed with exit code $LASTEXITCODE"
+          }
+          
+          Write-Host "Build completed successfully!"
 
     # Create build artifact for Veracode scanning (main project only)
     - task: PowerShell@2
@@ -154,8 +228,9 @@ stages:
         script: |
           Write-Host "Preparing Veracode scan artifact for main project..."
           
-          # Get the directory of the main project
-          $projectFile = "$(Build.SourcesDirectory)/$(mainProjectPath)"
+          # Normalize path separators and get the directory of the main project
+          $projectPath = "$(mainProjectPath)".Replace('\', '/')
+          $projectFile = Join-Path "$(Build.SourcesDirectory)" $projectPath
           $projectDir = Split-Path $projectFile -Parent
           
           Write-Host "Main project directory: $projectDir"
@@ -222,29 +297,65 @@ stages:
       inputs:
         targetType: 'inline'
         script: |
-          # Get project version from previous step
+          # Get project version and version suffix from previous steps
           $projectVersion = "$(ExtractVersion.ProjectVersion)"
+          $versionSuffix = "$(DetermineVersionSuffix.VersionSuffix)"
           
           # Determine version with suffix
           $packageVersion = $projectVersion
-          if ("$(versionSuffix)" -ne "") {
-              $packageVersion += "$(versionSuffix).$(Build.BuildNumber)"
+          if ($versionSuffix -ne "") {
+              $packageVersion += "$versionSuffix.$(Build.BuildNumber)"
           } else {
               $packageVersion += ".$(Build.BuildNumber)"
           }
           
+          Write-Host "Project version: $projectVersion"
+          Write-Host "Version suffix: '$versionSuffix'"
           Write-Host "Package version will be: $packageVersion"
           Write-Host "##vso[task.setvariable variable=PackageVersion]$packageVersion"
 
-    - task: NuGetCommand@2
+    - task: PowerShell@2
       displayName: 'Pack NuGet Package'
       inputs:
-        command: 'pack'
-        packagesToPack: '$(mainProjectPath)'
-        configuration: '$(buildConfiguration)'
-        packDestination: '$(Build.ArtifactStagingDirectory)/packages'
-        versioningScheme: 'byEnvVar'
-        versionEnvVar: 'PackageVersion'
+        targetType: 'inline'
+        script: |
+          Write-Host "Creating NuGet package for main project..."
+          
+          # Normalize path separators
+          $projectPath = "$(mainProjectPath)".Replace('\', '/')
+          $projectFile = Join-Path "$(Build.SourcesDirectory)" $projectPath
+          $packageVersion = "$(PackageVersion)"
+          
+          Write-Host "Project file: $projectFile"
+          Write-Host "Package version: $packageVersion"
+          
+          # Create packages directory
+          $packagesDir = "$(Build.ArtifactStagingDirectory)/packages"
+          New-Item -ItemType Directory -Path $packagesDir -Force
+          
+          # Check if running in Linux container
+          if ($PSVersionTable.Platform -eq "Unix") {
+              Write-Host "Packing with nuget on Linux..."
+              & nuget pack $projectFile -Properties Configuration=$(buildConfiguration) -OutputDirectory $packagesDir -Version $packageVersion
+          } else {
+              Write-Host "Packing with dotnet on Windows..."
+              & dotnet pack $projectFile --configuration $(buildConfiguration) --output $packagesDir -p:PackageVersion=$packageVersion
+          }
+          
+          if ($LASTEXITCODE -ne 0) {
+              throw "NuGet pack failed with exit code $LASTEXITCODE"
+          }
+          
+          # List created packages
+          $packages = Get-ChildItem -Path $packagesDir -Filter "*.nupkg"
+          Write-Host "Created packages:"
+          foreach ($package in $packages) {
+              Write-Host "  - $($package.Name)"
+          }
+          
+          if ($packages.Count -eq 0) {
+              throw "No NuGet packages were created"
+          }
 
     # Publish build artifacts (including the named Veracode zip)
     - task: PublishBuildArtifacts@1
