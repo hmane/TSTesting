@@ -1,4 +1,14 @@
- const accounts: string[] = this.parseAccountValues(event.fieldValue);
+<Field ID="{12345678-1234-1234-1234-123456789001}"
+       Type="TaxonomyFieldTypeMulti"
+       Name="AccountNumbers"
+       StaticName="AccountNumbers"
+       DisplayName="Account Numbers"
+       ClientSideComponentId="12345678-1234-1234-1234-123456789abc"
+       ClientSideComponentProperties='{"maxDisplayCount":8,"maxLines":2,"preferredSeparator":", "}'>
+</Field>
+
+
+const accounts: string[] = this.parseAccountValues(event.fieldValue);
     const maxDisplayCount = this.properties.maxDisplayCount || 10;
     const maxLines = this.properties.maxLines || 3;
     const preferredSeparator = this.properties.preferredSeparator || ', ';
