@@ -1,67 +1,24 @@
- public onRenderCell(event: IFieldCustomizerCellEventParameters): void {
-    const accounts: string[] = this.parseAccountValues(event.fieldValue);
+ const accounts: string[] = this.parseAccountValues(event.fieldValue);
     const maxDisplayCount = this.properties.maxDisplayCount || 10;
+    const maxLines = this.properties.maxLines || 3;
+    const preferredSeparator = this.properties.preferredSeparator || ', ';
 
     const accountField: React.ReactElement<IAccountFieldProps> = React.createElement(AccountField, {
       accounts: accounts,
       maxDisplayCount: maxDisplayCount,
-      context: this.context
+      context: this.context,
+      maxLines: maxLines,
+      preferredSeparator: preferredSeparator
     });
 
     ReactDOM.render(accountField, event.domElement);
-  }
 
-  @override
-  public onDisposeCell(event: IFieldCustomizerCellEventParameters): void {
-    ReactDOM.unmountComponentAtNode(event.domElement);
-    super.onDisposeCell(event);
-  }
 
-  private parseAccountValues(fieldValue: any): string[] {
-    if (!fieldValue) {
-      return [];
-    }
-
-    try {
-      // Handle different formats of taxonomy field values
-      if (typeof fieldValue === 'string') {
-        // If it's a JSON string, parse it
-        if (fieldValue.startsWith('[') || fieldValue.startsWith('{')) {
-          const parsed = JSON.parse(fieldValue);
-          return Array.isArray(parsed) 
-            ? parsed.map(item => item.Label || item.label || item.toString())
-            : [parsed.Label || parsed.label || parsed.toString()];
-        }
-        // If it's a semicolon-separated string
-        return fieldValue.split(';').filter(Boolean);
-      }
-
-      // If it's already an array
-      if (Array.isArray(fieldValue)) {
-        return fieldValue.map(item => {
-          if (typeof item === 'object' && item !== null) {
-            return item.Label || item.label || item.toString();
-          }
-          return item.toString();
-        });
-      }
-
-      // If it's an object
-      if (typeof fieldValue === 'object' && fieldValue !== null) {
-        return [fieldValue.Label || fieldValue.label || fieldValue.toString()];
-      }
-
-      return [fieldValue.toString()];
-    } catch (error) {
-      Log.error(LOG_SOURCE, error);
-      return [];
-    }
-  }
 
 
 
 import * as React from 'react';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { BaseComponentContext } from '@microsoft/sp-component-base';
 import { TooltipHost, ITooltipHostStyles } from '@fluentui/react/lib/Tooltip';
 import { Link } from '@fluentui/react/lib/Link';
@@ -71,91 +28,195 @@ export interface IAccountFieldProps {
   accounts: string[];
   maxDisplayCount: number;
   context: BaseComponentContext;
+  maxLines?: number;           // Maximum lines before truncating
+  preferredSeparator?: string; // Separator to use (default: ', ')
 }
 
-const AccountField: React.FC<IAccountFieldProps> = ({ accounts, maxDisplayCount, context }) => {
+const AccountField: React.FC<IAccountFieldProps> = ({ 
+  accounts, 
+  maxDisplayCount, 
+  context,
+  maxLines = 3,
+  preferredSeparator = ', '
+}) => {
   const [showAll, setShowAll] = useState<boolean>(false);
+  const [isOverflowing, setIsOverflowing] = useState<boolean>(false);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   if (!accounts || accounts.length === 0) {
     return <span>-</span>;
   }
 
+  // Check if content is overflowing based on maxLines or width
+  useEffect(() => {
+    if (contentRef.current && !showAll) {
+      const element = contentRef.current;
+      const lineHeight = 1.4; // em
+      const maxHeight = maxLines * lineHeight;
+      const elementHeight = element.scrollHeight / parseFloat(getComputedStyle(element).fontSize);
+      
+      const isHeightOverflow = elementHeight > maxHeight;
+      const isWidthOverflow = element.scrollWidth > element.clientWidth;
+      
+      setIsOverflowing(isHeightOverflow || isWidthOverflow);
+    } else {
+      setIsOverflowing(false);
+    }
+  }, [accounts, showAll, maxLines]);
+
   const displayAccounts = showAll ? accounts : accounts.slice(0, maxDisplayCount);
   const hasMore = accounts.length > maxDisplayCount;
-  const shouldShowTooltip = !showAll && hasMore;
+  const shouldShowTooltip = !showAll && (hasMore || isOverflowing);
 
   const handleShowAllClick = (event: React.MouseEvent<HTMLElement>) => {
     event.preventDefault();
+    event.stopPropagation();
     setShowAll(true);
   };
 
-  const renderAccountList = (accountsToRender: string[], withLineBreaks: boolean = false) => {
-    if (withLineBreaks) {
+  const renderAccountsWithWrapping = (accountsToRender: string[]) => {
+    if (showAll) {
+      // When showing all, display in a more structured way with no line limits
       return (
-        <div>
+        <div style={{ 
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: '4px 0',
+          lineHeight: '1.3'
+        }}>
           {accountsToRender.map((account, index) => (
-            <div key={index} style={{ marginBottom: '2px' }}>
-              {account.trim()}
-            </div>
+            <React.Fragment key={index}>
+              <span style={{ 
+                wordBreak: 'break-word',
+                whiteSpace: 'nowrap'
+              }}>
+                {account.trim()}
+              </span>
+              {index < accountsToRender.length - 1 && (
+                <span style={{ marginRight: '4px' }}>{preferredSeparator.trim()}</span>
+              )}
+            </React.Fragment>
           ))}
         </div>
       );
     } else {
-      return accountsToRender.join(', ');
+      // When showing limited accounts, use natural text flow with line clamping
+      const accountText = accountsToRender.map(account => account.trim()).join(preferredSeparator);
+      return (
+        <div style={{ 
+          wordWrap: 'break-word',
+          overflowWrap: 'anywhere',
+          whiteSpace: 'normal',
+          lineHeight: '1.4',
+          display: '-webkit-box',
+          WebkitLineClamp: maxLines,
+          WebkitBoxOrient: 'vertical' as any,
+          overflow: 'hidden'
+        }}>
+          {accountText}
+        </div>
+      );
     }
   };
 
-  const tooltipContent = shouldShowTooltip ? (
-    <div style={{ maxWidth: '300px', maxHeight: '200px', overflowY: 'auto' }}>
-      <strong>All Accounts ({accounts.length}):</strong>
-      <div style={{ marginTop: '4px' }}>
-        {renderAccountList(accounts, true)}
+  const renderTooltipContent = () => (
+    <div style={{ 
+      maxWidth: '320px', 
+      maxHeight: '250px', 
+      overflowY: 'auto',
+      padding: '4px'
+    }}>
+      <div style={{ 
+        fontWeight: '600', 
+        marginBottom: '6px',
+        fontSize: '13px'
+      }}>
+        All Accounts ({accounts.length}):
+      </div>
+      <div style={{ 
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
+        gap: '4px',
+        fontSize: '12px',
+        lineHeight: '1.4'
+      }}>
+        {accounts.map((account, index) => (
+          <div 
+            key={index} 
+            style={{ 
+              padding: '2px 4px',
+              backgroundColor: '#f8f9fa',
+              borderRadius: '3px',
+              wordBreak: 'break-word'
+            }}
+          >
+            {account.trim()}
+          </div>
+        ))}
       </div>
     </div>
-  ) : null;
+  );
 
   const tooltipStyles: Partial<ITooltipHostStyles> = {
     root: {
-      display: 'inline-block',
+      display: 'block',
+      width: '100%',
       cursor: shouldShowTooltip ? 'help' : 'default'
     }
   };
 
   const mainContent = (
-    <span>
-      {renderAccountList(displayAccounts)}
+    <div style={{ width: '100%' }}>
+      <div 
+        ref={contentRef}
+        style={{ 
+          width: '100%'
+        }}
+      >
+        {renderAccountsWithWrapping(displayAccounts)}
+      </div>
+      
       {hasMore && !showAll && (
-        <>
-          {' '}
+        <div style={{ 
+          marginTop: '6px',
+          borderTop: '1px solid #edebe9',
+          paddingTop: '4px'
+        }}>
           <Link 
             onClick={handleShowAllClick}
             styles={{
               root: {
-                fontSize: '12px',
+                fontSize: '11px',
                 fontWeight: '600',
-                textDecoration: 'underline'
+                textDecoration: 'underline',
+                whiteSpace: 'nowrap',
+                color: '#0078d4',
+                display: 'inline-block'
               }
             }}
           >
-            Show all ({accounts.length})
+            + Show {accounts.length - maxDisplayCount} more
           </Link>
-        </>
+        </div>
       )}
-    </span>
+    </div>
   );
 
   return (
     <div style={{ 
-      lineHeight: '1.4',
-      wordBreak: 'break-word',
-      maxWidth: '100%'
+      width: '100%',
+      minHeight: '24px',
+      padding: '4px 2px',
+      fontSize: '13px',
+      fontFamily: '"Segoe UI", "Segoe UI Web (West European)", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif'
     }}>
       {shouldShowTooltip ? (
         <TooltipHost
-          content={tooltipContent}
+          content={renderTooltipContent()}
           directionalHint={DirectionalHint.topLeftEdge}
           styles={tooltipStyles}
-          delay={0}
+          delay={300}
+          maxWidth={350}
         >
           {mainContent}
         </TooltipHost>
