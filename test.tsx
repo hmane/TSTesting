@@ -1,3 +1,65 @@
+ public onRenderCell(event: IFieldCustomizerCellEventParameters): void {
+    const accounts: string[] = this.parseAccountValues(event.fieldValue);
+    const maxDisplayCount = this.properties.maxDisplayCount || 10;
+
+    const accountField: React.ReactElement<IAccountFieldProps> = React.createElement(AccountField, {
+      accounts: accounts,
+      maxDisplayCount: maxDisplayCount,
+      context: this.context
+    });
+
+    ReactDOM.render(accountField, event.domElement);
+  }
+
+  @override
+  public onDisposeCell(event: IFieldCustomizerCellEventParameters): void {
+    ReactDOM.unmountComponentAtNode(event.domElement);
+    super.onDisposeCell(event);
+  }
+
+  private parseAccountValues(fieldValue: any): string[] {
+    if (!fieldValue) {
+      return [];
+    }
+
+    try {
+      // Handle different formats of taxonomy field values
+      if (typeof fieldValue === 'string') {
+        // If it's a JSON string, parse it
+        if (fieldValue.startsWith('[') || fieldValue.startsWith('{')) {
+          const parsed = JSON.parse(fieldValue);
+          return Array.isArray(parsed) 
+            ? parsed.map(item => item.Label || item.label || item.toString())
+            : [parsed.Label || parsed.label || parsed.toString()];
+        }
+        // If it's a semicolon-separated string
+        return fieldValue.split(';').filter(Boolean);
+      }
+
+      // If it's already an array
+      if (Array.isArray(fieldValue)) {
+        return fieldValue.map(item => {
+          if (typeof item === 'object' && item !== null) {
+            return item.Label || item.label || item.toString();
+          }
+          return item.toString();
+        });
+      }
+
+      // If it's an object
+      if (typeof fieldValue === 'object' && fieldValue !== null) {
+        return [fieldValue.Label || fieldValue.label || fieldValue.toString()];
+      }
+
+      return [fieldValue.toString()];
+    } catch (error) {
+      Log.error(LOG_SOURCE, error);
+      return [];
+    }
+  }
+
+
+
 import * as React from 'react';
 import { useState } from 'react';
 import { BaseComponentContext } from '@microsoft/sp-component-base';
