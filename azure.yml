@@ -1,3 +1,13 @@
+- task: DotNetCoreCLI@2
+  displayName: 'Publish with Symbols'
+  inputs:
+    command: 'publish'
+    publishWebProjects: false
+    projects: '**/*.csproj'
+    arguments: '--configuration Release --output $(Build.ArtifactStagingDirectory)/publish /p:DebugType=portable /p:DebugSymbols=true /p:SelfContained=false /p:PublishTrimmed=false'
+
+
+
 # azure-pipelines.yml - Main Pipeline for Build, Scan, and Publish
 trigger:
   branches:
