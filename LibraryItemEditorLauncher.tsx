@@ -19,43 +19,52 @@ export interface ILibraryItemEditorLauncherProps {
 
   // Optional metadata
   listId?: string;
-  viewId?: string;                      // bulk view (minimal columns)
-  contentTypeId?: string;               // single edit only
+  viewId?: string;                      // bulk context view (minimal columns recommended)
+  contentTypeId?: string;               // single edit only: force CT
 
   // Where to render
   renderMode?: RenderMode;              // 'modal' (default) | 'samepage' | 'newtab'
 
   // Modal visibility & callbacks
-  isOpen?: boolean;                     // modal only; for samepage/newtab we navigate on mount
+  isOpen?: boolean;                     // modal only; for samepage/newtab we navigate on determine
   onDismiss?: () => void;
   onSaved?: () => void;
   onError?: (message: string) => void;
 
-  // ✅ Lifecycle hooks
-  /** Fires once when URL & mode are fully determined and we’re about to launch. */
+  // Lifecycle hooks
+  /** Fires once when URL & mode are fully determined and we’re about to launch. Use this to hide loaders. */
   onDetermined?: (info: { mode: RenderMode; url: string }) => void;
-  /** Fires when the editor actually opens (modal iframe first load OR nav kicked). */
+  /** Fires when the editor actually opens (iframe first load OR navigation kicked). */
   onOpen?: (info: { mode: RenderMode; url: string }) => void;
+  /** Optional metrics (msSinceDetermined, msToOpen) */
+  onMetrics?: (m: { msToDetermined?: number; msToOpen?: number }) => void;
 
-  // Behavior (modal)
+  // Behavior toggles (modal)
   autoCloseOnReturn?: boolean;          // single edit (default true)
-  enableBulkAutoRefresh?: boolean;      // bulk: poll field changes to auto-close
+  enableBulkAutoRefresh?: boolean;      // bulk: poll field change to auto-close
   bulkAutoRefreshField?: string;        // default "Modified"
   bulkAutoRefreshIntervalMs?: number;   // default 5000
+  bulkWatchAllItems?: boolean;          // if true, poll all selected items; else only first
   forceBulkPaneOpen?: boolean;          // bulk: keep details pane open (default true)
   bulkPaneCheckIntervalMs?: number;     // default 2000
-  disableDomNudges?: boolean;           // disable DOM pokes (force pane / save-click)
+  disableDomNudges?: boolean;           // disable DOM poking (keep pane / click save)
 
   // Sizing (modal) — responsive
   minWidthPct?: number;                 // default 80
   minHeightPct?: number;                // default 80
   preferredWidthPct?: number;           // default 90
   preferredHeightPct?: number;          // default 85
-  autoHeightBestEffort?: boolean;       // try measuring iframe doc height
+  autoHeightBestEffort?: boolean;       // try measuring iframe doc height and clamp
+
+  // Iframe extras
+  iframeLoading?: 'eager' | 'lazy';     // default 'eager'
+  iframeLoadTimeoutMs?: number;         // default 10000 (10s)
+  sandboxExtra?: string;                // appended to default sandbox
+  referrerPolicy?: React.IframeHTMLAttributes<HTMLIFrameElement>['referrerPolicy']; // default 'origin-when-cross-origin'
 
   // A11y
   closeOnEsc?: boolean;                 // default true
-  ariaLabel?: string;
+  ariaLabel?: string;                   // default 'Edit properties'
 
   // Optional Source override for single edit
   returnUrlOverride?: string;
@@ -77,11 +86,13 @@ export const LibraryItemEditorLauncher: React.FC<ILibraryItemEditorLauncherProps
     onError,
     onDetermined,
     onOpen,
+    onMetrics,
 
     autoCloseOnReturn = true,
     enableBulkAutoRefresh = false,
     bulkAutoRefreshField = 'Modified',
     bulkAutoRefreshIntervalMs = 5000,
+    bulkWatchAllItems = false,
     forceBulkPaneOpen = true,
     bulkPaneCheckIntervalMs = 2000,
     disableDomNudges = false,
@@ -92,6 +103,11 @@ export const LibraryItemEditorLauncher: React.FC<ILibraryItemEditorLauncherProps
     preferredHeightPct = 85,
     autoHeightBestEffort = false,
 
+    iframeLoading = 'eager',
+    iframeLoadTimeoutMs = 10000,
+    sandboxExtra,
+    referrerPolicy = 'origin-when-cross-origin',
+
     closeOnEsc = true,
     ariaLabel = 'Edit properties',
     returnUrlOverride
@@ -101,11 +117,14 @@ export const LibraryItemEditorLauncher: React.FC<ILibraryItemEditorLauncherProps
   const [error, setError] = useState<string | null>(null);
   const [resolving, setResolving] = useState<boolean>(false);
   const [dynamicHeightPx, setDynamicHeightPx] = useState<number | null>(null);
-  const [vpTick, setVpTick] = useState(0);         // forces recalculation on resize
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [vpTick, setVpTick] = useState(0); // forces recalculation on resize
+  const [iframeStalled, setIframeStalled] = useState(false);
 
-  // Track one-shot lifecycle
+  const iframeRef = useRef<HTMLIFrameElement>(null);
   const firedDetermined = useRef(false);
+  const loadTimeoutRef = useRef<number | null>(null);
+  const determinedAtRef = useRef<number | undefined>(undefined);
+  const openedAtRef = useRef<number | undefined>(undefined);
 
   // PnP
   const sp = useMemo(() => spfi(siteUrl).using(PnP_SPFX(spfxContext)), [siteUrl, spfxContext]);
@@ -132,7 +151,7 @@ export const LibraryItemEditorLauncher: React.FC<ILibraryItemEditorLauncherProps
     return () => { mounted = false; };
   }, [libraryServerRelativeUrl, listIdProp, sp, onError]);
 
-  // Build return & target URLs
+  // Return & target URLs
   const returnKey = useMemo(() => crypto.randomUUID(), []);
   const currentPageUrl = useMemo(() => {
     const { origin, pathname, search } = window.location;
@@ -166,16 +185,18 @@ export const LibraryItemEditorLauncher: React.FC<ILibraryItemEditorLauncherProps
     return u.toString();
   }, [listId, itemIds, siteUrl, libraryServerRelativeUrl, contentTypeId, viewId, returnUrl]);
 
-  // ✅ Fire onDetermined exactly once, right before we launch
+  // Fire onDetermined exactly once, then act by renderMode
   useEffect(() => {
     if (firedDetermined.current) return;
     if (resolving || error || !targetUrl) return;
 
     firedDetermined.current = true;
+    determinedAtRef.current = performance.now();
     onDetermined?.({ mode: renderMode, url: targetUrl });
+    onMetrics?.({ msToDetermined: 0 }); // you can compute deltas outside if you want; here we set a baseline
 
     if (renderMode === 'samepage') {
-      onOpen?.({ mode: 'samepage', url: targetUrl }); // we can fire right before navigation
+      onOpen?.({ mode: 'samepage', url: targetUrl });
       window.location.assign(targetUrl);
       onDismiss?.();
     } else if (renderMode === 'newtab') {
@@ -183,10 +204,21 @@ export const LibraryItemEditorLauncher: React.FC<ILibraryItemEditorLauncherProps
       window.open(targetUrl, '_blank', 'noopener');
       onDismiss?.();
     }
-    // For modal: do nothing here; parent already passed isOpen=true so we render below.
-  }, [renderMode, resolving, error, targetUrl, onDetermined, onOpen, onDismiss]);
+    // For modal: render below and let iframe onLoad fire onOpen.
+  }, [renderMode, resolving, error, targetUrl, onDetermined, onOpen, onDismiss, onMetrics]);
 
-  // ===== MODAL-ONLY =====
+  // ===== MODAL ONLY =====
+
+  // Start a load timeout for modal
+  useEffect(() => {
+    if (renderMode !== 'modal' || !isOpen || !targetUrl) return;
+    setIframeStalled(false);
+    if (loadTimeoutRef.current) { window.clearTimeout(loadTimeoutRef.current); loadTimeoutRef.current = null; }
+    loadTimeoutRef.current = window.setTimeout(() => setIframeStalled(true), iframeLoadTimeoutMs);
+    return () => {
+      if (loadTimeoutRef.current) { window.clearTimeout(loadTimeoutRef.current); loadTimeoutRef.current = null; }
+    };
+  }, [renderMode, isOpen, targetUrl, iframeLoadTimeoutMs]);
 
   // Responsive resize handling
   useEffect(() => {
@@ -195,7 +227,7 @@ export const LibraryItemEditorLauncher: React.FC<ILibraryItemEditorLauncherProps
     const onResize = () => {
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
-        setVpTick((t) => t + 1);
+        setVpTick(t => t + 1);
         if (autoHeightBestEffort && iframeRef.current?.contentWindow?.document) {
           try {
             const doc = iframeRef.current.contentWindow.document;
@@ -213,9 +245,17 @@ export const LibraryItemEditorLauncher: React.FC<ILibraryItemEditorLauncherProps
     };
   }, [renderMode, isOpen, autoHeightBestEffort]);
 
+  // Iframe load handler
   const onIframeLoad = () => {
-    onOpen?.({ mode: 'modal', url: targetUrl });
+    if (loadTimeoutRef.current) { window.clearTimeout(loadTimeoutRef.current); loadTimeoutRef.current = null; }
+    setIframeStalled(false);
 
+    openedAtRef.current = performance.now();
+    const msToOpen = determinedAtRef.current !== undefined ? (openedAtRef.current - determinedAtRef.current) : undefined;
+    onOpen?.({ mode: 'modal', url: targetUrl });
+    if (msToOpen !== undefined) onMetrics?.({ msToOpen });
+
+    // Best-effort auto height
     if (autoHeightBestEffort) {
       try {
         const doc = iframeRef.current?.contentWindow?.document;
@@ -227,7 +267,7 @@ export const LibraryItemEditorLauncher: React.FC<ILibraryItemEditorLauncherProps
       } catch { /* ignore */ }
     }
 
-    // Single-edit auto-close after save (Source redirect detected)
+    // Single-edit auto close: detect redirect to Source
     try {
       const href = iframeRef.current?.contentWindow?.location?.href || '';
       if (autoCloseOnReturn && itemIds.length === 1 && href.startsWith(currentPageUrl) && href.includes(`#spfx-close-${returnKey}`)) {
@@ -239,46 +279,60 @@ export const LibraryItemEditorLauncher: React.FC<ILibraryItemEditorLauncherProps
     try { iframeRef.current?.contentWindow?.focus(); } catch { /* ignore */ }
   };
 
-  // Bulk: poll for changes
+  // Bulk auto-refresh polling
   useEffect(() => {
     if (renderMode !== 'modal') return;
     if (!enableBulkAutoRefresh || itemIds.length <= 1) return;
 
-    let timer: NodeJS.Timeout;
-    let initialValue: any = null;
+    let timer: number;
+    const initial: Record<number, any> = {};
+
     const poll = async () => {
       try {
-        const item = await sp.web.getList(libraryServerRelativeUrl).items.getById(itemIds[0]).select(bulkAutoRefreshField)();
-        const val = item[bulkAutoRefreshField];
-        if (initialValue === null) initialValue = val;
-        else if (val !== initialValue) { onSaved?.(); onDismiss?.(); }
-      } catch { /* ignore */ }
+        const list = sp.web.getList(libraryServerRelativeUrl);
+        const ids = bulkWatchAllItems ? itemIds : [itemIds[0]];
+        const results = await Promise.all(ids.map(id =>
+          list.items.getById(id).select(bulkAutoRefreshField)()
+            .then(r => ({ id, v: r[bulkAutoRefreshField] }))
+        ));
+        let changed = false;
+        for (const { id, v } of results) {
+          if (!(id in initial)) initial[id] = v;
+          else if (initial[id] !== v) { changed = true; break; }
+        }
+        if (changed) { onSaved?.(); onDismiss?.(); }
+      } catch { /* ignore transient */ }
     };
-    timer = setInterval(poll, bulkAutoRefreshIntervalMs || 5000);
-    return () => clearInterval(timer);
-  }, [renderMode, enableBulkAutoRefresh, itemIds, sp, libraryServerRelativeUrl, bulkAutoRefreshField, bulkAutoRefreshIntervalMs, onSaved, onDismiss]);
 
-  // Keep bulk pane open (unless disabled)
+    timer = window.setInterval(poll, bulkAutoRefreshIntervalMs ?? 5000);
+    return () => window.clearInterval(timer);
+  }, [
+    renderMode, enableBulkAutoRefresh, bulkWatchAllItems, itemIds, sp,
+    libraryServerRelativeUrl, bulkAutoRefreshField, bulkAutoRefreshIntervalMs, onSaved, onDismiss
+  ]);
+
+  // Keep bulk pane open (DOM nudge unless disabled)
   useEffect(() => {
     if (renderMode !== 'modal' || disableDomNudges || itemIds.length <= 1) return;
 
-    let timer: NodeJS.Timeout;
+    let timer: number;
     const tryOpenPane = () => {
       try {
         const win = iframeRef.current?.contentWindow;
         const doc = win?.document;
         if (!doc) return;
+        // If "Save" is present in pane, assume open
         const paneSave = doc.querySelector('button[name="Save"]') || doc.querySelector('[data-automationid="PropertyPaneSave"]');
-        if (paneSave) return; // already open
+        if (paneSave) return;
         const detailsBtn = doc.querySelector('[data-automationid="DetailsPane"]') as HTMLElement
           || doc.querySelector('[data-automationid="DetailsPane-button"]') as HTMLElement;
         detailsBtn && (detailsBtn as HTMLButtonElement).click?.();
       } catch { /* ignore */ }
     };
     if (forceBulkPaneOpen) {
-      timer = setInterval(tryOpenPane, bulkPaneCheckIntervalMs || 2000);
+      timer = window.setInterval(tryOpenPane, bulkPaneCheckIntervalMs || 2000);
     }
-    return () => { if (timer) clearInterval(timer); };
+    return () => { if (timer) window.clearInterval(timer); };
   }, [renderMode, disableDomNudges, itemIds, forceBulkPaneOpen, bulkPaneCheckIntervalMs]);
 
   // Esc to close
@@ -302,8 +356,12 @@ export const LibraryItemEditorLauncher: React.FC<ILibraryItemEditorLauncherProps
       : `clamp(${minHeightPct}vh, ${preferredHeightPct}vh, 95vh)`
   };
 
+  // Sandbox & allow/referrer
+  const sandboxFlags = `allow-scripts allow-same-origin allow-forms allow-popups ${sandboxExtra || ''}`.trim();
+
   if (renderMode !== 'modal') return null;
 
+  // Header with a Close (X) button
   const header = (
     <Stack horizontal verticalAlign="center" horizontalAlign="space-between" styles={{ root: { marginBottom: 8 } }}>
       <span style={{ fontWeight: 600 }}>
@@ -326,6 +384,11 @@ export const LibraryItemEditorLauncher: React.FC<ILibraryItemEditorLauncherProps
     >
       {header}
 
+      {/* a11y live status (SR only) */}
+      <div aria-live="polite" style={{ position:'absolute', width:1, height:1, overflow:'hidden', clip:'rect(1px,1px,1px,1px)' }}>
+        {resolving ? 'Preparing editor…' : iframeStalled ? 'Editor is taking longer than expected.' : ''}
+      </div>
+
       {resolving && <Spinner label="Preparing editor..." />}
       {error && <div style={{ color: 'crimson', marginBottom: 8 }}>{error}</div>}
 
@@ -333,17 +396,22 @@ export const LibraryItemEditorLauncher: React.FC<ILibraryItemEditorLauncherProps
         <Stack verticalFill>
           {itemIds.length === 1 && !disableDomNudges && (
             <Stack horizontal tokens={{ childrenGap: 8 }} styles={{ root: { marginBottom: 8 } }}>
-              <PrimaryButton text="Save" onClick={() => {
-                try {
-                  const doc = iframeRef.current?.contentWindow?.document;
-                  const saveBtn = (doc?.querySelector('button[name="Save"]') ||
-                                   doc?.querySelector('[data-automationid="PropertyPaneSave"]')) as HTMLButtonElement | null;
-                  saveBtn?.click?.();
-                } catch { /* ignore */ }
-              }} />
-              <DefaultButton text="Cancel" onClick={onDismiss} />
+              <PrimaryButton
+                text="Save"
+                onClick={() => {
+                  try {
+                    const doc = iframeRef.current?.contentWindow?.document;
+                    const saveBtn = (doc?.querySelector('button[name="Save"]') ||
+                                     doc?.querySelector('[data-automationid="PropertyPaneSave"]')) as HTMLButtonElement | null;
+                    saveBtn?.click?.();
+                  } catch { /* ignore */ }
+                }}
+                aria-label="Save changes"
+              />
+              <DefaultButton text="Cancel" onClick={onDismiss} aria-label="Cancel editing" />
             </Stack>
           )}
+
           <iframe
             key={vpTick /* force re-layout on resize */}
             ref={iframeRef}
@@ -351,15 +419,29 @@ export const LibraryItemEditorLauncher: React.FC<ILibraryItemEditorLauncherProps
             src={targetUrl}
             style={iframeStyle}
             onLoad={onIframeLoad}
-            sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+            sandbox={sandboxFlags}
+            loading={iframeLoading}
+            referrerPolicy={referrerPolicy}
+            allow="clipboard-write"
+            aria-busy={resolving || iframeStalled}
           />
+
+          {iframeStalled && (
+            <Stack horizontal tokens={{ childrenGap: 8 }} style={{ marginTop: 8 }}>
+              <PrimaryButton
+                text="Open in new tab"
+                onClick={() => { window.open(targetUrl, '_blank', 'noopener'); onOpen?.({ mode:'newtab', url: targetUrl }); }}
+              />
+              <DefaultButton text="Cancel" onClick={onDismiss} />
+            </Stack>
+          )}
         </Stack>
       )}
 
       {itemIds.length > 1 && (
         <DialogFooter>
-          <PrimaryButton text="Done" onClick={() => { onSaved?.(); onDismiss?.(); }} />
-          <DefaultButton text="Cancel" onClick={onDismiss} />
+          <PrimaryButton text="Done" onClick={() => { onSaved?.(); onDismiss?.(); }} aria-label="Done editing" />
+          <DefaultButton text="Cancel" onClick={onDismiss} aria-label="Cancel editing" />
         </DialogFooter>
       )}
     </Dialog>
