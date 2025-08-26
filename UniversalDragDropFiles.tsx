@@ -2,6 +2,8 @@ import React, { useState, useRef, useCallback, forwardRef, useImperativeHandle }
 import { makeStyles, shorthands } from '@fluentui/react-components';
 import { DocumentRegular, DismissRegular } from '@fluentui/react-icons';
 import { tokens } from '@fluentui/react-theme';
+import { FileTypeIcon, IconType, ApplicationType, ImageSize } from '@pnp/spfx-controls-react/lib/FileTypeIcon';
+import { Spinner } from "@fluentui/react-components";
 
 // Interfaces
 interface IUniversalDragDropFilesProps {
@@ -277,6 +279,14 @@ const useStyles = makeStyles({
   fileIcon: {
     fontSize: '20px',
     marginRight: '12px',
+    display: 'flex',
+    alignItems: 'center',
+    
+    // Style for PnP FileTypeIcon
+    '& img': {
+      width: '20px',
+      height: '20px',
+    }
   },
   
   fileDetails: {
@@ -371,7 +381,7 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
     // Refs
     const fileInputRef = useRef<HTMLInputElement>(null);
     const dragCounterRef = useRef(0);
-    const dragLeaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const dragLeaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Expose public methods
     useImperativeHandle(ref, () => ({
@@ -724,20 +734,18 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
       return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
     }, []);
 
-    // Get file icon based on type
-    const getFileIcon = useCallback((file: File): string => {
-      const type = file.type.toLowerCase();
-      const name = file.name.toLowerCase();
+    // Get file icon using PnP FileTypeIcon - it auto-detects from filename
+    const getFileTypeIcon = useCallback((file: File, size: ImageSize = ImageSize.small) => {
+      // Create a dummy path with the actual filename for FileTypeIcon to work with
+      const dummyPath = `https://contoso.sharepoint.com/documents/${file.name}`;
       
-      if (type.includes('image/')) return '🖼️';
-      if (type.includes('pdf') || name.endsWith('.pdf')) return '📄';
-      if (type.includes('word') || name.includes('.doc')) return '📝';
-      if (type.includes('excel') || name.includes('.xls')) return '📊';
-      if (type.includes('powerpoint') || name.includes('.ppt')) return '📋';
-      if (type.includes('text/') || name.endsWith('.txt')) return '📃';
-      if (type.includes('html')) return '🌐';
-      if (type.includes('zip') || type.includes('archive')) return '🗜️';
-      return '📎';
+      return (
+        <FileTypeIcon
+          type={IconType.image}
+          size={size}
+          path={dummyPath}
+        />
+      );
     }, []);
 
     // Build CSS classes
@@ -864,9 +872,7 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
           {/* Processing indicator */}
           {isProcessing && (
             <div className={styles.processingIndicator}>
-              <div className={styles.spinAnimation}>
-                ⏳
-              </div>
+              <Spinner size="medium" />
             </div>
           )}
         </div>
@@ -898,7 +904,7 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
                 >
                   <div className={styles.fileInfo}>
                     <div className={styles.fileIcon}>
-                      {getFileIcon(file)}
+                      {getFileTypeIcon(file, ImageSize.small)}
                     </div>
                     <div className={styles.fileDetails}>
                       <div className={styles.fileName}>
