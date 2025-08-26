@@ -440,27 +440,28 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
     }, [maxFileSize, minFileSize]);
 
     const validateCustom = useCallback((file: File): IFileValidationResult => {
-      if (!validateFile) return { isValid: true };
+    if (!validateFile) return { isValid: true };
+    
+    try {
+      const result = validateFile(file);
       
-      try {
-        const result = validateFile(file);
-        
-        if (typeof result === 'boolean') {
-          const isValid = result;
-          onFileValidation?.(file, isValid, isValid ? undefined : 'Custom validation failed');
-          return { isValid, error: isValid ? undefined : 'Custom validation failed' };
-        } else {
-          const isValid = result === '' || result === true;
-          const error = typeof result === 'string' && result ? result : undefined;
-          onFileValidation?.(file, isValid, error);
-          return { isValid, error };
-        }
-      } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : 'Validation error';
-        onFileValidation?.(file, false, errorMsg);
-        return { isValid: false, error: errorMsg };
+      if (typeof result === 'boolean') {
+        const isValid = result;
+        onFileValidation?.(file, isValid, isValid ? undefined : 'Custom validation failed');
+        return { isValid, error: isValid ? undefined : 'Custom validation failed' };
+      } else {
+        // Corrected line: If the result is a string, it's only valid if it's empty.
+        const isValid = result === ''; 
+        const error = result ? result : undefined;
+        onFileValidation?.(file, isValid, error);
+        return { isValid, error };
       }
-    }, [validateFile, onFileValidation]);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Validation error';
+      onFileValidation?.(file, false, errorMsg);
+      return { isValid: false, error: errorMsg };
+    }
+  }, [validateFile, onFileValidation]);
 
     const processFiles = useCallback((fileList: FileList | File[]): File[] => {
       const files = Array.from(fileList);
