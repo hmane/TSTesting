@@ -517,7 +517,7 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
     }, [maxFiles, multiple, isValidFileType, isValidFileSize, validateCustom, onError]);
 
     // ========================================
-    // OUTLOOK MESSAGE HANDLING
+    // UNIVERSAL DROP HANDLING
     // ========================================
     
     const createOutlookMessageFile = useCallback((messageData: string, format: string): File => {
@@ -532,60 +532,42 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
       });
     }, []);
 
-    const handleOutlookMessageDrop = useCallback(async (dataTransfer: DataTransfer): Promise<File[]> => {
+    const processDroppedData = useCallback(async (dataTransfer: DataTransfer): Promise<File[]> => {
       const files: File[] = [];
 
       try {
-        // Check for Outlook message formats
-        const outlookFormats = [
-          'application/vnd.ms-outlook',
-          'message/rfc822',
-          'text/x-vcard',
-          'application/x-msmediaview'
-        ];
-
-        // Handle DataTransferItems for Outlook messages
-        if (dataTransfer.items) {
+        // Primary: Use modern DataTransferItems API
+        if (dataTransfer.items && dataTransfer.items.length > 0) {
           const items = Array.from(dataTransfer.items);
           
           for (const item of items) {
             try {
-              // Check for Outlook message files directly
+              // Handle file items (regular files, .msg, .eml, attachments)
               if (item.kind === 'file') {
                 const file = item.getAsFile();
                 if (file) {
-                  // Check if it's an Outlook message file
-                  if (outlookFormats.some(format => file.type === format) ||
-                      file.name.toLowerCase().endsWith('.msg') ||
-                      file.name.toLowerCase().endsWith('.eml')) {
-                    files.push(file);
-                  } else {
-                    // Regular file
-                    files.push(file);
-                  }
+                  files.push(file);
                 }
               }
-              // Handle Outlook message content as string
+              // Handle string items (Outlook messages, OneDrive links, etc.)
               else if (item.kind === 'string') {
                 const stringData = await new Promise<string>(resolve => {
                   item.getAsString(resolve);
                 });
                 
                 if (stringData && stringData.trim()) {
-                  // Detect if it's an Outlook message
+                  // Detect Outlook HTML messages
                   if (item.type.includes('html') && 
                       (stringData.includes('x-ms-exchange') || 
                        stringData.includes('outlook') ||
                        stringData.includes('microsoft'))) {
-                    // Create EML file from HTML content
-                    const emlFile = this.createOutlookMessageFile(stringData, 'html');
+                    const emlFile = createOutlookMessageFile(stringData, 'html');
                     files.push(emlFile);
                   }
-                  // Handle plain text Outlook messages
+                  // Detect plain text Outlook messages (email format)
                   else if (item.type === 'text/plain' && 
                            (stringData.includes('From:') && stringData.includes('To:') && stringData.includes('Subject:'))) {
-                    // Create MSG file from plain text
-                    const msgFile = this.createOutlookMessageFile(stringData, 'text');
+                    const msgFile = createOutlookMessageFile(stringData, 'text');
                     files.push(msgFile);
                   }
                   // Handle OneDrive/SharePoint links
@@ -600,49 +582,36 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
                 }
               }
             } catch (itemError) {
-              console.warn('Error processing Outlook drag item:', itemError);
+              console.warn('Error processing drop item:', itemError);
             }
           }
         }
-
-        // Handle regular files from dataTransfer.files
-        if (dataTransfer.files && dataTransfer.files.length > 0) {
-          const regularFiles = Array.from(dataTransfer.files);
-          for (const file of regularFiles) {
-            // Avoid duplicates
-            if (!files.find(f => f.name === file.name && f.size === file.size)) {
-              files.push(file);
-            }
-          }
-        }
-
-        // Fallback: Handle HTML/text data directly for Outlook messages
-        const htmlData = dataTransfer.getData('text/html');
-        const textData = dataTransfer.getData('text/plain');
         
-        if (htmlData && htmlData.trim() && 
-            !files.some(f => f.type === 'message/rfc822')) {
-          // Check if HTML looks like Outlook message
-          if (htmlData.includes('x-ms-exchange') || 
-              htmlData.includes('outlook') ||
-              htmlData.includes('microsoft')) {
-            const emlFile = this.createOutlookMessageFile(htmlData, 'html');
+        // Fallback: Handle legacy browsers or missed data
+        else if (dataTransfer.files && dataTransfer.files.length > 0) {
+          const regularFiles = Array.from(dataTransfer.files);
+          files.push(...regularFiles);
+        }
+        
+        // Minimal fallback for edge cases where items API missed something
+        if (files.length === 0) {
+          const htmlData = dataTransfer.getData('text/html');
+          const textData = dataTransfer.getData('text/plain');
+          
+          if (htmlData && htmlData.trim() && 
+              (htmlData.includes('x-ms-exchange') || htmlData.includes('outlook'))) {
+            const emlFile = createOutlookMessageFile(htmlData, 'html');
             files.push(emlFile);
           }
-        }
-        
-        if (textData && textData.trim() && 
-            !files.some(f => f.type === 'application/vnd.ms-outlook') &&
-            !textData.startsWith('http')) {
-          // Check if text looks like email format
-          if (textData.includes('From:') && textData.includes('To:') && textData.includes('Subject:')) {
-            const msgFile = this.createOutlookMessageFile(textData, 'text');
+          else if (textData && textData.trim() && 
+                   textData.includes('From:') && textData.includes('Subject:')) {
+            const msgFile = createOutlookMessageFile(textData, 'text');
             files.push(msgFile);
           }
         }
 
       } catch (error) {
-        console.error('Error processing Outlook drag data:', error);
+        console.error('Error processing drop data:', error);
       }
 
       return files;
@@ -761,8 +730,8 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
       if (disabled) return;
 
       try {
-        // Use enhanced Outlook message handling
-        const droppedFiles = await handleOutlookMessageDrop(e.dataTransfer);
+        // Use enhanced universal drop processing
+        const droppedFiles = await processDroppedData(e.dataTransfer);
         
         if (droppedFiles.length === 0) {
           onError?.('No valid files were dropped');
@@ -780,7 +749,7 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
       } finally {
         setIsProcessing(false);
       }
-    }, [disabled, handleOutlookMessageDrop, processFiles, handleValidFiles, onError]);
+    }, [disabled, processDroppedData, processFiles, handleValidFiles, onError]);
 
     // ========================================
     // FILE INPUT HANDLERS
