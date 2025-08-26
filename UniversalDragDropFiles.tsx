@@ -1,11 +1,13 @@
-import React, { useState, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { makeStyles, shorthands } from '@fluentui/react-components';
+import React, { useState, useRef, useCallback, forwardRef, useImperativeHandle, useEffect } from 'react';
+import { makeStyles, shorthands, Spinner } from '@fluentui/react-components';
 import { DocumentRegular, DismissRegular } from '@fluentui/react-icons';
 import { tokens } from '@fluentui/react-theme';
-import { FileTypeIcon, IconType, ApplicationType, ImageSize } from '@pnp/spfx-controls-react/lib/FileTypeIcon';
-import { Spinner } from "@fluentui/react-components";
+import { FileTypeIcon, IconType, ImageSize } from '@pnp/spfx-controls-react/lib/FileTypeIcon';
 
-// Interfaces
+// ========================================
+// INTERFACES
+// ========================================
+
 interface IUniversalDragDropFilesProps {
   // Core functionality
   onDrop: (files: File[]) => void;
@@ -59,7 +61,10 @@ interface IFileValidationResult {
   error?: string;
 }
 
-// Styles using Fluent UI
+// ========================================
+// STYLES
+// ========================================
+
 const useStyles = makeStyles({
   root: {
     position: 'relative',
@@ -68,7 +73,7 @@ const useStyles = makeStyles({
   
   dropZone: {
     ...shorthands.border('2px', 'dashed', tokens.colorNeutralStroke2),
-    ...shorthands.borderRadius(tokens.borderRadiusMedium),
+    borderRadius: tokens.borderRadiusMedium,
     ...shorthands.padding('32px', '24px'),
     backgroundColor: tokens.colorNeutralBackground2,
     textAlign: 'center',
@@ -106,7 +111,7 @@ const useStyles = makeStyles({
     ...shorthands.border('2px', 'solid', tokens.colorBrandStroke1),
     backgroundColor: tokens.colorBrandBackground2,
     transform: 'scale(1.02)',
-    ...shorthands.borderRadius(tokens.borderRadiusMedium),
+    borderRadius: tokens.borderRadiusMedium,
     boxShadow: `0 4px 16px ${tokens.colorNeutralShadowAmbient}`
   },
   
@@ -122,7 +127,7 @@ const useStyles = makeStyles({
   
   wrappedContentActive: {
     boxShadow: `0 0 0 2px ${tokens.colorBrandStroke1}`,
-    ...shorthands.borderRadius(tokens.borderRadiusMedium),
+    borderRadius: tokens.borderRadiusMedium,
     backgroundColor: `${tokens.colorBrandBackground2}10`,
   },
   
@@ -134,7 +139,7 @@ const useStyles = makeStyles({
     bottom: '0',
     backgroundColor: `${tokens.colorBrandBackground2}20`,
     ...shorthands.border('2px', 'dashed', tokens.colorBrandStroke1),
-    ...shorthands.borderRadius(tokens.borderRadiusMedium),
+    borderRadius: tokens.borderRadiusMedium,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -146,10 +151,10 @@ const useStyles = makeStyles({
   overlayContent: {
     backgroundColor: tokens.colorNeutralBackground1,
     ...shorthands.padding('24px', '32px'),
-    ...shorthands.borderRadius(tokens.borderRadiusMedium),
+    borderRadius: tokens.borderRadiusMedium,
     textAlign: 'center',
     boxShadow: tokens.shadow16,
-    ...shorthands.border('1px', 'solid', tokens.colorNeutralStroke2),
+    border: `1px solid ${tokens.colorNeutralStroke2}`,
     fontFamily: tokens.fontFamilyBase,
   },
   
@@ -177,8 +182,8 @@ const useStyles = makeStyles({
     ...shorthands.padding('8px', '16px'),
     backgroundColor: tokens.colorBrandBackground,
     color: tokens.colorNeutralForegroundOnBrand,
-    ...shorthands.border('none'),
-    ...shorthands.borderRadius(tokens.borderRadiusMedium),
+    border: 'none',
+    borderRadius: tokens.borderRadiusMedium,
     fontSize: tokens.fontSizeBase200,
     fontWeight: tokens.fontWeightSemibold,
     cursor: 'pointer',
@@ -204,7 +209,7 @@ const useStyles = makeStyles({
     zIndex: '1001',
     pointerEvents: 'none',
     backgroundColor: `${tokens.colorNeutralBackground1}e6`,
-    ...shorthands.borderRadius('50%'),
+    borderRadius: '50%',
     width: '48px',
     height: '48px',
     display: 'flex',
@@ -217,8 +222,8 @@ const useStyles = makeStyles({
     marginTop: tokens.spacingVerticalM,
     ...shorthands.padding(tokens.spacingVerticalM),
     backgroundColor: tokens.colorNeutralBackground2,
-    ...shorthands.border('1px', 'solid', tokens.colorNeutralStroke2),
-    ...shorthands.borderRadius(tokens.borderRadiusMedium),
+    border: `1px solid ${tokens.colorNeutralStroke2}`,
+    borderRadius: tokens.borderRadiusMedium,
     fontFamily: tokens.fontFamilyBase,
   },
   
@@ -239,8 +244,8 @@ const useStyles = makeStyles({
     ...shorthands.padding('6px', '12px'),
     backgroundColor: 'transparent',
     color: tokens.colorBrandForeground1,
-    ...shorthands.border('1px', 'solid', tokens.colorBrandStroke1),
-    ...shorthands.borderRadius(tokens.borderRadiusMedium),
+    border: `1px solid ${tokens.colorBrandStroke1}`,
+    borderRadius: tokens.borderRadiusMedium,
     fontSize: tokens.fontSizeBase200,
     fontWeight: tokens.fontWeightSemibold,
     cursor: 'pointer',
@@ -260,8 +265,8 @@ const useStyles = makeStyles({
     ...shorthands.padding('12px'),
     ...shorthands.margin('4px', '0'),
     backgroundColor: tokens.colorNeutralBackground1,
-    ...shorthands.border('1px', 'solid', tokens.colorNeutralStroke2),
-    ...shorthands.borderRadius(tokens.borderRadiusMedium),
+    border: `1px solid ${tokens.colorNeutralStroke2}`,
+    borderRadius: tokens.borderRadiusMedium,
     transition: 'all 0.2s cubic-bezier(0.4, 0, 0.23, 1)',
     
     '&:hover': {
@@ -313,8 +318,8 @@ const useStyles = makeStyles({
     ...shorthands.padding('6px'),
     backgroundColor: 'transparent',
     color: tokens.colorNeutralForeground2,
-    ...shorthands.border('none'),
-    ...shorthands.borderRadius(tokens.borderRadiusMedium),
+    border: 'none',
+    borderRadius: tokens.borderRadiusMedium,
     cursor: 'pointer',
     fontSize: '16px',
     transition: 'all 0.2s cubic-bezier(0.4, 0, 0.23, 1)',
@@ -324,22 +329,16 @@ const useStyles = makeStyles({
       backgroundColor: tokens.colorPaletteRedBackground1,
       color: tokens.colorPaletteRedForeground1,
     }
-  },
-  
-  spinAnimation: {
-    animationName: {
-      from: { transform: 'rotate(0deg)' },
-      to: { transform: 'rotate(360deg)' }
-    },
-    animationDuration: '1s',
-    animationIterationCount: 'infinite',
-    animationTimingFunction: 'linear'
   }
 });
 
-// Main Component
+// ========================================
+// MAIN COMPONENT
+// ========================================
+
 const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversalDragDropFilesProps>(
   (props, ref) => {
+    // Props destructuring
     const {
       onDrop,
       onError,
@@ -371,19 +370,28 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
 
     const styles = useStyles();
     
-    // State
+    // ========================================
+    // STATE
+    // ========================================
+    
     const [isDragOver, setIsDragOver] = useState(false);
     const [isDragActive, setIsDragActive] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
     const [draggedItemsCount, setDraggedItemsCount] = useState(0);
     const [droppedFiles, setDroppedFiles] = useState<File[]>([]);
     
-    // Refs
+    // ========================================
+    // REFS
+    // ========================================
+    
     const fileInputRef = useRef<HTMLInputElement>(null);
     const dragCounterRef = useRef(0);
     const dragLeaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // Expose public methods
+    // ========================================
+    // PUBLIC METHODS (REF)
+    // ========================================
+    
     useImperativeHandle(ref, () => ({
       clearDroppedFiles: () => {
         setDroppedFiles([]);
@@ -391,18 +399,10 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
       }
     }));
 
-    // Clear dropped files
-    const clearDroppedFiles = useCallback(() => {
-      setDroppedFiles([]);
-      onFilesCleared?.();
-    }, [onFilesCleared]);
-
-    // Remove individual file
-    const removeFile = useCallback((indexToRemove: number) => {
-      setDroppedFiles(prev => prev.filter((_, index) => index !== indexToRemove));
-    }, []);
-
-    // Enhanced file type validation
+    // ========================================
+    // FILE VALIDATION FUNCTIONS
+    // ========================================
+    
     const isValidFileType = useCallback((file: File): boolean => {
       if (!accept || accept.length === 0) return true;
       
@@ -425,7 +425,6 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
       });
     }, [accept]);
 
-    // Enhanced file size validation
     const isValidFileSize = useCallback((file: File): IFileValidationResult => {
       if (minFileSize && file.size < minFileSize) {
         const minSizeMB = Math.round(minFileSize / 1024 / 1024 * 100) / 100;
@@ -440,7 +439,6 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
       return { isValid: true };
     }, [maxFileSize, minFileSize]);
 
-    // Custom file validation
     const validateCustom = useCallback((file: File): IFileValidationResult => {
       if (!validateFile) return { isValid: true };
       
@@ -452,7 +450,7 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
           onFileValidation?.(file, isValid, isValid ? undefined : 'Custom validation failed');
           return { isValid, error: isValid ? undefined : 'Custom validation failed' };
         } else {
-          const isValid = result === true || result === '';
+          const isValid = result === '' || result === true;
           const error = typeof result === 'string' && result ? result : undefined;
           onFileValidation?.(file, isValid, error);
           return { isValid, error };
@@ -464,7 +462,6 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
       }
     }, [validateFile, onFileValidation]);
 
-    // Process and validate files
     const processFiles = useCallback((fileList: FileList | File[]): File[] => {
       const files = Array.from(fileList);
       const validFiles: File[] = [];
@@ -519,7 +516,142 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
       return validFiles;
     }, [maxFiles, multiple, isValidFileType, isValidFileSize, validateCustom, onError]);
 
-    // Handle valid files and manage state
+    // ========================================
+    // OUTLOOK MESSAGE HANDLING
+    // ========================================
+    
+    const createOutlookMessageFile = useCallback((messageData: string, format: string): File => {
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const extension = format === 'html' ? 'eml' : 'msg';
+      const filename = `outlook-message-${timestamp}.${extension}`;
+      const mimeType = format === 'html' ? 'message/rfc822' : 'application/vnd.ms-outlook';
+      
+      return new File([messageData], filename, {
+        type: mimeType,
+        lastModified: Date.now()
+      });
+    }, []);
+
+    const handleOutlookMessageDrop = useCallback(async (dataTransfer: DataTransfer): Promise<File[]> => {
+      const files: File[] = [];
+
+      try {
+        // Check for Outlook message formats
+        const outlookFormats = [
+          'application/vnd.ms-outlook',
+          'message/rfc822',
+          'text/x-vcard',
+          'application/x-msmediaview'
+        ];
+
+        // Handle DataTransferItems for Outlook messages
+        if (dataTransfer.items) {
+          const items = Array.from(dataTransfer.items);
+          
+          for (const item of items) {
+            try {
+              // Check for Outlook message files directly
+              if (item.kind === 'file') {
+                const file = item.getAsFile();
+                if (file) {
+                  // Check if it's an Outlook message file
+                  if (outlookFormats.some(format => file.type === format) ||
+                      file.name.toLowerCase().endsWith('.msg') ||
+                      file.name.toLowerCase().endsWith('.eml')) {
+                    files.push(file);
+                  } else {
+                    // Regular file
+                    files.push(file);
+                  }
+                }
+              }
+              // Handle Outlook message content as string
+              else if (item.kind === 'string') {
+                const stringData = await new Promise<string>(resolve => {
+                  item.getAsString(resolve);
+                });
+                
+                if (stringData && stringData.trim()) {
+                  // Detect if it's an Outlook message
+                  if (item.type.includes('html') && 
+                      (stringData.includes('x-ms-exchange') || 
+                       stringData.includes('outlook') ||
+                       stringData.includes('microsoft'))) {
+                    // Create EML file from HTML content
+                    const emlFile = this.createOutlookMessageFile(stringData, 'html');
+                    files.push(emlFile);
+                  }
+                  // Handle plain text Outlook messages
+                  else if (item.type === 'text/plain' && 
+                           (stringData.includes('From:') && stringData.includes('To:') && stringData.includes('Subject:'))) {
+                    // Create MSG file from plain text
+                    const msgFile = this.createOutlookMessageFile(stringData, 'text');
+                    files.push(msgFile);
+                  }
+                  // Handle OneDrive/SharePoint links
+                  else if (item.type.includes('text/uri-list') && 
+                           (stringData.includes('sharepoint.com') || stringData.includes('onedrive'))) {
+                    const urlFile = new File([stringData], 'onedrive-link.url', {
+                      type: 'text/uri-list',
+                      lastModified: Date.now()
+                    });
+                    files.push(urlFile);
+                  }
+                }
+              }
+            } catch (itemError) {
+              console.warn('Error processing Outlook drag item:', itemError);
+            }
+          }
+        }
+
+        // Handle regular files from dataTransfer.files
+        if (dataTransfer.files && dataTransfer.files.length > 0) {
+          const regularFiles = Array.from(dataTransfer.files);
+          for (const file of regularFiles) {
+            // Avoid duplicates
+            if (!files.find(f => f.name === file.name && f.size === file.size)) {
+              files.push(file);
+            }
+          }
+        }
+
+        // Fallback: Handle HTML/text data directly for Outlook messages
+        const htmlData = dataTransfer.getData('text/html');
+        const textData = dataTransfer.getData('text/plain');
+        
+        if (htmlData && htmlData.trim() && 
+            !files.some(f => f.type === 'message/rfc822')) {
+          // Check if HTML looks like Outlook message
+          if (htmlData.includes('x-ms-exchange') || 
+              htmlData.includes('outlook') ||
+              htmlData.includes('microsoft')) {
+            const emlFile = this.createOutlookMessageFile(htmlData, 'html');
+            files.push(emlFile);
+          }
+        }
+        
+        if (textData && textData.trim() && 
+            !files.some(f => f.type === 'application/vnd.ms-outlook') &&
+            !textData.startsWith('http')) {
+          // Check if text looks like email format
+          if (textData.includes('From:') && textData.includes('To:') && textData.includes('Subject:')) {
+            const msgFile = this.createOutlookMessageFile(textData, 'text');
+            files.push(msgFile);
+          }
+        }
+
+      } catch (error) {
+        console.error('Error processing Outlook drag data:', error);
+      }
+
+      return files;
+    }, [createOutlookMessageFile]);
+
+    // ========================================
+    // FILE MANAGEMENT FUNCTIONS
+    // ========================================
+    
     const handleValidFiles = useCallback((files: File[]) => {
       // Always call onDrop to give files to parent
       onDrop(files);
@@ -533,79 +665,19 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
       }
     }, [onDrop, showDroppedFiles, clearFilesOnNewDrop]);
 
-    // Enhanced drag-drop handling for multiple sources
-    const handleUniversalDragDrop = useCallback(async (dataTransfer: DataTransfer): Promise<File[]> => {
-      const files: File[] = [];
+    const clearDroppedFiles = useCallback(() => {
+      setDroppedFiles([]);
+      onFilesCleared?.();
+    }, [onFilesCleared]);
 
-      try {
-        // Handle regular files first (File Explorer, desktop files)
-        if (dataTransfer.files && dataTransfer.files.length > 0) {
-          files.push(...Array.from(dataTransfer.files));
-        }
-
-        // Handle drag from OneDrive/SharePoint (special handling)
-        if (dataTransfer.items) {
-          for (const item of Array.from(dataTransfer.items)) {
-            if (item.kind === 'string' && item.type.includes('text/uri-list')) {
-              const url = await new Promise<string>(resolve => item.getAsString(resolve));
-              if (url && (url.includes('sharepoint.com') || url.includes('onedrive'))) {
-                // Create a URL file for OneDrive links
-                const urlFile = new File([url], 'onedrive-link.url', {
-                  type: 'text/uri-list',
-                  lastModified: Date.now()
-                });
-                files.push(urlFile);
-              }
-            }
-          }
-        }
-
-        // Handle Outlook and other application drag-drop (files only)
-        if (dataTransfer.items) {
-          const items = Array.from(dataTransfer.items);
-          
-          for (const item of items) {
-            try {
-              if (item.kind === 'file' && !files.find(f => f.name === item.getAsFile()?.name)) {
-                const file = item.getAsFile();
-                if (file) {
-                  files.push(file);
-                }
-              }
-            } catch (itemError) {
-              console.warn('Error processing drag item:', itemError);
-            }
-          }
-        }
-
-      } catch (error) {
-        console.error('Error processing drag data:', error);
-      }
-
-      return files;
+    const removeFile = useCallback((indexToRemove: number) => {
+      setDroppedFiles(prev => prev.filter((_, index) => index !== indexToRemove));
     }, []);
 
-    // Handle paste events (files only, no text)
-    const handlePaste = useCallback((e: ClipboardEvent) => {
-      const clipboardData = e.clipboardData;
-      if (!clipboardData) return;
-
-      // Only handle files from clipboard, ignore text
-      if (clipboardData.files && clipboardData.files.length > 0) {
-        const files = processFiles(Array.from(clipboardData.files));
-        if (files.length > 0) {
-          handleValidFiles(files);
-        }
-      }
-    }, [processFiles, handleValidFiles]);
-
-    // Add paste event listener
-    React.useEffect(() => {
-      document.addEventListener('paste', handlePaste);
-      return () => document.removeEventListener('paste', handlePaste);
-    }, [handlePaste]);
-
-    // Drag event handlers
+    // ========================================
+    // DRAG & DROP EVENT HANDLERS
+    // ========================================
+    
     const handleDragEnter = useCallback((e: React.DragEvent<HTMLDivElement>) => {
       e.preventDefault();
       e.stopPropagation();
@@ -623,7 +695,9 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
       // Check if we have draggable items
       const hasItems = (e.dataTransfer.items && e.dataTransfer.items.length > 0) ||
                        (e.dataTransfer.files && e.dataTransfer.files.length > 0) ||
-                       e.dataTransfer.types.includes('Files');
+                       e.dataTransfer.types.includes('Files') ||
+                       e.dataTransfer.types.includes('text/html') ||
+                       e.dataTransfer.types.includes('text/plain');
       
       if (hasItems) {
         const itemCount = e.dataTransfer.items ? e.dataTransfer.items.length : 
@@ -687,7 +761,8 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
       if (disabled) return;
 
       try {
-        const droppedFiles = await handleUniversalDragDrop(e.dataTransfer);
+        // Use enhanced Outlook message handling
+        const droppedFiles = await handleOutlookMessageDrop(e.dataTransfer);
         
         if (droppedFiles.length === 0) {
           onError?.('No valid files were dropped');
@@ -705,9 +780,12 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
       } finally {
         setIsProcessing(false);
       }
-    }, [disabled, handleUniversalDragDrop, processFiles, handleValidFiles, onError]);
+    }, [disabled, handleOutlookMessageDrop, processFiles, handleValidFiles, onError]);
 
-    // Click to browse files
+    // ========================================
+    // FILE INPUT HANDLERS
+    // ========================================
+    
     const handleClick = useCallback(() => {
       if (!disabled && fileInputRef.current) {
         fileInputRef.current.click();
@@ -725,16 +803,32 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
       }
     }, [processFiles, handleValidFiles]);
 
-    // Format file size for display
-    const formatFileSize = useCallback((bytes: number): string => {
-      if (bytes === 0) return '0 Bytes';
-      const k = 1024;
-      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-      const i = Math.floor(Math.log(bytes) / Math.log(k));
-      return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-    }, []);
+    // ========================================
+    // PASTE EVENT HANDLER
+    // ========================================
+    
+    const handlePaste = useCallback((e: ClipboardEvent) => {
+      const clipboardData = e.clipboardData;
+      if (!clipboardData) return;
 
-    // Get file icon using PnP FileTypeIcon - it auto-detects from filename
+      // Only handle files from clipboard, ignore text
+      if (clipboardData.files && clipboardData.files.length > 0) {
+        const files = processFiles(Array.from(clipboardData.files));
+        if (files.length > 0) {
+          handleValidFiles(files);
+        }
+      }
+    }, [processFiles, handleValidFiles]);
+
+    useEffect(() => {
+      document.addEventListener('paste', handlePaste);
+      return () => document.removeEventListener('paste', handlePaste);
+    }, [handlePaste]);
+
+    // ========================================
+    // UTILITY FUNCTIONS
+    // ========================================
+    
     const getFileTypeIcon = useCallback((file: File, size: ImageSize = ImageSize.small) => {
       // Create a dummy path with the actual filename for FileTypeIcon to work with
       const dummyPath = `https://contoso.sharepoint.com/documents/${file.name}`;
@@ -748,22 +842,48 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
       );
     }, []);
 
-    // Build CSS classes
-    const cssClasses = [
-      styles.root,
-      className,
-      children ? styles.wrappedContent : styles.dropZone,
-      disabled && styles.dropZoneDisabled,
-      isDragActive && (children ? styles.wrappedContentActive : styles.dropZoneActive),
-      isDragOver && !children && styles.dropZoneDragOver
-    ].filter(Boolean).join(' ');
+    const formatFileSize = useCallback((bytes: number): string => {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    }, []);
 
-    // Build accept attribute for file input
-    const acceptAttribute = accept && accept.length > 0 ? accept.join(',') : undefined;
-    const displayFiles = maxDisplayFiles ? droppedFiles.slice(0, maxDisplayFiles) : droppedFiles;
+    // ========================================
+    // RENDER HELPERS
+    // ========================================
+    
+    const buildCssClasses = useCallback(() => {
+      return [
+        styles.root,
+        className,
+        children ? styles.wrappedContent : styles.dropZone,
+        disabled && styles.dropZoneDisabled,
+        isDragActive && (children ? styles.wrappedContentActive : styles.dropZoneActive),
+        isDragOver && !children && styles.dropZoneDragOver
+      ].filter(Boolean).join(' ');
+    }, [styles, className, children, disabled, isDragActive, isDragOver]);
+
+    const getAcceptAttribute = useCallback(() => {
+      return accept && accept.length > 0 ? accept.join(',') : undefined;
+    }, [accept]);
+
+    const getDisplayFiles = useCallback(() => {
+      return maxDisplayFiles ? droppedFiles.slice(0, maxDisplayFiles) : droppedFiles;
+    }, [maxDisplayFiles, droppedFiles]);
+
+    // ========================================
+    // RENDER COMPONENT
+    // ========================================
+    
+    const cssClasses = buildCssClasses();
+    const acceptAttribute = getAcceptAttribute();
+    const displayFiles = getDisplayFiles();
 
     return (
       <div className={styles.root}>
+        {/* Main Drop Zone */}
         <div
           className={cssClasses}
           style={style}
@@ -775,10 +895,10 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
           role={children ? undefined : "button"}
           tabIndex={children ? undefined : (disabled ? -1 : 0)}
           aria-disabled={disabled}
-          aria-label="Universal drag and drop zone for files from any source"
-          title="Drop files from File Explorer, Outlook, OneDrive, or any application"
+          aria-label="Universal drag and drop zone for files and Outlook messages"
+          title="Drop files, Outlook messages, or drag from File Explorer, OneDrive"
         >
-          {/* Hidden file input */}
+          {/* Hidden File Input */}
           <input
             ref={fileInputRef}
             type="file"
@@ -789,12 +909,13 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
             disabled={disabled}
           />
           
-          {/* Content */}
+          {/* Content Rendering */}
           {children ? (
             <>
+              {/* User provided children */}
               {children}
               
-              {/* Drag feedback overlay for wrapped content */}
+              {/* Drag Overlay for Wrapped Content */}
               {showOverlay && (isDragActive || isDragOver) && (
                 <div className={styles.overlay} style={overlayStyle}>
                   <div className={styles.overlayContent}>
@@ -813,7 +934,7 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
                 </div>
               )}
               
-              {/* Browse button for wrapped content */}
+              {/* Browse Button for Wrapped Content */}
               {showBrowseButton && !disabled && (
                 <button
                   type="button"
@@ -827,49 +948,48 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
               )}
             </>
           ) : (
-            // Default standalone content (only if no children)
-            !children && (
-              <>
-                <div style={{ 
-                  fontSize: tokens.fontSizeBase500, 
-                  fontWeight: tokens.fontWeightSemibold,
-                  marginBottom: tokens.spacingVerticalXS, 
-                  color: tokens.colorNeutralForeground1,
-                }}>
-                  {isProcessing ? 'Processing files...' : 
-                   isDragActive ? 'Drop files now!' : 
-                   'Drop files here'}
-                </div>
+            /* Default Standalone Content */
+            <>
+              <DocumentRegular style={{ fontSize: '48px', opacity: 0.7 }} />
+              <div style={{ 
+                fontSize: tokens.fontSizeBase500, 
+                fontWeight: tokens.fontWeightSemibold,
+                marginBottom: tokens.spacingVerticalXS, 
+                color: tokens.colorNeutralForeground1,
+              }}>
+                {isProcessing ? 'Processing files...' : 
+                 isDragActive ? 'Drop files now!' : 
+                 'Drop files here'}
+              </div>
+              <div style={{ 
+                fontSize: tokens.fontSizeBase200, 
+                color: tokens.colorNeutralForeground2, 
+                marginBottom: tokens.spacingVerticalXS,
+              }}>
+                Files, Outlook messages, OneDrive & more
+              </div>
+              {draggedItemsCount > 0 && (
                 <div style={{ 
                   fontSize: tokens.fontSizeBase200, 
-                  color: tokens.colorNeutralForeground2, 
-                  marginBottom: tokens.spacingVerticalXS,
+                  color: tokens.colorBrandForeground1, 
+                  fontWeight: tokens.fontWeightSemibold,
                 }}>
-                  Supports File Explorer, Outlook, OneDrive & more
+                  {draggedItemsCount} item{draggedItemsCount > 1 ? 's' : ''} ready
                 </div>
-                {draggedItemsCount > 0 && (
-                  <div style={{ 
-                    fontSize: tokens.fontSizeBase200, 
-                    color: tokens.colorBrandForeground1, 
-                    fontWeight: tokens.fontWeightSemibold,
-                  }}>
-                    {draggedItemsCount} item{draggedItemsCount > 1 ? 's' : ''} ready
-                  </div>
-                )}
-                {!isProcessing && (
-                  <div style={{ 
-                    fontSize: tokens.fontSizeBase100, 
-                    color: tokens.colorNeutralForeground3, 
-                    marginTop: tokens.spacingVerticalXS,
-                  }}>
-                    or click to browse
-                  </div>
-                )}
-              </>
-            )
+              )}
+              {!isProcessing && (
+                <div style={{ 
+                  fontSize: tokens.fontSizeBase100, 
+                  color: tokens.colorNeutralForeground3, 
+                  marginTop: tokens.spacingVerticalXS,
+                }}>
+                  or click to browse
+                </div>
+              )}
+            </>
           )}
           
-          {/* Processing indicator */}
+          {/* Processing Indicator */}
           {isProcessing && (
             <div className={styles.processingIndicator}>
               <Spinner size="medium" />
@@ -880,7 +1000,7 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
         {/* Dropped Files List */}
         {showDroppedFiles && droppedFiles.length > 0 && (
           <div className={styles.fileList} style={fileListStyle}>
-            {/* Header with clear button */}
+            {/* File List Header */}
             <div className={styles.fileListHeader}>
               <div className={styles.fileListTitle}>
                 Files ({droppedFiles.length})
@@ -895,7 +1015,7 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
               </button>
             </div>
 
-            {/* File items */}
+            {/* File Items */}
             <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
               {displayFiles.map((file, index) => (
                 <div
@@ -927,7 +1047,7 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
               ))}
             </div>
 
-            {/* Show more indicator */}
+            {/* Show More Indicator */}
             {maxDisplayFiles && droppedFiles.length > maxDisplayFiles && (
               <div style={{
                 textAlign: 'center',
