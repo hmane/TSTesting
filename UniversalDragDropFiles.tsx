@@ -667,7 +667,7 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
       }
     }, [disabled]);
 
-    const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    const handleDrop = useCallback(async (e: React.DragEvent<HTMLDivElement>) => {
       e.preventDefault();
       e.stopPropagation();
       
@@ -683,119 +683,87 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
       try {
         // Check if we have permission to access the dragged data
         if (!e.dataTransfer) {
-          onError?.('No data transfer object available');
-          return;
+          throw new Error('No data transfer object available');
         }
 
-        console.log('🎯 Drop data:', {
-          types: Array.from(e.dataTransfer.types),
-          filesLength: e.dataTransfer.files?.length,
-          itemsLength: e.dataTransfer.items?.length,
-          effectAllowed: e.dataTransfer.effectAllowed,
-          dropEffect: e.dataTransfer.dropEffect
-        });
-
-        // Enhanced security handling - try multiple approaches
-        let files: File[] = [];
-        let processingError: string | null = null;
-
-        // Approach 1: Try direct file access first (most reliable)
-        try {
-          if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-            console.log('✅ Direct file access successful');
-            files = Array.from(e.dataTransfer.files);
-          }
-        } catch (fileAccessError) {
-          console.warn('❌ Direct file access failed:', fileAccessError);
-          processingError = 'Could not access files directly due to browser security restrictions.';
-        }
-
-        // Approach 2: If no direct files, try data transfer items
-        if (files.length === 0 && e.dataTransfer.items && e.dataTransfer.items.length > 0) {
-          console.log('🔄 Trying data transfer items...');
+        // Set a maximum processing time to prevent indefinite hanging
+        const processingPromise = new Promise<File[]>(async (resolve, reject) => {
           try {
-            const items = Array.from(e.dataTransfer.items);
-            for (const item of items) {
-              if (item.kind === 'file') {
-                const file = item.getAsFile();
-                if (file) {
-                  files.push(file);
+            let droppedItems: File[] = [];
+            
+            // First, try to get files directly (works for file system drops)
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+              droppedItems = Array.from(e.dataTransfer.files);
+            } else if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+              // Process data transfer items for email attachments
+              const items = Array.from(e.dataTransfer.items);
+              for (const item of items) {
+                if (item.kind === 'file') {
+                  const file = item.getAsFile();
+                  if (file) droppedItems.push(file);
                 }
               }
             }
-            if (files.length > 0) {
-              console.log('✅ Data transfer items successful');
-            }
-          } catch (itemsError) {
-            console.warn('❌ Data transfer items failed:', itemsError);
-            processingError = 'Could not process dragged items due to browser security restrictions.';
+            
+            resolve(droppedItems);
+          } catch (error) {
+            reject(error);
           }
-        }
+        });
 
-        // Check for unsupported content if we have no files
-        if (files.length === 0) {
+        // Add timeout to prevent hanging indefinitely
+        const timeoutPromise = new Promise<File[]>((_, reject) => {
+          setTimeout(() => {
+            reject(new Error('Processing timeout - operation took too long'));
+          }, 5000); // 5 second timeout
+        });
+
+        const droppedItems = await Promise.race([processingPromise, timeoutPromise]);
+        
+        // Check for unsupported content if no files found
+        if (droppedItems.length === 0) {
           const unsupportedMessage = detectUnsupportedContent(e.dataTransfer);
           if (unsupportedMessage) {
             onError?.(unsupportedMessage);
             return;
-          }
-          
-          // If we have processing errors, show them
-          if (processingError) {
-            // Provide helpful alternatives based on the browser/context
-            const isEdge = navigator.userAgent.includes('Edge');
-            const isChrome = navigator.userAgent.includes('Chrome');
-            const isFirefox = navigator.userAgent.includes('Firefox');
-            
-            let browserSpecificMessage = processingError;
-            
-            if (isEdge || isChrome) {
-              browserSpecificMessage += ' Try using the Browse button instead, or check if your browser has restricted drag and drop for security reasons.';
-            } else if (isFirefox) {
-              browserSpecificMessage += ' Firefox may have additional security restrictions. Try using the Browse button or a different browser.';
-            } else {
-              browserSpecificMessage += ' Please try using the Browse button to select files instead.';
-            }
-            
-            onError?.(browserSpecificMessage);
+          } else {
+            onError?.("No valid files could be processed from the drop. Please try using the Browse button to select files.");
             return;
           }
-          
-          // Generic no files message
-          onError?.("No files were found in the drop. Please ensure you're dragging actual files or email attachments.");
-          return;
         }
 
-        // Process the files we successfully obtained
-        console.log('📁 Processing', files.length, 'files...');
-        const validFiles = processFiles(files);
+        const validFiles = processFiles(droppedItems);
         
         if (validFiles.length > 0) {
-          console.log('✅ Valid files:', validFiles.length);
           handleValidFiles(validFiles);
+        } else if (droppedItems.length > 0) {
+          // Files were found but didn't pass validation - error already shown by processFiles
         } else {
-          console.log('❌ No valid files after processing');
+          onError?.("No valid files were found in the drop. Please try using the Browse button to select files.");
         }
         
       } catch (error) {
-        console.error('❌ Drop error:', error);
         const errorMessage = error instanceof Error ? error.message : 'Drop failed';
         
-        // Enhanced error handling with specific messages
-        if (errorMessage.includes('security') || 
+        // Check for timeout errors
+        if (errorMessage.includes('timeout') || errorMessage.includes('Processing timeout')) {
+          onError?.("The drop operation timed out. Please try using the Browse button to select files instead.");
+        }
+        // Check for common security-related errors
+        else if (errorMessage.includes('security') || 
             errorMessage.includes('permission') || 
             errorMessage.includes('access denied') ||
-            errorMessage.includes('not allowed') ||
-            errorMessage.includes('restricted')) {
-          
-          onError?.("For your security, file drag and drop may not be allowed in this browser or context. Please try:\n• Using the Browse button to select files\n• Checking your browser's security settings\n• Using a different browser if the issue persists");
+            errorMessage.includes('not allowed')) {
+          onError?.("For your security, file drag and drop may not be allowed. Please try clicking 'Browse' to select files instead.");
         } else {
-          onError?.(`Drop failed: ${errorMessage}. Please try using the Browse button instead.`);
+          onError?.(`Drop failed: ${errorMessage}`);
         }
+        
+        console.error('Drop error:', error);
       } finally {
         setIsProcessing(false);
       }
-    }, [disabled, detectUnsupportedContent, processFiles, handleValidFiles, onError, resetDragState]);
+    }, [disabled, processFiles, handleValidFiles, onError, resetDragState, detectUnsupportedContent]);
     
     const handleClick = useCallback(() => {
       if (!disabled && fileInputRef.current) {
