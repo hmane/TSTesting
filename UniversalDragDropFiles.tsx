@@ -501,180 +501,65 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
     }, [maxFiles, multiple, isValidFileType, isValidFileSize, validateCustom, onError]);
 
     // ========================================
-    // OUTLOOK MESSAGE DETECTION & UNIVERSAL DROP HANDLING
+    // UNSUPPORTED CONTENT DETECTION & ATTACHMENT HANDLING
     // ========================================
     
-    const isOutlookMessage = useCallback((dataTransfer: DataTransfer): boolean => {
+    const isEmailAttachment = useCallback((dataTransfer: DataTransfer): boolean => {
       const types = Array.from(dataTransfer.types);
       
-      // Check for specific Outlook indicators
-      const hasOutlookFormat = types.some(type => 
+      // Email attachments typically come with Files and specific type indicators
+      const hasFiles = dataTransfer.files && dataTransfer.files.length > 0;
+      const hasFileDescriptor = types.includes('FileGroupDescriptor') || types.includes('FileGroupDescriptorW');
+      const hasFileContents = types.includes('FileContents');
+      
+      // If we have actual files in the dataTransfer.files, it's likely an attachment
+      if (hasFiles && (hasFileDescriptor || hasFileContents)) {
+        return true;
+      }
+      
+      // Additional check: if we have files and it's from Outlook context, it's probably an attachment
+      if (hasFiles && types.some(type => type.includes('application/x-moz-file'))) {
+        return true;
+      }
+      
+      return false;
+    }, []);
+
+    const detectUnsupportedContent = useCallback((dataTransfer: DataTransfer): string | null => {
+      const types = Array.from(dataTransfer.types);
+      
+      // First check if this might be an email attachment (supported)
+      if (isEmailAttachment(dataTransfer)) {
+        return null; // Attachments are supported
+      }
+      
+      // Detect full Outlook messages (not attachments)
+      const hasOutlookMessageIndicators = types.some(type => 
         type.includes('FileContents') ||
         type.includes('FileGroupDescriptor') ||
         type.includes('FileGroupDescriptorW') ||
-        type.includes('application/x-moz-file') ||
-        (type.includes('text/html') && types.includes('text/plain')) || // Outlook typically provides both
         type.includes('CF_HDROP')
-      );
+      ) || (types.includes('text/html') && types.includes('text/plain'));
       
-      // Additional check: if we have both HTML and plain text, it's likely Outlook
-      const hasHtmlAndText = types.includes('text/html') && types.includes('text/plain');
-      
-      return hasOutlookFormat || hasHtmlAndText;
-    }, []);
-
-    const getOutlookItemCount = useCallback((dataTransfer: DataTransfer): number => {
-      // For Outlook messages, we need to detect the actual number of messages
-      // Check FileGroupDescriptor which contains the count of files being dragged
-      const types = Array.from(dataTransfer.types);
-      
-      if (types.includes('FileGroupDescriptor') || types.includes('FileGroupDescriptorW')) {
-        // For Outlook Classic, there's typically one message even if multiple formats exist
-        return 1;
+      // If we have Outlook indicators but no actual files, it's likely a full message
+      if (hasOutlookMessageIndicators && (!dataTransfer.files || dataTransfer.files.length === 0)) {
+        return "Full Outlook messages are not supported. However, you can drag individual attachments from emails, or save the email as a .msg file to your desktop first.";
       }
       
-      // Fallback to checking for distinct content types that represent actual items
-      const itemTypes = types.filter(type => 
-        type === 'text/html' ||
-        type === 'text/plain' ||
-        type === 'Files'
-      );
-      
-      return Math.max(1, itemTypes.length === 0 ? 1 : Math.min(itemTypes.length, 1));
-    }, []);
-    
-    const createOutlookMessageFile = useCallback((messageData: string, format: string): File => {
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const extension = format === 'html' ? 'eml' : 'msg';
-      const filename = `outlook-message-${timestamp}.${extension}`;
-      const mimeType = format === 'html' ? 'message/rfc822' : 'application/vnd.ms-outlook';
-      
-      return new File([messageData], filename, {
-        type: mimeType,
-        lastModified: Date.now()
-      });
-    }, []);
-
-    const processDroppedData = useCallback(async (dataTransfer: DataTransfer): Promise<File[]> => {
-      const files: File[] = [];
-
-      try {
-        // For regular files, use the files property first
-        if (dataTransfer.files && dataTransfer.files.length > 0) {
-          files.push(...Array.from(dataTransfer.files));
-          return files;
-        }
-
-        // For Outlook and other data transfer items
-        if (dataTransfer.items && dataTransfer.items.length > 0) {
-          const items = Array.from(dataTransfer.items);
-          let processedOutlookMessage = false;
-          
-          for (const item of items) {
-            try {
-              if (item.kind === 'file') {
-                const file = item.getAsFile();
-                if (file) files.push(file);
-              } 
-              else if (item.kind === 'string' && !processedOutlookMessage) {
-                // Wrap string data access in try-catch for security restrictions
-                try {
-                  const stringData = await new Promise<string>((resolve, reject) => {
-                    const timeout = setTimeout(() => {
-                      reject(new Error('Timeout accessing string data - may be security restricted'));
-                    }, 2000); // Reduced timeout to 2 seconds for faster feedback
-                    
-                    try {
-                      item.getAsString((data) => {
-                        clearTimeout(timeout);
-                        resolve(data || ''); // Handle null/undefined data
-                      });
-                    } catch (getStringError) {
-                      clearTimeout(timeout);
-                      reject(getStringError);
-                    }
-                  });
-                  
-                  if (stringData && stringData.trim()) {
-                    // Block drops from the "New Outlook" list view
-                    if (stringData.includes('maillistrow')) {
-                      onError?.("Dragging from the 'New Outlook' list is not supported. Please drag the email to your desktop first, then drop the saved .msg file.");
-                      return []; // Stop processing this drop
-                    }
-                    
-                    // Detect FULL HTML emails (from Classic Outlook / Web)
-                    if (item.type.includes('html') && (stringData.includes('x-ms-exchange') || stringData.includes('outlook') || stringData.includes('From:') || stringData.includes('Subject:'))) {
-                      const emlFile = createOutlookMessageFile(stringData, 'html');
-                      files.push(emlFile);
-                      processedOutlookMessage = true; // Prevent duplicate processing
-                    } 
-                    // Detect plain text Outlook messages
-                    else if (item.type === 'text/plain' && (stringData.includes('From:') && stringData.includes('To:'))) {
-                      const msgFile = createOutlookMessageFile(stringData, 'text');
-                      files.push(msgFile);
-                      processedOutlookMessage = true; // Prevent duplicate processing
-                    } 
-                    // Handle OneDrive/SharePoint links
-                    else if (item.type.includes('text/uri-list') && (stringData.includes('sharepoint.com') || stringData.includes('onedrive'))) {
-                      const urlFile = new File([stringData], 'onedrive-link.url', { type: 'text/uri-list', lastModified: Date.now() });
-                      files.push(urlFile);
-                    }
-                  }
-                } catch (stringError) {
-                  // If we can't access string data due to security restrictions, skip it
-                  console.warn('Could not access string data (possibly due to security restrictions):', stringError);
-                  // Don't throw here, just continue with other items
-                }
-              }
-            } catch (itemError) {
-              console.warn('Error processing drop item:', itemError);
-              // Continue processing other items
-            }
-          }
-        }
-
-        // Special handling for Outlook messages that don't provide file data
-        // If we detected Outlook but got no files, create a placeholder message
-        if (files.length === 0 && isOutlookMessage(dataTransfer)) {
-          console.warn('Outlook message detected but no data could be extracted');
-          
-          // Try to get any available text data as fallback
-          const types = Array.from(dataTransfer.types);
-          for (const type of types) {
-            if (type === 'text/plain' || type === 'text/html') {
-              try {
-                const fallbackData = dataTransfer.getData(type);
-                if (fallbackData && fallbackData.trim()) {
-                  const fallbackFile = createOutlookMessageFile(fallbackData, type === 'text/html' ? 'html' : 'text');
-                  files.push(fallbackFile);
-                  break; // Only create one fallback file
-                }
-              } catch (fallbackError) {
-                console.warn('Could not get fallback data for type:', type, fallbackError);
-              }
-            }
-          }
-          
-          // If still no files, inform user about the limitation
-          if (files.length === 0) {
-            onError?.("Outlook message detected but could not be processed due to browser security restrictions. Please try dragging the email to your desktop first, then drop the saved .msg file.");
-            return []; // Return empty array to stop processing
-          }
-        }
-
-      } catch (error) {
-        console.error('Error processing drop data:', error);
-        // Re-throw security-related errors
-        if (error instanceof Error && 
-            (error.message.includes('security') || 
-             error.message.includes('permission') || 
-             error.message.includes('access'))) {
-          throw error;
-        }
+      // Detect text/string only content (no files)
+      if (types.length > 0 && !types.includes('Files') && 
+          (types.includes('text/plain') || types.includes('text/html') || types.includes('text/uri-list')) &&
+          (!dataTransfer.files || dataTransfer.files.length === 0)) {
+        return "Text content and links are not supported. Please drag and drop files or email attachments instead.";
       }
-
-      return files;
-    }, [createOutlookMessageFile, onError, isOutlookMessage]);
+      
+      // Detect virtual files that aren't real files
+      if (types.includes('application/x-moz-file') && (!dataTransfer.files || dataTransfer.files.length === 0)) {
+        return "Virtual files or shortcuts are not supported. Please drag actual files or email attachments from your file system.";
+      }
+      
+      return null;
+    }, [isEmailAttachment]);
 
     // ========================================
     // FILE MANAGEMENT & EVENT HANDLERS
@@ -712,16 +597,10 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
     }, []);
 
     const handleDragEnter = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-      console.log('🟢 DragEnter called', e.dataTransfer.types);
       e.preventDefault();
       e.stopPropagation();
       
       if (disabled) return;
-      
-      // Set effect allowed to enable drop
-      if (e.dataTransfer) {
-        e.dataTransfer.effectAllowed = 'copyMove';
-      }
       
       // Clear any pending drag leave timeout
       if (dragLeaveTimeoutRef.current) {
@@ -730,50 +609,30 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
       }
       
       dragCounterRef.current++;
-      console.log('📊 Drag counter:', dragCounterRef.current);
       
       // Only update state on the first drag enter
       if (dragCounterRef.current === 1) {
-        let itemCount = 0;
-        
-        try {
-          // Special handling for Outlook messages
-          if (isOutlookMessage(e.dataTransfer)) {
-            console.log('📧 Outlook message detected');
-            itemCount = getOutlookItemCount(e.dataTransfer);
-          } else {
-            // For regular files and other items
-            itemCount = e.dataTransfer.files?.length || 
-                       (e.dataTransfer.items ? e.dataTransfer.items.length : 1);
-          }
-          console.log('📄 Item count:', itemCount);
-        } catch (error) {
-          // If we can't determine item count, default to 1
-          console.warn('Could not determine drag item count:', error);
-          itemCount = 1;
-        }
+        const itemCount = e.dataTransfer.files?.length || 
+                         (e.dataTransfer.items ? e.dataTransfer.items.length : 1);
         
         setIsDragOver(true);
         setIsDragActive(true);
         setDraggedItemsCount(itemCount);
         onDragEnter?.();
       }
-    }, [disabled, onDragEnter, isOutlookMessage, getOutlookItemCount]);
+    }, [disabled, onDragEnter]);
 
     const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-      console.log('🔴 DragLeave called');
       e.preventDefault();
       e.stopPropagation();
       
       if (disabled) return;
       
       dragCounterRef.current--;
-      console.log('📊 Drag counter after leave:', dragCounterRef.current);
       
       // Only reset state when all elements have been left
       if (dragCounterRef.current <= 0) {
         dragLeaveTimeoutRef.current = setTimeout(() => {
-          console.log('🔄 Resetting drag state due to leave');
           resetDragState();
           onDragLeave?.();
         }, 50);
@@ -781,7 +640,6 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
     }, [disabled, onDragLeave, resetDragState]);
 
     const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-      console.log('🟡 DragOver called');
       e.preventDefault();
       e.stopPropagation();
       
@@ -790,125 +648,55 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
       // Set the drop effect to indicate what operation is allowed
       if (e.dataTransfer) {
         e.dataTransfer.dropEffect = dropEffect;
-        
-        // For Outlook and other sources, ensure we accept the drop
-        if (e.dataTransfer.effectAllowed === 'none') {
-          e.dataTransfer.effectAllowed = 'copyMove';
-        }
-        
-        // Force copy effect for better compatibility
-        e.dataTransfer.dropEffect = 'copy';
       }
     }, [disabled, dropEffect]);
 
-    const handleDrop = useCallback(async (e: React.DragEvent<HTMLDivElement>) => {
-      console.log('🎯 DROP EVENT CALLED!', e.dataTransfer.types, e.dataTransfer.items?.length, e.dataTransfer.files?.length);
-      
+    const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
       e.preventDefault();
       e.stopPropagation();
       
       if (disabled) {
-        console.log('❌ Drop disabled');
         resetDragState();
         return;
       }
 
       // Immediately reset drag state to prevent UI getting stuck
-      console.log('🔄 Resetting drag state');
       resetDragState();
       setIsProcessing(true);
 
       try {
         // Check if we have permission to access the dragged data
         if (!e.dataTransfer) {
-          throw new Error('No data transfer object available');
+          onError?.('No data transfer object available');
+          return;
         }
 
-        console.log('📦 Processing drop data...');
-        
-        // Set a maximum processing time to prevent indefinite hanging
-        const processingPromise = new Promise<File[]>(async (resolve, reject) => {
-          try {
-            let droppedItems: File[] = [];
-            
-            // First, try to get files directly (works for file system drops)
-            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-              console.log('📁 Found files:', e.dataTransfer.files.length);
-              droppedItems = Array.from(e.dataTransfer.files);
-            } else {
-              console.log('📧 Processing data transfer items...');
-              // Then try to process other data transfer items
-              droppedItems = await processDroppedData(e.dataTransfer);
-            }
-            
-            console.log('✅ Processed items:', droppedItems.length);
-            resolve(droppedItems);
-          } catch (error) {
-            console.error('❌ Error in processing promise:', error);
-            reject(error);
-          }
-        });
-
-        // Add timeout to prevent hanging indefinitely
-        const timeoutPromise = new Promise<File[]>((_, reject) => {
-          setTimeout(() => {
-            console.log('⏰ Processing timeout');
-            reject(new Error('Processing timeout - operation took too long'));
-          }, 8000); // 8 second timeout
-        });
-
-        const droppedItems = await Promise.race([processingPromise, timeoutPromise]);
-        
-        // If processDroppedData handled an error (like New Outlook), it returns [], so we stop.
-        if (droppedItems.length === 0) {
-          console.log('⚠️ No items processed');
-          // Check if this was an Outlook message that couldn't be processed
-          if (isOutlookMessage(e.dataTransfer)) {
-            console.log('📧 Outlook message with no processable data');
-            // Error message should already have been shown by processDroppedData
-            return;
-          } else if ((e.dataTransfer.items?.length || 0) > 0) {
-            onError?.("No valid files could be processed from the drop. Please try using the Browse button to select files.");
-            return;
-          }
+        // Check for unsupported content first
+        const unsupportedMessage = detectUnsupportedContent(e.dataTransfer);
+        if (unsupportedMessage) {
+          onError?.(unsupportedMessage);
+          return;
         }
 
-        console.log('🔍 Validating files...');
-        const validFiles = processFiles(droppedItems);
-        
-        if (validFiles.length > 0) {
-          console.log('✅ Valid files found:', validFiles.length);
-          handleValidFiles(validFiles);
-        } else if (droppedItems.length > 0) {
-          console.log('❌ Files found but validation failed');
-          // Files were found but didn't pass validation - error already shown by processFiles
+        // Process files
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+          const validFiles = processFiles(Array.from(e.dataTransfer.files));
+          
+          if (validFiles.length > 0) {
+            handleValidFiles(validFiles);
+          }
         } else {
-          console.log('❌ No valid files found');
-          onError?.("No valid files were found in the drop. Please try using the Browse button to select files.");
+          onError?.("No files were found in the drop. Please ensure you're dragging actual files.");
         }
         
       } catch (error) {
-        console.error('❌ Drop error:', error);
         const errorMessage = error instanceof Error ? error.message : 'Drop failed';
-        
-        // Check for timeout errors
-        if (errorMessage.includes('timeout') || errorMessage.includes('Processing timeout')) {
-          onError?.("The drop operation timed out. For Outlook messages, please try dragging the email to your desktop first, then drop the saved .msg file.");
-        }
-        // Check for common security-related errors
-        else if (errorMessage.includes('security') || 
-            errorMessage.includes('permission') || 
-            errorMessage.includes('access denied') ||
-            errorMessage.includes('not allowed')) {
-          onError?.("For your security, file drag and drop may not be allowed. Please try clicking 'Browse' to select files instead.");
-        } else {
-          onError?.(`Drop failed: ${errorMessage}`);
-        }
+        onError?.(`Drop failed: ${errorMessage}`);
+        console.error('Drop error:', error);
       } finally {
-        console.log('🏁 Drop processing complete');
         setIsProcessing(false);
       }
-    }, [disabled, processDroppedData, processFiles, handleValidFiles, onError, resetDragState, isOutlookMessage]);
+    }, [disabled, detectUnsupportedContent, processFiles, handleValidFiles, onError, resetDragState]);
     
     const handleClick = useCallback(() => {
       if (!disabled && fileInputRef.current) {
@@ -996,11 +784,8 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
           role={children ? undefined : "button"}
           tabIndex={children ? undefined : (disabled ? -1 : 0)}
           aria-disabled={disabled}
-          aria-label="Universal drag and drop zone for files and Outlook messages"
-          title="Drop files, Outlook messages, or drag from File Explorer, OneDrive"
-          // Additional props to ensure drop events work
-          onDragStart={(e) => { console.log('🚀 DragStart'); e.preventDefault(); }}
-          onDragEnd={(e) => { console.log('🏁 DragEnd'); e.preventDefault(); }}
+          aria-label="Drag and drop zone for files and email attachments"
+          title="Drop files or email attachments here"
         >
           <input
             ref={fileInputRef}
@@ -1019,7 +804,7 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
                 <div className={styles.overlay} style={overlayStyle}>
                   <div className={styles.overlayContent}>
                     <div className={styles.overlayIcon}><DocumentRegular /></div>
-                    <div className={styles.overlayTitle}>{isDragActive ? 'Drop now!' : overlayText}</div>
+                    <div className={styles.overlayTitle}>{isDragActive ? 'Drop files now!' : overlayText}</div>
                     {draggedItemsCount > 0 && <div className={styles.overlaySubtitle}>{draggedItemsCount} item{draggedItemsCount > 1 ? 's' : ''}</div>}
                   </div>
                 </div>
@@ -1035,11 +820,11 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
                 {isProcessing ? 'Processing files...' : isDragActive ? 'Drop files now!' : 'Drop files here'}
               </div>
               <div style={{ fontSize: tokens.fontSizeBase200, color: tokens.colorNeutralForeground2, marginBottom: tokens.spacingVerticalXS }}>
-                Files, Outlook messages, OneDrive & more
+                Drag files or email attachments here
               </div>
               {draggedItemsCount > 0 && (
                 <div style={{ fontSize: tokens.fontSizeBase200, color: tokens.colorBrandForeground1, fontWeight: tokens.fontWeightSemibold }}>
-                  {draggedItemsCount} item{draggedItemsCount > 1 ? 's' : ''} ready
+                  {draggedItemsCount} file{draggedItemsCount > 1 ? 's' : ''} ready
                 </div>
               )}
               {!isProcessing && (
