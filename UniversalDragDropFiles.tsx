@@ -712,6 +712,7 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
     }, []);
 
     const handleDragEnter = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+      console.log('🟢 DragEnter called', e.dataTransfer.types);
       e.preventDefault();
       e.stopPropagation();
       
@@ -729,6 +730,7 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
       }
       
       dragCounterRef.current++;
+      console.log('📊 Drag counter:', dragCounterRef.current);
       
       // Only update state on the first drag enter
       if (dragCounterRef.current === 1) {
@@ -737,12 +739,14 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
         try {
           // Special handling for Outlook messages
           if (isOutlookMessage(e.dataTransfer)) {
+            console.log('📧 Outlook message detected');
             itemCount = getOutlookItemCount(e.dataTransfer);
           } else {
             // For regular files and other items
             itemCount = e.dataTransfer.files?.length || 
                        (e.dataTransfer.items ? e.dataTransfer.items.length : 1);
           }
+          console.log('📄 Item count:', itemCount);
         } catch (error) {
           // If we can't determine item count, default to 1
           console.warn('Could not determine drag item count:', error);
@@ -757,16 +761,19 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
     }, [disabled, onDragEnter, isOutlookMessage, getOutlookItemCount]);
 
     const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+      console.log('🔴 DragLeave called');
       e.preventDefault();
       e.stopPropagation();
       
       if (disabled) return;
       
       dragCounterRef.current--;
+      console.log('📊 Drag counter after leave:', dragCounterRef.current);
       
       // Only reset state when all elements have been left
       if (dragCounterRef.current <= 0) {
         dragLeaveTimeoutRef.current = setTimeout(() => {
+          console.log('🔄 Resetting drag state due to leave');
           resetDragState();
           onDragLeave?.();
         }, 50);
@@ -774,6 +781,7 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
     }, [disabled, onDragLeave, resetDragState]);
 
     const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+      console.log('🟡 DragOver called');
       e.preventDefault();
       e.stopPropagation();
       
@@ -787,19 +795,26 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
         if (e.dataTransfer.effectAllowed === 'none') {
           e.dataTransfer.effectAllowed = 'copyMove';
         }
+        
+        // Force copy effect for better compatibility
+        e.dataTransfer.dropEffect = 'copy';
       }
     }, [disabled, dropEffect]);
 
     const handleDrop = useCallback(async (e: React.DragEvent<HTMLDivElement>) => {
+      console.log('🎯 DROP EVENT CALLED!', e.dataTransfer.types, e.dataTransfer.items?.length, e.dataTransfer.files?.length);
+      
       e.preventDefault();
       e.stopPropagation();
       
       if (disabled) {
+        console.log('❌ Drop disabled');
         resetDragState();
         return;
       }
 
-      // Immediately reset drag state
+      // Immediately reset drag state to prevent UI getting stuck
+      console.log('🔄 Resetting drag state');
       resetDragState();
       setIsProcessing(true);
 
@@ -809,54 +824,79 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
           throw new Error('No data transfer object available');
         }
 
-        // For security restrictions, try to access the data in a safe way
-        let droppedItems: File[] = [];
+        console.log('📦 Processing drop data...');
         
-        // First, try to get files directly (works for file system drops)
-        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-          droppedItems = Array.from(e.dataTransfer.files);
-        } else {
-          // Then try to process other data transfer items
+        // Set a maximum processing time to prevent indefinite hanging
+        const processingPromise = new Promise<File[]>(async (resolve, reject) => {
           try {
-            droppedItems = await processDroppedData(e.dataTransfer);
-          } catch (dataProcessError) {
-            // If data processing fails due to security restrictions
-            console.warn('Data processing restricted:', dataProcessError);
+            let droppedItems: File[] = [];
             
-            // Check if this looks like a security restriction
-            if (dataProcessError instanceof Error && 
-                (dataProcessError.message.includes('security') || 
-                 dataProcessError.message.includes('permission') ||
-                 dataProcessError.message.includes('access'))) {
-              onError?.("For your security, file drag and drop may not be allowed. Please try clicking 'Browse' to select files instead, or check your browser security settings.");
-              return;
+            // First, try to get files directly (works for file system drops)
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+              console.log('📁 Found files:', e.dataTransfer.files.length);
+              droppedItems = Array.from(e.dataTransfer.files);
+            } else {
+              console.log('📧 Processing data transfer items...');
+              // Then try to process other data transfer items
+              droppedItems = await processDroppedData(e.dataTransfer);
             }
             
-            // For other errors, try to provide a helpful message
-            onError?.("Unable to process the dropped items. Please try using the Browse button or check your browser settings.");
+            console.log('✅ Processed items:', droppedItems.length);
+            resolve(droppedItems);
+          } catch (error) {
+            console.error('❌ Error in processing promise:', error);
+            reject(error);
+          }
+        });
+
+        // Add timeout to prevent hanging indefinitely
+        const timeoutPromise = new Promise<File[]>((_, reject) => {
+          setTimeout(() => {
+            console.log('⏰ Processing timeout');
+            reject(new Error('Processing timeout - operation took too long'));
+          }, 8000); // 8 second timeout
+        });
+
+        const droppedItems = await Promise.race([processingPromise, timeoutPromise]);
+        
+        // If processDroppedData handled an error (like New Outlook), it returns [], so we stop.
+        if (droppedItems.length === 0) {
+          console.log('⚠️ No items processed');
+          // Check if this was an Outlook message that couldn't be processed
+          if (isOutlookMessage(e.dataTransfer)) {
+            console.log('📧 Outlook message with no processable data');
+            // Error message should already have been shown by processDroppedData
+            return;
+          } else if ((e.dataTransfer.items?.length || 0) > 0) {
+            onError?.("No valid files could be processed from the drop. Please try using the Browse button to select files.");
             return;
           }
         }
-        
-        // If processDroppedData handled an error (like New Outlook), it returns [], so we stop.
-        if (droppedItems.length === 0 && (e.dataTransfer.items?.length || 0) > 0) {
-          return;
-        }
 
+        console.log('🔍 Validating files...');
         const validFiles = processFiles(droppedItems);
         
         if (validFiles.length > 0) {
+          console.log('✅ Valid files found:', validFiles.length);
           handleValidFiles(validFiles);
-        } else if (droppedItems.length === 0) {
-          // If no items were processed and no specific error was shown
+        } else if (droppedItems.length > 0) {
+          console.log('❌ Files found but validation failed');
+          // Files were found but didn't pass validation - error already shown by processFiles
+        } else {
+          console.log('❌ No valid files found');
           onError?.("No valid files were found in the drop. Please try using the Browse button to select files.");
         }
         
       } catch (error) {
+        console.error('❌ Drop error:', error);
         const errorMessage = error instanceof Error ? error.message : 'Drop failed';
         
+        // Check for timeout errors
+        if (errorMessage.includes('timeout') || errorMessage.includes('Processing timeout')) {
+          onError?.("The drop operation timed out. For Outlook messages, please try dragging the email to your desktop first, then drop the saved .msg file.");
+        }
         // Check for common security-related errors
-        if (errorMessage.includes('security') || 
+        else if (errorMessage.includes('security') || 
             errorMessage.includes('permission') || 
             errorMessage.includes('access denied') ||
             errorMessage.includes('not allowed')) {
@@ -864,12 +904,11 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
         } else {
           onError?.(`Drop failed: ${errorMessage}`);
         }
-        
-        console.error('Drop error:', error);
       } finally {
+        console.log('🏁 Drop processing complete');
         setIsProcessing(false);
       }
-    }, [disabled, processDroppedData, processFiles, handleValidFiles, onError, resetDragState]);
+    }, [disabled, processDroppedData, processFiles, handleValidFiles, onError, resetDragState, isOutlookMessage]);
     
     const handleClick = useCallback(() => {
       if (!disabled && fileInputRef.current) {
@@ -959,6 +998,9 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
           aria-disabled={disabled}
           aria-label="Universal drag and drop zone for files and Outlook messages"
           title="Drop files, Outlook messages, or drag from File Explorer, OneDrive"
+          // Additional props to ensure drop events work
+          onDragStart={(e) => { console.log('🚀 DragStart'); e.preventDefault(); }}
+          onDragEnd={(e) => { console.log('🏁 DragEnd'); e.preventDefault(); }}
         >
           <input
             ref={fileInputRef}
