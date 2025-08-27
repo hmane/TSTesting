@@ -371,7 +371,7 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
     const styles = useStyles();
     
     // ========================================
-    // STATE
+    // STATE & REFS
     // ========================================
     
     const [isDragOver, setIsDragOver] = useState(false);
@@ -379,10 +379,6 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
     const [isProcessing, setIsProcessing] = useState(false);
     const [draggedItemsCount, setDraggedItemsCount] = useState(0);
     const [droppedFiles, setDroppedFiles] = useState<File[]>([]);
-    
-    // ========================================
-    // REFS
-    // ========================================
     
     const fileInputRef = useRef<HTMLInputElement>(null);
     const dragCounterRef = useRef(0);
@@ -440,86 +436,107 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
     }, [maxFileSize, minFileSize]);
 
     const validateCustom = useCallback((file: File): IFileValidationResult => {
-    if (!validateFile) return { isValid: true };
-    
-    try {
-      const result = validateFile(file);
+      if (!validateFile) return { isValid: true };
       
-      if (typeof result === 'boolean') {
-        const isValid = result;
-        onFileValidation?.(file, isValid, isValid ? undefined : 'Custom validation failed');
-        return { isValid, error: isValid ? undefined : 'Custom validation failed' };
-      } else {
-        // Corrected line: If the result is a string, it's only valid if it's empty.
-        const isValid = result === ''; 
-        const error = result ? result : undefined;
-        onFileValidation?.(file, isValid, error);
-        return { isValid, error };
+      try {
+        const result = validateFile(file);
+        
+        if (typeof result === 'boolean') {
+          const isValid = result;
+          onFileValidation?.(file, isValid, isValid ? undefined : 'Custom validation failed');
+          return { isValid, error: isValid ? undefined : 'Custom validation failed' };
+        } else {
+          const isValid = result === '';
+          const error = result ? result : undefined;
+          onFileValidation?.(file, isValid, error);
+          return { isValid, error };
+        }
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : 'Validation error';
+        onFileValidation?.(file, false, errorMsg);
+        return { isValid: false, error: errorMsg };
       }
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Validation error';
-      onFileValidation?.(file, false, errorMsg);
-      return { isValid: false, error: errorMsg };
-    }
-  }, [validateFile, onFileValidation]);
+    }, [validateFile, onFileValidation]);
 
     const processFiles = useCallback((fileList: FileList | File[]): File[] => {
       const files = Array.from(fileList);
       const validFiles: File[] = [];
       const errors: string[] = [];
 
-      // Check file count
       if (maxFiles && files.length > maxFiles) {
-        onError?.(`Maximum ${maxFiles} file(s) allowed`);
-        return [];
+        errors.push(`Maximum ${maxFiles} file(s) allowed.`);
+      } else if (!multiple && files.length > 1) {
+        errors.push('Only one file is allowed.');
+      } else {
+        for (const file of files) {
+          const validationErrors: string[] = [];
+          
+          if (!isValidFileType(file)) {
+            validationErrors.push(`${file.name}: Invalid file type`);
+          }
+          
+          const sizeValidation = isValidFileSize(file);
+          if (!sizeValidation.isValid && sizeValidation.error) {
+            validationErrors.push(`${file.name}: ${sizeValidation.error}`);
+          }
+          
+          const customValidation = validateCustom(file);
+          if (!customValidation.isValid && customValidation.error) {
+            validationErrors.push(`${file.name}: ${customValidation.error}`);
+          }
+          
+          if (validationErrors.length > 0) {
+            errors.push(...validationErrors);
+          } else {
+            validFiles.push(file);
+          }
+        }
       }
 
-      // Single file mode
-      if (!multiple && files.length > 1) {
-        onError?.('Only one file is allowed');
-        return [];
-      }
-
-      // Validate each file
-      for (const file of files) {
-        const validationErrors: string[] = [];
-        
-        // File type validation
-        if (!isValidFileType(file)) {
-          validationErrors.push(`${file.name} - Invalid file type`);
-        }
-        
-        // File size validation
-        const sizeValidation = isValidFileSize(file);
-        if (!sizeValidation.isValid && sizeValidation.error) {
-          validationErrors.push(`${file.name} - ${sizeValidation.error}`);
-        }
-        
-        // Custom validation
-        const customValidation = validateCustom(file);
-        if (!customValidation.isValid && customValidation.error) {
-          validationErrors.push(`${file.name} - ${customValidation.error}`);
-        }
-        
-        if (validationErrors.length > 0) {
-          errors.push(...validationErrors);
-          continue;
-        }
-
-        validFiles.push(file);
-      }
-
-      // Report errors
       if (errors.length > 0) {
-        onError?.(errors.join(', '));
+        onError?.(errors.join('\n'));
       }
 
       return validFiles;
     }, [maxFiles, multiple, isValidFileType, isValidFileSize, validateCustom, onError]);
 
     // ========================================
-    // UNIVERSAL DROP HANDLING
+    // OUTLOOK MESSAGE DETECTION & UNIVERSAL DROP HANDLING
     // ========================================
+    
+    const isOutlookMessage = useCallback((dataTransfer: DataTransfer): boolean => {
+      const types = Array.from(dataTransfer.types);
+      
+      // Check for specific Outlook indicators
+      const hasOutlookFormat = types.some(type => 
+        type.includes('FileContents') ||
+        type.includes('FileGroupDescriptor') ||
+        type.includes('FileGroupDescriptorW') ||
+        type.includes('text/html') && dataTransfer.getData('text/html').includes('outlook')
+      );
+      
+      return hasOutlookFormat;
+    }, []);
+
+    const getOutlookItemCount = useCallback((dataTransfer: DataTransfer): number => {
+      // For Outlook messages, we need to detect the actual number of messages
+      // Check FileGroupDescriptor which contains the count of files being dragged
+      const types = Array.from(dataTransfer.types);
+      
+      if (types.includes('FileGroupDescriptor') || types.includes('FileGroupDescriptorW')) {
+        // For Outlook Classic, there's typically one message even if multiple formats exist
+        return 1;
+      }
+      
+      // Fallback to checking for distinct content types that represent actual items
+      const itemTypes = types.filter(type => 
+        type === 'text/html' ||
+        type === 'text/plain' ||
+        type === 'Files'
+      );
+      
+      return Math.max(1, itemTypes.length === 0 ? 1 : Math.min(itemTypes.length, 1));
+    }, []);
     
     const createOutlookMessageFile = useCallback((messageData: string, format: string): File => {
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -537,47 +554,50 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
       const files: File[] = [];
 
       try {
-        // Primary: Use modern DataTransferItems API
+        // For regular files, use the files property
+        if (dataTransfer.files && dataTransfer.files.length > 0) {
+          files.push(...Array.from(dataTransfer.files));
+          return files;
+        }
+
+        // For Outlook and other data transfer items
         if (dataTransfer.items && dataTransfer.items.length > 0) {
           const items = Array.from(dataTransfer.items);
+          let processedOutlookMessage = false;
           
           for (const item of items) {
             try {
-              // Handle file items (regular files, .msg, .eml, attachments)
               if (item.kind === 'file') {
                 const file = item.getAsFile();
-                if (file) {
-                  files.push(file);
-                }
-              }
-              // Handle string items (Outlook messages, OneDrive links, etc.)
-              else if (item.kind === 'string') {
+                if (file) files.push(file);
+              } 
+              else if (item.kind === 'string' && !processedOutlookMessage) {
                 const stringData = await new Promise<string>(resolve => {
                   item.getAsString(resolve);
                 });
                 
                 if (stringData && stringData.trim()) {
-                  // Detect Outlook HTML messages
-                  if (item.type.includes('html') && 
-                      (stringData.includes('x-ms-exchange') || 
-                       stringData.includes('outlook') ||
-                       stringData.includes('microsoft'))) {
+                  // Block drops from the "New Outlook" list view
+                  if (stringData.includes('maillistrow')) {
+                    onError?.("Dragging from the 'New Outlook' list is not supported. Please drag the email to your desktop first, then drop the saved .msg file.");
+                    return []; // Stop processing this drop
+                  }
+                  
+                  // Detect FULL HTML emails (from Classic Outlook / Web)
+                  if (item.type.includes('html') && (stringData.includes('x-ms-exchange') || stringData.includes('outlook'))) {
                     const emlFile = createOutlookMessageFile(stringData, 'html');
                     files.push(emlFile);
-                  }
-                  // Detect plain text Outlook messages (email format)
-                  else if (item.type === 'text/plain' && 
-                           (stringData.includes('From:') && stringData.includes('To:') && stringData.includes('Subject:'))) {
+                    processedOutlookMessage = true; // Prevent duplicate processing
+                  } 
+                  // Detect plain text Outlook messages
+                  else if (item.type === 'text/plain' && (stringData.includes('From:') && stringData.includes('To:'))) {
                     const msgFile = createOutlookMessageFile(stringData, 'text');
                     files.push(msgFile);
-                  }
+                    processedOutlookMessage = true; // Prevent duplicate processing
+                  } 
                   // Handle OneDrive/SharePoint links
-                  else if (item.type.includes('text/uri-list') && 
-                           (stringData.includes('sharepoint.com') || stringData.includes('onedrive'))) {
-                    const urlFile = new File([stringData], 'onedrive-link.url', {
-                      type: 'text/uri-list',
-                      lastModified: Date.now()
-                    });
+                  else if (item.type.includes('text/uri-list') && (stringData.includes('sharepoint.com') || stringData.includes('onedrive'))) {
+                    const urlFile = new File([stringData], 'onedrive-link.url', { type: 'text/uri-list', lastModified: Date.now() });
                     files.push(urlFile);
                   }
                 }
@@ -587,50 +607,24 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
             }
           }
         }
-        
-        // Fallback: Handle legacy browsers or missed data
-        else if (dataTransfer.files && dataTransfer.files.length > 0) {
-          const regularFiles = Array.from(dataTransfer.files);
-          files.push(...regularFiles);
-        }
-        
-        // Minimal fallback for edge cases where items API missed something
-        if (files.length === 0) {
-          const htmlData = dataTransfer.getData('text/html');
-          const textData = dataTransfer.getData('text/plain');
-          
-          if (htmlData && htmlData.trim() && 
-              (htmlData.includes('x-ms-exchange') || htmlData.includes('outlook'))) {
-            const emlFile = createOutlookMessageFile(htmlData, 'html');
-            files.push(emlFile);
-          }
-          else if (textData && textData.trim() && 
-                   textData.includes('From:') && textData.includes('Subject:')) {
-            const msgFile = createOutlookMessageFile(textData, 'text');
-            files.push(msgFile);
-          }
-        }
 
       } catch (error) {
         console.error('Error processing drop data:', error);
       }
 
       return files;
-    }, [createOutlookMessageFile]);
+    }, [createOutlookMessageFile, onError]);
 
     // ========================================
-    // FILE MANAGEMENT FUNCTIONS
+    // FILE MANAGEMENT & EVENT HANDLERS
     // ========================================
     
     const handleValidFiles = useCallback((files: File[]) => {
-      // Always call onDrop to give files to parent
       onDrop(files);
 
-      // Only manage internal file state if showDroppedFiles is true
       if (showDroppedFiles) {
         setDroppedFiles(prev => clearFilesOnNewDrop ? files : [...prev, ...files]);
       } else if (clearFilesOnNewDrop) {
-        // Clear internal state even if not showing files
         setDroppedFiles([]);
       }
     }, [onDrop, showDroppedFiles, clearFilesOnNewDrop]);
@@ -643,11 +637,19 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
     const removeFile = useCallback((indexToRemove: number) => {
       setDroppedFiles(prev => prev.filter((_, index) => index !== indexToRemove));
     }, []);
-
-    // ========================================
-    // DRAG & DROP EVENT HANDLERS
-    // ========================================
     
+    const resetDragState = useCallback(() => {
+      setIsDragOver(false);
+      setIsDragActive(false);
+      setDraggedItemsCount(0);
+      dragCounterRef.current = 0;
+      
+      if (dragLeaveTimeoutRef.current) {
+        clearTimeout(dragLeaveTimeoutRef.current);
+        dragLeaveTimeoutRef.current = null;
+      }
+    }, []);
+
     const handleDragEnter = useCallback((e: React.DragEvent<HTMLDivElement>) => {
       e.preventDefault();
       e.stopPropagation();
@@ -662,23 +664,25 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
       
       dragCounterRef.current++;
       
-      // Check if we have draggable items
-      const hasItems = (e.dataTransfer.items && e.dataTransfer.items.length > 0) ||
-                       (e.dataTransfer.files && e.dataTransfer.files.length > 0) ||
-                       e.dataTransfer.types.includes('Files') ||
-                       e.dataTransfer.types.includes('text/html') ||
-                       e.dataTransfer.types.includes('text/plain');
-      
-      if (hasItems) {
-        const itemCount = e.dataTransfer.items ? e.dataTransfer.items.length : 
-                         e.dataTransfer.files ? e.dataTransfer.files.length : 1;
+      // Only update state on the first drag enter
+      if (dragCounterRef.current === 1) {
+        let itemCount = 0;
+        
+        // Special handling for Outlook messages
+        if (isOutlookMessage(e.dataTransfer)) {
+          itemCount = getOutlookItemCount(e.dataTransfer);
+        } else {
+          // For regular files and other items
+          itemCount = e.dataTransfer.files?.length || 
+                     (e.dataTransfer.items ? e.dataTransfer.items.length : 1);
+        }
         
         setIsDragOver(true);
         setIsDragActive(true);
         setDraggedItemsCount(itemCount);
         onDragEnter?.();
       }
-    }, [disabled, onDragEnter]);
+    }, [disabled, onDragEnter, isOutlookMessage, getOutlookItemCount]);
 
     const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
       e.preventDefault();
@@ -688,17 +692,14 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
       
       dragCounterRef.current--;
       
-      // Use timeout to prevent flickering when dragging over child elements
-      dragLeaveTimeoutRef.current = setTimeout(() => {
-        if (dragCounterRef.current <= 0) {
-          dragCounterRef.current = 0;
-          setIsDragOver(false);
-          setIsDragActive(false);
-          setDraggedItemsCount(0);
+      // Only reset state when all elements have been left
+      if (dragCounterRef.current <= 0) {
+        dragLeaveTimeoutRef.current = setTimeout(() => {
+          resetDragState();
           onDragLeave?.();
-        }
-      }, 50);
-    }, [disabled, onDragLeave]);
+        }, 50);
+      }
+    }, [disabled, onDragLeave, resetDragState]);
 
     const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
       e.preventDefault();
@@ -706,7 +707,6 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
       
       if (disabled) return;
       
-      // Set the drop effect
       if (e.dataTransfer) {
         e.dataTransfer.dropEffect = dropEffect;
       }
@@ -716,30 +716,24 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
       e.preventDefault();
       e.stopPropagation();
       
-      // Clear timeout and reset state
-      if (dragLeaveTimeoutRef.current) {
-        clearTimeout(dragLeaveTimeoutRef.current);
-        dragLeaveTimeoutRef.current = null;
+      if (disabled) {
+        resetDragState();
+        return;
       }
-      
-      setIsDragOver(false);
-      setIsDragActive(false);
+
+      // Immediately reset drag state
+      resetDragState();
       setIsProcessing(true);
-      setDraggedItemsCount(0);
-      dragCounterRef.current = 0;
-      
-      if (disabled) return;
 
       try {
-        // Use enhanced universal drop processing
-        const droppedFiles = await processDroppedData(e.dataTransfer);
+        const droppedItems = await processDroppedData(e.dataTransfer);
         
-        if (droppedFiles.length === 0) {
-          onError?.('No valid files were dropped');
+        // If processDroppedData handled an error (like New Outlook), it returns [], so we stop.
+        if (droppedItems.length === 0 && (e.dataTransfer.items?.length || 0) > 0) {
           return;
         }
-        
-        const validFiles = processFiles(droppedFiles);
+
+        const validFiles = processFiles(droppedItems);
         
         if (validFiles.length > 0) {
           handleValidFiles(validFiles);
@@ -747,14 +741,11 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Drop failed';
         onError?.(`Drop failed: ${errorMessage}`);
+        console.error('Drop error:', error);
       } finally {
         setIsProcessing(false);
       }
-    }, [disabled, processDroppedData, processFiles, handleValidFiles, onError]);
-
-    // ========================================
-    // FILE INPUT HANDLERS
-    // ========================================
+    }, [disabled, processDroppedData, processFiles, handleValidFiles, onError, resetDragState]);
     
     const handleClick = useCallback(() => {
       if (!disabled && fileInputRef.current) {
@@ -768,25 +759,17 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
         if (files.length > 0) {
           handleValidFiles(files);
         }
-        // Reset input
         e.target.value = '';
       }
     }, [processFiles, handleValidFiles]);
 
-    // ========================================
-    // PASTE EVENT HANDLER
-    // ========================================
-    
     const handlePaste = useCallback((e: ClipboardEvent) => {
       const clipboardData = e.clipboardData;
-      if (!clipboardData) return;
+      if (!clipboardData?.files || clipboardData.files.length === 0) return;
 
-      // Only handle files from clipboard, ignore text
-      if (clipboardData.files && clipboardData.files.length > 0) {
-        const files = processFiles(Array.from(clipboardData.files));
-        if (files.length > 0) {
-          handleValidFiles(files);
-        }
+      const files = processFiles(Array.from(clipboardData.files));
+      if (files.length > 0) {
+        handleValidFiles(files);
       }
     }, [processFiles, handleValidFiles]);
 
@@ -795,21 +778,22 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
       return () => document.removeEventListener('paste', handlePaste);
     }, [handlePaste]);
 
+    // Cleanup timeout on unmount
+    useEffect(() => {
+      return () => {
+        if (dragLeaveTimeoutRef.current) {
+          clearTimeout(dragLeaveTimeoutRef.current);
+        }
+      };
+    }, []);
+
     // ========================================
-    // UTILITY FUNCTIONS
+    // UTILITY & RENDER HELPERS
     // ========================================
     
     const getFileTypeIcon = useCallback((file: File, size: ImageSize = ImageSize.small) => {
-      // Create a dummy path with the actual filename for FileTypeIcon to work with
-      const dummyPath = `https://contoso.sharepoint.com/documents/${file.name}`;
-      
-      return (
-        <FileTypeIcon
-          type={IconType.image}
-          size={size}
-          path={dummyPath}
-        />
-      );
+      const dummyPath = `/${file.name}`;
+      return <FileTypeIcon type={IconType.image} size={size} path={dummyPath} />;
     }, []);
 
     const formatFileSize = useCallback((bytes: number): string => {
@@ -819,41 +803,25 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
       const i = Math.floor(Math.log(bytes) / Math.log(k));
       return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
     }, []);
-
-    // ========================================
-    // RENDER HELPERS
-    // ========================================
     
-    const buildCssClasses = useCallback(() => {
-      return [
-        styles.root,
-        className,
-        children ? styles.wrappedContent : styles.dropZone,
-        disabled && styles.dropZoneDisabled,
-        isDragActive && (children ? styles.wrappedContentActive : styles.dropZoneActive),
-        isDragOver && !children && styles.dropZoneDragOver
-      ].filter(Boolean).join(' ');
-    }, [styles, className, children, disabled, isDragActive, isDragOver]);
-
-    const getAcceptAttribute = useCallback(() => {
-      return accept && accept.length > 0 ? accept.join(',') : undefined;
-    }, [accept]);
-
-    const getDisplayFiles = useCallback(() => {
-      return maxDisplayFiles ? droppedFiles.slice(0, maxDisplayFiles) : droppedFiles;
-    }, [maxDisplayFiles, droppedFiles]);
+    const cssClasses = [
+      styles.root,
+      className,
+      children ? styles.wrappedContent : styles.dropZone,
+      disabled && styles.dropZoneDisabled,
+      isDragActive && (children ? styles.wrappedContentActive : styles.dropZoneActive),
+      isDragOver && !children && styles.dropZoneDragOver
+    ].filter(Boolean).join(' ');
+    
+    const acceptAttribute = accept && accept.length > 0 ? accept.join(',') : undefined;
+    const displayFiles = maxDisplayFiles ? droppedFiles.slice(0, maxDisplayFiles) : droppedFiles;
 
     // ========================================
     // RENDER COMPONENT
     // ========================================
     
-    const cssClasses = buildCssClasses();
-    const acceptAttribute = getAcceptAttribute();
-    const displayFiles = getDisplayFiles();
-
     return (
       <div className={styles.root}>
-        {/* Main Drop Zone */}
         <div
           className={cssClasses}
           style={style}
@@ -868,7 +836,6 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
           aria-label="Universal drag and drop zone for files and Outlook messages"
           title="Drop files, Outlook messages, or drag from File Explorer, OneDrive"
         >
-          {/* Hidden File Input */}
           <input
             ref={fileInputRef}
             type="file"
@@ -879,87 +846,44 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
             disabled={disabled}
           />
           
-          {/* Content Rendering */}
           {children ? (
             <>
-              {/* User provided children */}
               {children}
-              
-              {/* Drag Overlay for Wrapped Content */}
               {showOverlay && (isDragActive || isDragOver) && (
                 <div className={styles.overlay} style={overlayStyle}>
                   <div className={styles.overlayContent}>
-                    <div className={styles.overlayIcon}>
-                      <DocumentRegular />
-                    </div>
-                    <div className={styles.overlayTitle}>
-                      {isDragActive ? 'Drop now!' : overlayText}
-                    </div>
-                    {draggedItemsCount > 0 && (
-                      <div className={styles.overlaySubtitle}>
-                        {draggedItemsCount} item{draggedItemsCount > 1 ? 's' : ''}
-                      </div>
-                    )}
+                    <div className={styles.overlayIcon}><DocumentRegular /></div>
+                    <div className={styles.overlayTitle}>{isDragActive ? 'Drop now!' : overlayText}</div>
+                    {draggedItemsCount > 0 && <div className={styles.overlaySubtitle}>{draggedItemsCount} item{draggedItemsCount > 1 ? 's' : ''}</div>}
                   </div>
                 </div>
               )}
-              
-              {/* Browse Button for Wrapped Content */}
               {showBrowseButton && !disabled && (
-                <button
-                  type="button"
-                  onClick={handleClick}
-                  className={styles.browseButton}
-                  style={browseButtonStyle}
-                  title="Browse files from your computer"
-                >
-                  Browse
-                </button>
+                <button type="button" onClick={handleClick} className={styles.browseButton} style={browseButtonStyle} title="Browse files from your computer">Browse</button>
               )}
             </>
           ) : (
-            /* Default Standalone Content */
             <>
               <DocumentRegular style={{ fontSize: '48px', opacity: 0.7 }} />
-              <div style={{ 
-                fontSize: tokens.fontSizeBase500, 
-                fontWeight: tokens.fontWeightSemibold,
-                marginBottom: tokens.spacingVerticalXS, 
-                color: tokens.colorNeutralForeground1,
-              }}>
-                {isProcessing ? 'Processing files...' : 
-                 isDragActive ? 'Drop files now!' : 
-                 'Drop files here'}
+              <div style={{ fontSize: tokens.fontSizeBase500, fontWeight: tokens.fontWeightSemibold, marginBottom: tokens.spacingVerticalXS, color: tokens.colorNeutralForeground1 }}>
+                {isProcessing ? 'Processing files...' : isDragActive ? 'Drop files now!' : 'Drop files here'}
               </div>
-              <div style={{ 
-                fontSize: tokens.fontSizeBase200, 
-                color: tokens.colorNeutralForeground2, 
-                marginBottom: tokens.spacingVerticalXS,
-              }}>
+              <div style={{ fontSize: tokens.fontSizeBase200, color: tokens.colorNeutralForeground2, marginBottom: tokens.spacingVerticalXS }}>
                 Files, Outlook messages, OneDrive & more
               </div>
               {draggedItemsCount > 0 && (
-                <div style={{ 
-                  fontSize: tokens.fontSizeBase200, 
-                  color: tokens.colorBrandForeground1, 
-                  fontWeight: tokens.fontWeightSemibold,
-                }}>
+                <div style={{ fontSize: tokens.fontSizeBase200, color: tokens.colorBrandForeground1, fontWeight: tokens.fontWeightSemibold }}>
                   {draggedItemsCount} item{draggedItemsCount > 1 ? 's' : ''} ready
                 </div>
               )}
               {!isProcessing && (
-                <div style={{ 
-                  fontSize: tokens.fontSizeBase100, 
-                  color: tokens.colorNeutralForeground3, 
-                  marginTop: tokens.spacingVerticalXS,
-                }}>
+                <div style={{ fontSize: tokens.fontSizeBase100, color: tokens.colorNeutralForeground3, marginTop: tokens.spacingVerticalXS }}>
                   or click to browse
                 </div>
               )}
             </>
           )}
           
-          {/* Processing Indicator */}
           {isProcessing && (
             <div className={styles.processingIndicator}>
               <Spinner size="medium" />
@@ -967,66 +891,32 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
           )}
         </div>
 
-        {/* Dropped Files List */}
         {showDroppedFiles && droppedFiles.length > 0 && (
           <div className={styles.fileList} style={fileListStyle}>
-            {/* File List Header */}
             <div className={styles.fileListHeader}>
-              <div className={styles.fileListTitle}>
-                Files ({droppedFiles.length})
-              </div>
-              <button
-                type="button"
-                onClick={clearDroppedFiles}
-                className={styles.clearButton}
-                title="Clear all files"
-              >
-                Clear All
-              </button>
+              <div className={styles.fileListTitle}>Files ({droppedFiles.length})</div>
+              <button type="button" onClick={clearDroppedFiles} className={styles.clearButton} title="Clear all files">Clear All</button>
             </div>
 
-            {/* File Items */}
             <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
               {displayFiles.map((file, index) => (
-                <div
-                  key={`${file.name}-${file.lastModified}-${index}`}
-                  className={styles.fileItem}
-                >
+                <div key={`${file.name}-${file.lastModified}-${index}`} className={styles.fileItem}>
                   <div className={styles.fileInfo}>
-                    <div className={styles.fileIcon}>
-                      {getFileTypeIcon(file, ImageSize.small)}
-                    </div>
+                    <div className={styles.fileIcon}>{getFileTypeIcon(file, ImageSize.small)}</div>
                     <div className={styles.fileDetails}>
-                      <div className={styles.fileName}>
-                        {file.name}
-                      </div>
-                      <div className={styles.fileSize}>
-                        {formatFileSize(file.size)} • {file.type || 'Unknown type'}
-                      </div>
+                      <div className={styles.fileName}>{file.name}</div>
+                      <div className={styles.fileSize}>{formatFileSize(file.size)} • {file.type || 'Unknown type'}</div>
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => removeFile(index)}
-                    className={styles.removeButton}
-                    title={`Remove ${file.name}`}
-                  >
+                  <button type="button" onClick={() => removeFile(index)} className={styles.removeButton} title={`Remove ${file.name}`}>
                     <DismissRegular />
                   </button>
                 </div>
               ))}
             </div>
 
-            {/* Show More Indicator */}
             {maxDisplayFiles && droppedFiles.length > maxDisplayFiles && (
-              <div style={{
-                textAlign: 'center',
-                marginTop: tokens.spacingVerticalXS,
-                padding: tokens.spacingVerticalXS,
-                fontSize: tokens.fontSizeBase200,
-                color: tokens.colorNeutralForeground2,
-                fontStyle: 'italic'
-              }}>
+              <div style={{ textAlign: 'center', marginTop: tokens.spacingVerticalXS, padding: tokens.spacingVerticalXS, fontSize: tokens.fontSizeBase200, color: tokens.colorNeutralForeground2, fontStyle: 'italic' }}>
                 ... and {droppedFiles.length - maxDisplayFiles} more file{droppedFiles.length - maxDisplayFiles > 1 ? 's' : ''}
               </div>
             )}
