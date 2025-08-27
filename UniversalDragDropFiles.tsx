@@ -512,10 +512,15 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
         type.includes('FileContents') ||
         type.includes('FileGroupDescriptor') ||
         type.includes('FileGroupDescriptorW') ||
-        type.includes('text/html') && dataTransfer.getData('text/html').includes('outlook')
+        type.includes('application/x-moz-file') ||
+        (type.includes('text/html') && types.includes('text/plain')) || // Outlook typically provides both
+        type.includes('CF_HDROP')
       );
       
-      return hasOutlookFormat;
+      // Additional check: if we have both HTML and plain text, it's likely Outlook
+      const hasHtmlAndText = types.includes('text/html') && types.includes('text/plain');
+      
+      return hasOutlookFormat || hasHtmlAndText;
     }, []);
 
     const getOutlookItemCount = useCallback((dataTransfer: DataTransfer): number => {
@@ -577,12 +582,17 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
                   const stringData = await new Promise<string>((resolve, reject) => {
                     const timeout = setTimeout(() => {
                       reject(new Error('Timeout accessing string data - may be security restricted'));
-                    }, 5000); // 5 second timeout
+                    }, 2000); // Reduced timeout to 2 seconds for faster feedback
                     
-                    item.getAsString((data) => {
+                    try {
+                      item.getAsString((data) => {
+                        clearTimeout(timeout);
+                        resolve(data || ''); // Handle null/undefined data
+                      });
+                    } catch (getStringError) {
                       clearTimeout(timeout);
-                      resolve(data);
-                    });
+                      reject(getStringError);
+                    }
                   });
                   
                   if (stringData && stringData.trim()) {
@@ -593,7 +603,7 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
                     }
                     
                     // Detect FULL HTML emails (from Classic Outlook / Web)
-                    if (item.type.includes('html') && (stringData.includes('x-ms-exchange') || stringData.includes('outlook'))) {
+                    if (item.type.includes('html') && (stringData.includes('x-ms-exchange') || stringData.includes('outlook') || stringData.includes('From:') || stringData.includes('Subject:'))) {
                       const emlFile = createOutlookMessageFile(stringData, 'html');
                       files.push(emlFile);
                       processedOutlookMessage = true; // Prevent duplicate processing
@@ -623,6 +633,35 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
           }
         }
 
+        // Special handling for Outlook messages that don't provide file data
+        // If we detected Outlook but got no files, create a placeholder message
+        if (files.length === 0 && isOutlookMessage(dataTransfer)) {
+          console.warn('Outlook message detected but no data could be extracted');
+          
+          // Try to get any available text data as fallback
+          const types = Array.from(dataTransfer.types);
+          for (const type of types) {
+            if (type === 'text/plain' || type === 'text/html') {
+              try {
+                const fallbackData = dataTransfer.getData(type);
+                if (fallbackData && fallbackData.trim()) {
+                  const fallbackFile = createOutlookMessageFile(fallbackData, type === 'text/html' ? 'html' : 'text');
+                  files.push(fallbackFile);
+                  break; // Only create one fallback file
+                }
+              } catch (fallbackError) {
+                console.warn('Could not get fallback data for type:', type, fallbackError);
+              }
+            }
+          }
+          
+          // If still no files, inform user about the limitation
+          if (files.length === 0) {
+            onError?.("Outlook message detected but could not be processed due to browser security restrictions. Please try dragging the email to your desktop first, then drop the saved .msg file.");
+            return []; // Return empty array to stop processing
+          }
+        }
+
       } catch (error) {
         console.error('Error processing drop data:', error);
         // Re-throw security-related errors
@@ -635,7 +674,7 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
       }
 
       return files;
-    }, [createOutlookMessageFile, onError]);
+    }, [createOutlookMessageFile, onError, isOutlookMessage]);
 
     // ========================================
     // FILE MANAGEMENT & EVENT HANDLERS
