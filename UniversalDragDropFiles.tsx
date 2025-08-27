@@ -602,6 +602,11 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
       
       if (disabled) return;
       
+      // Set effect allowed to enable drop
+      if (e.dataTransfer) {
+        e.dataTransfer.effectAllowed = 'copyMove';
+      }
+      
       // Clear any pending drag leave timeout
       if (dragLeaveTimeoutRef.current) {
         clearTimeout(dragLeaveTimeoutRef.current);
@@ -648,6 +653,14 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
       // Set the drop effect to indicate what operation is allowed
       if (e.dataTransfer) {
         e.dataTransfer.dropEffect = dropEffect;
+        
+        // For email attachments and other sources, ensure we accept the drop
+        if (e.dataTransfer.effectAllowed === 'none') {
+          e.dataTransfer.effectAllowed = 'copyMove';
+        }
+        
+        // Force copy effect for better compatibility with email attachments
+        e.dataTransfer.dropEffect = 'copy';
       }
     }, [disabled, dropEffect]);
 
