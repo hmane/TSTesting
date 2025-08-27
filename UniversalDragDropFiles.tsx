@@ -554,7 +554,7 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
       const files: File[] = [];
 
       try {
-        // For regular files, use the files property
+        // For regular files, use the files property first
         if (dataTransfer.files && dataTransfer.files.length > 0) {
           files.push(...Array.from(dataTransfer.files));
           return files;
@@ -572,44 +572,66 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
                 if (file) files.push(file);
               } 
               else if (item.kind === 'string' && !processedOutlookMessage) {
-                const stringData = await new Promise<string>(resolve => {
-                  item.getAsString(resolve);
-                });
-                
-                if (stringData && stringData.trim()) {
-                  // Block drops from the "New Outlook" list view
-                  if (stringData.includes('maillistrow')) {
-                    onError?.("Dragging from the 'New Outlook' list is not supported. Please drag the email to your desktop first, then drop the saved .msg file.");
-                    return []; // Stop processing this drop
-                  }
+                // Wrap string data access in try-catch for security restrictions
+                try {
+                  const stringData = await new Promise<string>((resolve, reject) => {
+                    const timeout = setTimeout(() => {
+                      reject(new Error('Timeout accessing string data - may be security restricted'));
+                    }, 5000); // 5 second timeout
+                    
+                    item.getAsString((data) => {
+                      clearTimeout(timeout);
+                      resolve(data);
+                    });
+                  });
                   
-                  // Detect FULL HTML emails (from Classic Outlook / Web)
-                  if (item.type.includes('html') && (stringData.includes('x-ms-exchange') || stringData.includes('outlook'))) {
-                    const emlFile = createOutlookMessageFile(stringData, 'html');
-                    files.push(emlFile);
-                    processedOutlookMessage = true; // Prevent duplicate processing
-                  } 
-                  // Detect plain text Outlook messages
-                  else if (item.type === 'text/plain' && (stringData.includes('From:') && stringData.includes('To:'))) {
-                    const msgFile = createOutlookMessageFile(stringData, 'text');
-                    files.push(msgFile);
-                    processedOutlookMessage = true; // Prevent duplicate processing
-                  } 
-                  // Handle OneDrive/SharePoint links
-                  else if (item.type.includes('text/uri-list') && (stringData.includes('sharepoint.com') || stringData.includes('onedrive'))) {
-                    const urlFile = new File([stringData], 'onedrive-link.url', { type: 'text/uri-list', lastModified: Date.now() });
-                    files.push(urlFile);
+                  if (stringData && stringData.trim()) {
+                    // Block drops from the "New Outlook" list view
+                    if (stringData.includes('maillistrow')) {
+                      onError?.("Dragging from the 'New Outlook' list is not supported. Please drag the email to your desktop first, then drop the saved .msg file.");
+                      return []; // Stop processing this drop
+                    }
+                    
+                    // Detect FULL HTML emails (from Classic Outlook / Web)
+                    if (item.type.includes('html') && (stringData.includes('x-ms-exchange') || stringData.includes('outlook'))) {
+                      const emlFile = createOutlookMessageFile(stringData, 'html');
+                      files.push(emlFile);
+                      processedOutlookMessage = true; // Prevent duplicate processing
+                    } 
+                    // Detect plain text Outlook messages
+                    else if (item.type === 'text/plain' && (stringData.includes('From:') && stringData.includes('To:'))) {
+                      const msgFile = createOutlookMessageFile(stringData, 'text');
+                      files.push(msgFile);
+                      processedOutlookMessage = true; // Prevent duplicate processing
+                    } 
+                    // Handle OneDrive/SharePoint links
+                    else if (item.type.includes('text/uri-list') && (stringData.includes('sharepoint.com') || stringData.includes('onedrive'))) {
+                      const urlFile = new File([stringData], 'onedrive-link.url', { type: 'text/uri-list', lastModified: Date.now() });
+                      files.push(urlFile);
+                    }
                   }
+                } catch (stringError) {
+                  // If we can't access string data due to security restrictions, skip it
+                  console.warn('Could not access string data (possibly due to security restrictions):', stringError);
+                  // Don't throw here, just continue with other items
                 }
               }
             } catch (itemError) {
               console.warn('Error processing drop item:', itemError);
+              // Continue processing other items
             }
           }
         }
 
       } catch (error) {
         console.error('Error processing drop data:', error);
+        // Re-throw security-related errors
+        if (error instanceof Error && 
+            (error.message.includes('security') || 
+             error.message.includes('permission') || 
+             error.message.includes('access'))) {
+          throw error;
+        }
       }
 
       return files;
@@ -656,6 +678,11 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
       
       if (disabled) return;
       
+      // Set effect allowed to enable drop
+      if (e.dataTransfer) {
+        e.dataTransfer.effectAllowed = 'copyMove';
+      }
+      
       // Clear any pending drag leave timeout
       if (dragLeaveTimeoutRef.current) {
         clearTimeout(dragLeaveTimeoutRef.current);
@@ -668,13 +695,19 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
       if (dragCounterRef.current === 1) {
         let itemCount = 0;
         
-        // Special handling for Outlook messages
-        if (isOutlookMessage(e.dataTransfer)) {
-          itemCount = getOutlookItemCount(e.dataTransfer);
-        } else {
-          // For regular files and other items
-          itemCount = e.dataTransfer.files?.length || 
-                     (e.dataTransfer.items ? e.dataTransfer.items.length : 1);
+        try {
+          // Special handling for Outlook messages
+          if (isOutlookMessage(e.dataTransfer)) {
+            itemCount = getOutlookItemCount(e.dataTransfer);
+          } else {
+            // For regular files and other items
+            itemCount = e.dataTransfer.files?.length || 
+                       (e.dataTransfer.items ? e.dataTransfer.items.length : 1);
+          }
+        } catch (error) {
+          // If we can't determine item count, default to 1
+          console.warn('Could not determine drag item count:', error);
+          itemCount = 1;
         }
         
         setIsDragOver(true);
@@ -707,8 +740,14 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
       
       if (disabled) return;
       
+      // Set the drop effect to indicate what operation is allowed
       if (e.dataTransfer) {
         e.dataTransfer.dropEffect = dropEffect;
+        
+        // For Outlook and other sources, ensure we accept the drop
+        if (e.dataTransfer.effectAllowed === 'none') {
+          e.dataTransfer.effectAllowed = 'copyMove';
+        }
       }
     }, [disabled, dropEffect]);
 
@@ -726,7 +765,39 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
       setIsProcessing(true);
 
       try {
-        const droppedItems = await processDroppedData(e.dataTransfer);
+        // Check if we have permission to access the dragged data
+        if (!e.dataTransfer) {
+          throw new Error('No data transfer object available');
+        }
+
+        // For security restrictions, try to access the data in a safe way
+        let droppedItems: File[] = [];
+        
+        // First, try to get files directly (works for file system drops)
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+          droppedItems = Array.from(e.dataTransfer.files);
+        } else {
+          // Then try to process other data transfer items
+          try {
+            droppedItems = await processDroppedData(e.dataTransfer);
+          } catch (dataProcessError) {
+            // If data processing fails due to security restrictions
+            console.warn('Data processing restricted:', dataProcessError);
+            
+            // Check if this looks like a security restriction
+            if (dataProcessError instanceof Error && 
+                (dataProcessError.message.includes('security') || 
+                 dataProcessError.message.includes('permission') ||
+                 dataProcessError.message.includes('access'))) {
+              onError?.("For your security, file drag and drop may not be allowed. Please try clicking 'Browse' to select files instead, or check your browser security settings.");
+              return;
+            }
+            
+            // For other errors, try to provide a helpful message
+            onError?.("Unable to process the dropped items. Please try using the Browse button or check your browser settings.");
+            return;
+          }
+        }
         
         // If processDroppedData handled an error (like New Outlook), it returns [], so we stop.
         if (droppedItems.length === 0 && (e.dataTransfer.items?.length || 0) > 0) {
@@ -737,10 +808,24 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
         
         if (validFiles.length > 0) {
           handleValidFiles(validFiles);
+        } else if (droppedItems.length === 0) {
+          // If no items were processed and no specific error was shown
+          onError?.("No valid files were found in the drop. Please try using the Browse button to select files.");
         }
+        
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Drop failed';
-        onError?.(`Drop failed: ${errorMessage}`);
+        
+        // Check for common security-related errors
+        if (errorMessage.includes('security') || 
+            errorMessage.includes('permission') || 
+            errorMessage.includes('access denied') ||
+            errorMessage.includes('not allowed')) {
+          onError?.("For your security, file drag and drop may not be allowed. Please try clicking 'Browse' to select files instead.");
+        } else {
+          onError?.(`Drop failed: ${errorMessage}`);
+        }
+        
         console.error('Drop error:', error);
       } finally {
         setIsProcessing(false);
