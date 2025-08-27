@@ -650,19 +650,22 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
       
       if (disabled) return;
       
-      // Set the drop effect to indicate what operation is allowed
+      // Enhanced drag over handling for security
       if (e.dataTransfer) {
-        e.dataTransfer.dropEffect = dropEffect;
-        
-        // For email attachments and other sources, ensure we accept the drop
-        if (e.dataTransfer.effectAllowed === 'none') {
-          e.dataTransfer.effectAllowed = 'copyMove';
+        try {
+          // Set multiple properties to ensure compatibility
+          e.dataTransfer.dropEffect = 'copy';
+          
+          // Only set effectAllowed if it's currently 'none' to avoid overriding
+          if (e.dataTransfer.effectAllowed === 'none' || e.dataTransfer.effectAllowed === 'uninitialized') {
+            e.dataTransfer.effectAllowed = 'copyMove';
+          }
+        } catch (dataTransferError) {
+          // Some browsers may restrict dataTransfer access
+          console.warn('Could not set dataTransfer properties:', dataTransferError);
         }
-        
-        // Force copy effect for better compatibility with email attachments
-        e.dataTransfer.dropEffect = 'copy';
       }
-    }, [disabled, dropEffect]);
+    }, [disabled]);
 
     const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
       e.preventDefault();
@@ -684,28 +687,111 @@ const UniversalDragDropFiles = forwardRef<IUniversalDragDropFilesRef, IUniversal
           return;
         }
 
-        // Check for unsupported content first
-        const unsupportedMessage = detectUnsupportedContent(e.dataTransfer);
-        if (unsupportedMessage) {
-          onError?.(unsupportedMessage);
+        console.log('🎯 Drop data:', {
+          types: Array.from(e.dataTransfer.types),
+          filesLength: e.dataTransfer.files?.length,
+          itemsLength: e.dataTransfer.items?.length,
+          effectAllowed: e.dataTransfer.effectAllowed,
+          dropEffect: e.dataTransfer.dropEffect
+        });
+
+        // Enhanced security handling - try multiple approaches
+        let files: File[] = [];
+        let processingError: string | null = null;
+
+        // Approach 1: Try direct file access first (most reliable)
+        try {
+          if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            console.log('✅ Direct file access successful');
+            files = Array.from(e.dataTransfer.files);
+          }
+        } catch (fileAccessError) {
+          console.warn('❌ Direct file access failed:', fileAccessError);
+          processingError = 'Could not access files directly due to browser security restrictions.';
+        }
+
+        // Approach 2: If no direct files, try data transfer items
+        if (files.length === 0 && e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+          console.log('🔄 Trying data transfer items...');
+          try {
+            const items = Array.from(e.dataTransfer.items);
+            for (const item of items) {
+              if (item.kind === 'file') {
+                const file = item.getAsFile();
+                if (file) {
+                  files.push(file);
+                }
+              }
+            }
+            if (files.length > 0) {
+              console.log('✅ Data transfer items successful');
+            }
+          } catch (itemsError) {
+            console.warn('❌ Data transfer items failed:', itemsError);
+            processingError = 'Could not process dragged items due to browser security restrictions.';
+          }
+        }
+
+        // Check for unsupported content if we have no files
+        if (files.length === 0) {
+          const unsupportedMessage = detectUnsupportedContent(e.dataTransfer);
+          if (unsupportedMessage) {
+            onError?.(unsupportedMessage);
+            return;
+          }
+          
+          // If we have processing errors, show them
+          if (processingError) {
+            // Provide helpful alternatives based on the browser/context
+            const isEdge = navigator.userAgent.includes('Edge');
+            const isChrome = navigator.userAgent.includes('Chrome');
+            const isFirefox = navigator.userAgent.includes('Firefox');
+            
+            let browserSpecificMessage = processingError;
+            
+            if (isEdge || isChrome) {
+              browserSpecificMessage += ' Try using the Browse button instead, or check if your browser has restricted drag and drop for security reasons.';
+            } else if (isFirefox) {
+              browserSpecificMessage += ' Firefox may have additional security restrictions. Try using the Browse button or a different browser.';
+            } else {
+              browserSpecificMessage += ' Please try using the Browse button to select files instead.';
+            }
+            
+            onError?.(browserSpecificMessage);
+            return;
+          }
+          
+          // Generic no files message
+          onError?.("No files were found in the drop. Please ensure you're dragging actual files or email attachments.");
           return;
         }
 
-        // Process files
-        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-          const validFiles = processFiles(Array.from(e.dataTransfer.files));
-          
-          if (validFiles.length > 0) {
-            handleValidFiles(validFiles);
-          }
+        // Process the files we successfully obtained
+        console.log('📁 Processing', files.length, 'files...');
+        const validFiles = processFiles(files);
+        
+        if (validFiles.length > 0) {
+          console.log('✅ Valid files:', validFiles.length);
+          handleValidFiles(validFiles);
         } else {
-          onError?.("No files were found in the drop. Please ensure you're dragging actual files.");
+          console.log('❌ No valid files after processing');
         }
         
       } catch (error) {
+        console.error('❌ Drop error:', error);
         const errorMessage = error instanceof Error ? error.message : 'Drop failed';
-        onError?.(`Drop failed: ${errorMessage}`);
-        console.error('Drop error:', error);
+        
+        // Enhanced error handling with specific messages
+        if (errorMessage.includes('security') || 
+            errorMessage.includes('permission') || 
+            errorMessage.includes('access denied') ||
+            errorMessage.includes('not allowed') ||
+            errorMessage.includes('restricted')) {
+          
+          onError?.("For your security, file drag and drop may not be allowed in this browser or context. Please try:\n• Using the Browse button to select files\n• Checking your browser's security settings\n• Using a different browser if the issue persists");
+        } else {
+          onError?.(`Drop failed: ${errorMessage}. Please try using the Browse button instead.`);
+        }
       } finally {
         setIsProcessing(false);
       }
