@@ -83,11 +83,11 @@
 	"workbench.editor.limit.enabled": true,
 	"workbench.editor.limit.value": 12,
 
-	// Font & Display (Windows compatible)
+	// Font & Display (Optimized for large monitors)
 	"editor.fontFamily": "Fira Code, Consolas, 'Courier New', monospace",
 	"editor.fontLigatures": true,
-	"editor.fontSize": 15,
-	"editor.lineHeight": 20,
+	"editor.fontSize": 18,
+	"editor.lineHeight": 26,
 	"editor.fontWeight": "normal",
 	"editor.minimap.renderCharacters": false,
 	"editor.minimap.scale": 2,
@@ -124,7 +124,7 @@
 	"terminal.integrated.cursorBlinking": true,
 	"terminal.integrated.fontFamily": "Fira Code, Consolas",
 	"terminal.integrated.defaultProfile.windows": "PowerShell",
-	"terminal.integrated.fontSize": 14,
+	"terminal.integrated.fontSize": 16,
 	"terminal.integrated.shellIntegration.enabled": true,
 	"terminal.integrated.enableMultiLinePasteWarning": false,
 	"terminal.integrated.rightClickBehavior": "copyPaste",
@@ -330,7 +330,7 @@
 	"workbench.tree.renderIndentGuides": "always",
 
 	// Markdown Configuration
-	"markdown.preview.fontSize": 14,
+	"markdown.preview.fontSize": 16,
 	"markdown.preview.lineHeight": 1.6,
 	"markdown.extension.toc.updateOnSave": false,
 
@@ -349,15 +349,18 @@
 	"yaml.hover": true,
 	"yaml.validate": true,
 
-	// Additional Productivity Settings
+	// Additional Productivity Settings (Large monitor optimized)
 	"workbench.editor.closeOnFileDelete": true,
 	"workbench.editor.highlightModifiedTabs": true,
 	"workbench.list.automaticKeyboardNavigation": false,
 	"workbench.quickOpen.preserveInput": false,
+	"workbench.tree.renderIndentGuides": "always",
 	
 	// Auto-completion enhancements
 	"editor.wordBasedSuggestions": "matchingDocuments",
 	"editor.wordBasedSuggestionsMode": "currentDocument",
+	"editor.suggest.fontSize": 16,
+	"editor.suggest.lineHeight": 22,
 
 	// Windows-specific optimizations
 	"terminal.integrated.enableMultiLinePasteWarning": false,
