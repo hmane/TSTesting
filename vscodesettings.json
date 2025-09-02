@@ -1,0 +1,388 @@
+{
+	"cSpell.userWords": [
+		"spfx",
+		"sharepoint",
+		"webpart",
+		"webparts",
+		"listitem",
+		"listitems",
+		"pnpjs",
+		"tsx",
+		"scss",
+		"devkit",
+		"nodejs",
+		"typescript",
+		"javascript",
+		"useState",
+		"useEffect",
+		"useContext",
+		"useReducer",
+		"props",
+		"jsx",
+		"callables",
+		"onprem",
+		"provisioning",
+		"contenttype",
+		"contenttypes",
+		"fieldref",
+		"fieldrefs",
+		"listinstance",
+		"listinstances",
+		"sitecollection",
+		"subweb",
+		"subwebs",
+		"clientside",
+		"customaction",
+		"customactions",
+		"siteconfiguration",
+		"powershell",
+		"fastserve",
+		"bundleanalyzer",
+		"webpack",
+		"tsconfig",
+		"gulpfile"
+	],
+
+	// File Management
+	"files.autoSave": "afterDelay",
+	"files.autoSaveDelay": 1000,
+	"files.trimTrailingWhitespace": true,
+	"files.insertFinalNewline": true,
+	"files.associations": {
+		"*.tsx": "typescriptreact",
+		"*.jsx": "javascriptreact",
+		"*.module.scss": "scss",
+		"*.webpart": "json",
+		"*.manifest.json": "json",
+		"package-solution.json": "json",
+		"*.template.xml": "xml",
+		"*.provisioning.xml": "xml",
+		"*.pnp.xml": "xml",
+		"*.yml": "yaml",
+		"*.yaml": "yaml",
+		"post.deployment.ps1": "powershell",
+		"pre.deployment.ps1": "powershell",
+		"provisioning.ps1": "powershell",
+		"siteconfiguration.ps1": "powershell",
+		"README.MD": "markdown",
+		"Readme.MD": "markdown"
+	},
+
+	// Git Configuration
+	"git.autofetch": true,
+	"git.enableSmartCommit": true,
+	"git.confirmSync": false,
+	"git.autofetchPeriod": 180,
+
+	// Editor Appearance & Behavior
+	"workbench.tree.indent": 16,
+	"workbench.colorTheme": "Dark+ (default dark)",
+	"workbench.editor.enablePreview": false,
+	"workbench.editor.tabCloseButton": "right",
+	"workbench.editor.tabActionLocation": "right",
+	"workbench.editor.limit.enabled": true,
+	"workbench.editor.limit.value": 12,
+
+	// Font & Display (Windows compatible)
+	"editor.fontFamily": "Fira Code, Consolas, 'Courier New', monospace",
+	"editor.fontLigatures": true,
+	"editor.fontSize": 15,
+	"editor.lineHeight": 20,
+	"editor.fontWeight": "normal",
+	"editor.minimap.renderCharacters": false,
+	"editor.minimap.scale": 2,
+	"editor.minimap.maxColumn": 120,
+
+	// Code Formatting & Behavior
+	"editor.formatOnSave": true,
+	"editor.formatOnPaste": true,
+	"editor.formatOnType": true,
+	"editor.tabSize": 2,
+	"editor.insertSpaces": true,
+	"editor.detectIndentation": false,
+	"editor.trimAutoWhitespace": true,
+
+	// IntelliSense & Suggestions (Enhanced for TypeScript)
+	"editor.inlineSuggest.enabled": true,
+	"editor.suggestSelection": "first",
+	"editor.suggest.insertMode": "replace",
+	"editor.acceptSuggestionOnCommitCharacter": false,
+	"editor.acceptSuggestionOnEnter": "on",
+	"editor.suggest.snippetsPreventQuickSuggestions": false,
+
+	// Visual Enhancements
+	"editor.cursorStyle": "line",
+	"editor.cursorBlinking": "smooth",
+	"editor.renderWhitespace": "selection",
+	"editor.renderControlCharacters": false,
+	"editor.bracketPairColorization.enabled": true,
+	"editor.guides.bracketPairs": "active",
+	"editor.semanticHighlighting.enabled": true,
+	"breadcrumbs.enabled": true,
+
+	// Terminal Configuration (PowerShell optimized for SPFx with hot reload)
+	"terminal.integrated.cursorBlinking": true,
+	"terminal.integrated.fontFamily": "Fira Code, Consolas",
+	"terminal.integrated.defaultProfile.windows": "PowerShell",
+	"terminal.integrated.fontSize": 14,
+	"terminal.integrated.shellIntegration.enabled": true,
+	"terminal.integrated.enableMultiLinePasteWarning": false,
+	"terminal.integrated.rightClickBehavior": "copyPaste",
+	"terminal.integrated.confirmOnExit": "never",
+	"terminal.integrated.scrollback": 10000,
+	"terminal.integrated.smoothScrolling": true,
+	"terminal.integrated.fastScrollSensitivity": 5,
+	"terminal.integrated.cwd": "${workspaceFolder}",
+
+	// Explorer Settings
+	"explorer.compactFolders": false,
+	"explorer.confirmDelete": false,
+	"explorer.confirmDragAndDrop": false,
+	"explorer.sortOrder": "type",
+	"explorer.fileNesting.enabled": true,
+	"explorer.fileNesting.patterns": {
+		"*.tsx": "${capture}.module.scss, ${capture}.scss",
+		"*.ts": "${capture}.test.ts, ${capture}.spec.ts",
+		"package.json": "package-lock.json, yarn.lock, tsconfig.json",
+		"*.webpart": "${capture}.manifest.json",
+		"*.xml": "${capture}.template.xml, ${capture}.pnp.xml",
+		"gulpfile.js": "gulp.config.js, gulpfile.*.js, webpack.config.js, spfx-fast-serve-helpers.js",
+		"post.deployment.ps1": "Readme.MD, README.MD, pre.deployment.ps1",
+		"provisioning.ps1": "siteconfiguration.ps1",
+		"index.ts": "${capture}.types.ts, ${capture}.interfaces.ts"
+	},
+
+	// TypeScript Configuration (SPFx optimized with path mapping)
+	"typescript.preferences.importModuleSpecifier": "relative",
+	"typescript.updateImportsOnFileMove.enabled": "always",
+	"typescript.suggest.autoImports": true,
+	"typescript.preferences.includePackageJsonAutoImports": "on",
+	"typescript.inlayHints.parameterNames.enabled": "literals",
+	"typescript.inlayHints.parameterTypes.enabled": true,
+	"typescript.inlayHints.variableTypes.enabled": false,
+	"typescript.inlayHints.propertyDeclarationTypes.enabled": true,
+	"typescript.inlayHints.functionLikeReturnTypes.enabled": true,
+	"typescript.suggest.paths": true,
+	"typescript.suggest.includeAutomaticOptionalChainCompletions": true,
+
+	// JavaScript Configuration
+	"javascript.preferences.importModuleSpecifier": "relative",
+	"javascript.updateImportsOnFileMove.enabled": "always",
+	"javascript.suggest.autoImports": true,
+
+	// Code Actions on Save (ESLint + Prettier)
+	"editor.codeActionsOnSave": {
+		"source.fixAll": "explicit",
+		"source.fixAll.eslint": "explicit",
+		"source.organizeImports": "explicit",
+		"source.addMissingImports": "explicit",
+		"source.removeUnusedImports": "explicit"
+	},
+
+	// Language-Specific Formatting (Prettier focused)
+	"[typescript]": {
+		"editor.defaultFormatter": "esbenp.prettier-vscode",
+		"editor.formatOnSave": true
+	},
+	"[typescriptreact]": {
+		"editor.defaultFormatter": "esbenp.prettier-vscode",
+		"editor.formatOnSave": true
+	},
+	"[javascript]": {
+		"editor.defaultFormatter": "esbenp.prettier-vscode"
+	},
+	"[javascriptreact]": {
+		"editor.defaultFormatter": "esbenp.prettier-vscode"
+	},
+	"[json]": {
+		"editor.defaultFormatter": "esbenp.prettier-vscode"
+	},
+	"[jsonc]": {
+		"editor.defaultFormatter": "esbenp.prettier-vscode"
+	},
+	"[css]": {
+		"editor.defaultFormatter": "esbenp.prettier-vscode"
+	},
+	"[scss]": {
+		"editor.defaultFormatter": "esbenp.prettier-vscode"
+	},
+	"[markdown]": {
+		"editor.defaultFormatter": "esbenp.prettier-vscode",
+		"editor.formatOnSave": true,
+		"editor.wordWrap": "on",
+		"editor.quickSuggestions": false
+	},
+	"[xml]": {
+		"editor.defaultFormatter": "vscode.html-language-features",
+		"editor.formatOnSave": true,
+		"editor.tabSize": 2,
+		"editor.wordWrap": "on"
+	},
+	"[yaml]": {
+		"editor.defaultFormatter": "esbenp.prettier-vscode",
+		"editor.formatOnSave": true,
+		"editor.tabSize": 2,
+		"editor.insertSpaces": true
+	},
+
+	// Prettier Configuration (SPFx friendly)
+	"prettier.singleQuote": true,
+	"prettier.useTabs": false,
+	"prettier.tabWidth": 2,
+	"prettier.printWidth": 120,
+	"prettier.semi": true,
+	"prettier.trailingComma": "es5",
+	"prettier.bracketSpacing": true,
+	"prettier.jsxSingleQuote": true,
+	"prettier.arrowParens": "avoid",
+
+	"[powershell]": {
+		"editor.formatOnSave": false,
+		"editor.tabSize": 4,
+		"editor.insertSpaces": true,
+		"files.encoding": "utf8",
+		"editor.wordWrap": "on",
+		"editor.rulers": [120]
+	},
+
+	// Emmet Configuration (Enhanced for SPFx)
+	"emmet.includeLanguages": {
+		"javascript": "javascriptreact",
+		"typescript": "typescriptreact"
+	},
+	"emmet.showExpandedAbbreviation": "always",
+	"emmet.triggerExpansionOnTab": true,
+
+	// GitHub Copilot Configuration
+	"github.copilot.enable": {
+		"*": true,
+		"yaml": true,
+		"xml": true,
+		"plaintext": false
+	},
+	"github.copilot.advanced": {},
+	"github.copilot.nextEditSuggestions.enabled": true,
+
+	// ESLint Configuration (Built into SPFx)
+	"eslint.validate": [
+		"javascript",
+		"javascriptreact",
+		"typescript",
+		"typescriptreact"
+	],
+	"eslint.format.enable": false,
+	"eslint.lintTask.enable": true,
+	"eslint.run": "onType",
+
+	// Performance & Memory (Windows optimized)
+	"typescript.disableAutomaticTypeAcquisition": false,
+	"typescript.preferences.useLabelDetailsInCompletionEntries": true,
+	"typescript.tsserver.maxTsServerMemory": 4096,
+
+	// Search & Replace (SPFx multi-project workspace exclusions)
+	"search.exclude": {
+		"**/node_modules": true,
+		"**/bower_components": true,
+		"**/dist": true,
+		"**/lib": true,
+		"**/temp": true,
+		"**/coverage": true,
+		"**/sharepoint": true,
+		"**/.cache": true,
+		"**/release": true,
+		"**/.npmrc": true
+	},
+
+	// File Watcher (SPFx optimized)
+	"files.watcherExclude": {
+		"**/.git/objects/**": true,
+		"**/.git/subtree-cache/**": true,
+		"**/node_modules/**": true,
+		"**/dist/**": true,
+		"**/lib/**": true,
+		"**/temp/**": true,
+		"**/sharepoint/**": true,
+		"**/release/**": true
+	},
+
+	// PowerShell Configuration
+	"powershell.powerShellDefaultVersion": "PowerShell (x64)",
+	"powershell.integratedConsole.showOnStartup": false,
+	"powershell.integratedConsole.suppressStartupBanner": true,
+
+	// SPFx Specific Settings
+	"problems.decorations.enabled": true,
+	"outline.showFiles": true,
+	"outline.showModules": true,
+
+	// Multi-root Workspace Settings (Enhanced)
+	"workbench.editor.revealIfOpen": true,
+	"workbench.editor.enablePreviewFromQuickOpen": false,
+	"explorer.openEditors.visible": 12,
+	"workbench.editor.wrapTabs": true,
+	"workbench.startupEditor": "readme",
+	"workbench.editor.limit.enabled": true,
+	"workbench.editor.limit.value": 15,
+	"workbench.editor.closeOnFileDelete": true,
+	"workbench.editor.highlightModifiedTabs": true,
+	"workbench.list.automaticKeyboardNavigation": false,
+	"workbench.quickOpen.preserveInput": false,
+	"workbench.tree.renderIndentGuides": "always",
+
+	// Markdown Configuration
+	"markdown.preview.fontSize": 14,
+	"markdown.preview.lineHeight": 1.6,
+	"markdown.extension.toc.updateOnSave": false,
+
+	// XML Configuration (PnP Provisioning)
+	"xml.symbols.enabled": true,
+	"xml.codeLens.enabled": true,
+	"xml.validation.enabled": true,
+	"xml.format.enabled": true,
+	"xml.format.splitAttributes": false,
+
+	// YAML Configuration
+	"yaml.format.enable": true,
+	"yaml.format.singleQuote": false,
+	"yaml.format.bracketSpacing": true,
+	"yaml.completion": true,
+	"yaml.hover": true,
+	"yaml.validate": true,
+
+	// Additional Productivity Settings
+	"workbench.editor.closeOnFileDelete": true,
+	"workbench.editor.highlightModifiedTabs": true,
+	"workbench.list.automaticKeyboardNavigation": false,
+	"workbench.quickOpen.preserveInput": false,
+	
+	// Auto-completion enhancements
+	"editor.wordBasedSuggestions": "matchingDocuments",
+	"editor.wordBasedSuggestionsMode": "currentDocument",
+
+	// Windows-specific optimizations
+	"terminal.integrated.enableMultiLinePasteWarning": false,
+	"security.workspace.trust.untrustedFiles": "open",
+	
+	// SPFx Build Integration (Enhanced for automation)
+	"npm.enableRunFromFolder": true,
+	"npm.enableScriptExplorer": true,
+	"npm.scriptExplorerAction": "run",
+	"task.autoDetect": "on",
+	"task.showDecorations": true,
+	"task.problemMatchers.neverPrompt": true,
+	"task.quickOpen.history": 10,
+	"task.quickOpen.detail": true,
+
+	// Git Configuration (Updated for your workflow)
+	"files.exclude": {
+		"**/.npmrc": true
+	},
+
+	// PowerShell Script Integration
+	"powershell.scriptAnalysis.enable": true,
+	"powershell.codeFormatting.preset": "OTBS",
+	"powershell.codeFormatting.openBraceOnSameLine": true,
+	"powershell.codeFormatting.newLineAfterOpenBrace": true,
+	"powershell.codeFormatting.newLineAfterCloseBrace": true,
+	"powershell.integratedConsole.focusConsoleOnExecute": false
+}
