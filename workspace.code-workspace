@@ -80,7 +80,7 @@
 		// Terminal settings
 		"terminal.integrated.cwd": "${workspaceFolder}",
 		"terminal.integrated.defaultProfile.windows": "PowerShell",
-		"terminal.integrated.fontSize": 14,
+		"terminal.integrated.fontSize": 16,
 		"terminal.integrated.fontFamily": "Fira Code, Consolas",
 		
 		// Git settings
@@ -88,8 +88,9 @@
 		"git.enableSmartCommit": true,
 		"git.confirmSync": false,
 		
-		// Editor settings
-		"editor.fontSize": 15,
+		// Editor settings (Large monitor optimized)
+		"editor.fontSize": 18,
+		"editor.lineHeight": 26,
 		"editor.fontFamily": "Fira Code, Menlo, Monaco, 'Courier New', monospace",
 		"editor.fontLigatures": true,
 		"editor.formatOnSave": true,
