@@ -14,35 +14,7 @@
 		}
 	],
 	"settings": {
-		// Global workspace settings
-		"files.autoSave": "afterDelay",
-		"files.autoSaveDelay": 1000,
-		"files.trimTrailingWhitespace": true,
-		"files.insertFinalNewline": true,
-		
-		// Multi-root workspace optimizations
-		"workbench.editor.revealIfOpen": true,
-		"workbench.editor.enablePreviewFromQuickOpen": false,
-		"explorer.openEditors.visible": 12,
-		"workbench.editor.wrapTabs": true,
-		"workbench.startupEditor": "readme",
-		"workbench.editor.limit.enabled": true,
-		"workbench.editor.limit.value": 15,
-		
-		// Enhanced search for multi-root
-		"search.exclude": {
-			"**/node_modules": true,
-			"**/lib": true,
-			"**/temp": true,
-			"**/dist": true,
-			"**/coverage": true,
-			"**/.cache": true,
-			"**/sharepoint": true,
-			"**/release": true,
-			"**/.npmrc": true
-		},
-		
-		// File associations across all folders
+		// Project-specific settings that apply to all folders
 		"files.associations": {
 			"*.tsx": "typescriptreact",
 			"*.jsx": "javascriptreact", 
@@ -63,7 +35,7 @@
 			"Readme.MD": "markdown"
 		},
 		
-		// File nesting for all folders
+		// Multi-root workspace file organization
 		"explorer.fileNesting.enabled": true,
 		"explorer.fileNesting.patterns": {
 			"*.tsx": "${capture}.module.scss, ${capture}.scss",
@@ -76,37 +48,102 @@
 			"provisioning.ps1": "siteconfiguration.ps1",
 			"index.ts": "${capture}.types.ts, ${capture}.interfaces.ts"
 		},
+
+		// Multi-root workspace optimizations
+		"workbench.editor.revealIfOpen": true,
+		"workbench.editor.enablePreviewFromQuickOpen": false,
+		"explorer.openEditors.visible": 12,
+		"workbench.editor.wrapTabs": true,
+		"workbench.startupEditor": "readme",
+		"workbench.tree.renderIndentGuides": "always",
 		
-		// Terminal settings
-		"terminal.integrated.cwd": "${workspaceFolder}",
-		"terminal.integrated.defaultProfile.windows": "PowerShell",
-		"terminal.integrated.fontSize": 16,
-		"terminal.integrated.fontFamily": "Fira Code, Consolas",
-		
-		// Git settings
-		"git.autofetch": true,
-		"git.enableSmartCommit": true,
-		"git.confirmSync": false,
-		
-		// Editor settings (Large monitor optimized)
-		"editor.fontSize": 18,
-		"editor.lineHeight": 26,
-		"editor.fontFamily": "Fira Code, Menlo, Monaco, 'Courier New', monospace",
-		"editor.fontLigatures": true,
-		"editor.formatOnSave": true,
-		"editor.formatOnPaste": true,
-		"editor.tabSize": 2,
-		"editor.insertSpaces": true,
-		"editor.detectIndentation": false,
-		
-		// GitHub Copilot
-		"github.copilot.enable": {
-			"*": true,
-			"yaml": true,
-			"xml": true,
-			"powershell": true,
-			"plaintext": false
-		}
+		// Language-specific formatting for multi-root
+		"[typescript]": {
+			"editor.defaultFormatter": "esbenp.prettier-vscode",
+			"editor.formatOnSave": true
+		},
+		"[typescriptreact]": {
+			"editor.defaultFormatter": "esbenp.prettier-vscode",
+			"editor.formatOnSave": true
+		},
+		"[javascript]": {
+			"editor.defaultFormatter": "esbenp.prettier-vscode"
+		},
+		"[javascriptreact]": {
+			"editor.defaultFormatter": "esbenp.prettier-vscode"
+		},
+		"[json]": {
+			"editor.defaultFormatter": "esbenp.prettier-vscode"
+		},
+		"[jsonc]": {
+			"editor.defaultFormatter": "esbenp.prettier-vscode"
+		},
+		"[css]": {
+			"editor.defaultFormatter": "esbenp.prettier-vscode"
+		},
+		"[scss]": {
+			"editor.defaultFormatter": "esbenp.prettier-vscode"
+		},
+		"[markdown]": {
+			"editor.defaultFormatter": "esbenp.prettier-vscode",
+			"editor.formatOnSave": true,
+			"editor.wordWrap": "on",
+			"editor.quickSuggestions": false
+		},
+		"[xml]": {
+			"editor.defaultFormatter": "vscode.html-language-features",
+			"editor.formatOnSave": true,
+			"editor.tabSize": 2,
+			"editor.wordWrap": "on"
+		},
+		"[yaml]": {
+			"editor.defaultFormatter": "esbenp.prettier-vscode",
+			"editor.formatOnSave": true,
+			"editor.tabSize": 2,
+			"editor.insertSpaces": true
+		},
+		"[powershell]": {
+			"editor.formatOnSave": false,
+			"editor.tabSize": 4,
+			"editor.insertSpaces": true,
+			"files.encoding": "utf8",
+			"editor.wordWrap": "on",
+			"editor.rulers": [120]
+		},
+
+		// XML Configuration (PnP Provisioning)
+		"xml.symbols.enabled": true,
+		"xml.codeLens.enabled": true,
+		"xml.validation.enabled": true,
+		"xml.format.enabled": true,
+		"xml.format.splitAttributes": false,
+
+		// YAML Configuration
+		"yaml.format.enable": true,
+		"yaml.format.singleQuote": false,
+		"yaml.format.bracketSpacing": true,
+		"yaml.completion": true,
+		"yaml.hover": true,
+		"yaml.validate": true,
+
+		// Markdown Configuration
+		"markdown.preview.fontSize": 16,
+		"markdown.preview.lineHeight": 1.6,
+
+		// NPM Script Management
+		"npm.enableRunFromFolder": true,
+		"npm.enableScriptExplorer": true,
+		"npm.scriptExplorerAction": "run",
+
+		// Task Configuration
+		"task.autoDetect": "on",
+		"task.showDecorations": true,
+		"task.problemMatchers.neverPrompt": true,
+		"task.quickOpen.history": 10,
+		"task.quickOpen.detail": true,
+
+		// Terminal workspace-specific settings
+		"terminal.integrated.cwd": "${workspaceFolder}"
 	},
 	"extensions": {
 		"recommendations": [
