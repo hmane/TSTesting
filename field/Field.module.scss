@@ -1,0 +1,492 @@
+// SharePoint design tokens and theme variables
+:root {
+  // SharePoint theme colors
+  --field-theme-primary: #0078d4;
+  --field-theme-primary-dark: #106ebe;
+  --field-theme-primary-light: #c7e0f4;
+  --field-theme-neutral-lighter: #f8f9fa;
+  --field-theme-neutral-light: #edebe9;
+  --field-theme-neutral-tertiary: #a19f9d;
+  --field-theme-neutral-secondary: #605e5c;
+  --field-theme-neutral-primary: #323130;
+  --field-theme-white: #ffffff;
+  --field-theme-success: #107c10;
+  --field-theme-error: #d13438;
+  --field-theme-warning: #ffb900;
+  --field-theme-info: #0078d4;
+
+  // Field specific colors
+  --field-label-color: var(--field-theme-neutral-primary);
+  --field-label-required-color: var(--field-theme-error);
+  --field-description-color: var(--field-theme-neutral-secondary);
+  --field-error-color: var(--field-theme-error);
+  --field-error-background: #fde7e9;
+  --field-success-color: var(--field-theme-success);
+  --field-border-color: var(--field-theme-neutral-light);
+  --field-focus-color: var(--field-theme-primary);
+  --field-disabled-color: var(--field-theme-neutral-tertiary);
+
+  // Spacing
+  --field-spacing-xs: 4px;
+  --field-spacing-s: 8px;
+  --field-spacing-m: 12px;
+  --field-spacing-l: 16px;
+  --field-spacing-xl: 20px;
+  --field-spacing-xxl: 24px;
+
+  // Typography
+  --field-font-family: 'Segoe UI', 'Segoe UI Web (West European)', 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', sans-serif;
+  --field-font-size-s: 12px;
+  --field-font-size-m: 14px;
+  --field-font-size-l: 16px;
+  --field-line-height: 1.4;
+  --field-font-weight-regular: 400;
+  --field-font-weight-semibold: 600;
+  --field-font-weight-bold: 700;
+
+  // Border radius
+  --field-border-radius-s: 4px;
+  --field-border-radius-m: 6px;
+
+  // Shadows
+  --field-shadow-1: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+  --field-shadow-2: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23);
+
+  // Animations
+  --field-animation-fast: 0.2s;
+  --field-animation-normal: 0.3s;
+  --field-easing-standard: cubic-bezier(0.4, 0, 0.2, 1);
+
+  // Global label widths - CSS-first approach like DevExtreme
+  --field-label-width-global: 150px;
+  --field-label-width-compact: 120px;
+  --field-label-width-normal: 150px;
+  --field-label-width-wide: 200px;
+}
+
+// Breakpoints
+$breakpoint-mobile: 640px;
+$breakpoint-tablet: 1024px;
+
+// Base field styles
+.field {
+  font-family: var(--field-font-family);
+  font-size: var(--field-font-size-m);
+  line-height: var(--field-line-height);
+  color: var(--field-theme-neutral-primary);
+  box-sizing: border-box;
+  display: grid;
+  margin-bottom: var(--field-spacing-l);
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: inherit;
+  }
+
+  // Horizontal layout (default)
+  &.layoutHorizontal {
+    grid-template-columns: var(--field-label-width-global) 1fr;
+    gap: var(--field-spacing-m);
+    align-items: start;
+  }
+
+  // Vertical layout
+  &.layoutVertical {
+    grid-template-columns: 1fr;
+    gap: var(--field-spacing-s);
+  }
+
+  // Auto layout - responsive
+  &.layoutAuto {
+    grid-template-columns: var(--field-label-width-global) 1fr;
+    gap: var(--field-spacing-m);
+    align-items: start;
+
+    @media (max-width: #{$breakpoint-mobile}) {
+      grid-template-columns: 1fr;
+      gap: var(--field-spacing-s);
+    }
+  }
+
+  // No label but still aligns with other fields
+  &.noLabel {
+    &.layoutHorizontal,
+    &.layoutAuto {
+      .fieldContent {
+        grid-column: 2;
+      }
+    }
+
+    &.layoutVertical {
+      .fieldContent {
+        grid-column: 1;
+      }
+    }
+
+    @media (max-width: #{$breakpoint-mobile}) {
+      &.layoutAuto {
+        .fieldContent {
+          grid-column: 1;
+        }
+      }
+    }
+  }
+
+  &.disabled {
+    opacity: 0.6;
+    pointer-events: none;
+  }
+
+  // Label width variants - DevExtreme style
+  &.labelWidthCompact {
+    --field-label-width-global: var(--field-label-width-compact);
+  }
+
+  &.labelWidthNormal {
+    --field-label-width-global: var(--field-label-width-normal);
+  }
+
+  &.labelWidthWide {
+    --field-label-width-global: var(--field-label-width-wide);
+  }
+
+  &.labelWidthAuto {
+    --field-label-width-global: auto;
+  }
+}
+
+// Field content container
+.fieldContent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--field-spacing-s);
+  min-width: 0;
+}
+
+// Field label styles
+.fieldLabel {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--field-spacing-xs);
+  color: var(--field-label-color);
+  font-weight: var(--field-font-weight-semibold);
+  font-size: var(--field-font-size-m);
+  line-height: var(--field-line-height);
+  margin-bottom: 0;
+  padding: var(--field-spacing-xs) 0;
+
+  &.wrapNormal {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+
+  &.wrapBreakWord {
+    word-break: break-word;
+  }
+
+  &.wrapNowrap {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+.labelText {
+  flex: 1;
+  min-width: 0;
+}
+
+.requiredIndicator {
+  color: var(--field-label-required-color);
+  font-weight: var(--field-font-weight-bold);
+  margin-left: 2px;
+  flex-shrink: 0;
+}
+
+// Description as info bubble
+.description {
+  display: inline-flex;
+  align-items: center;
+  margin-left: var(--field-spacing-xs);
+  flex-shrink: 0;
+}
+
+.descriptionIcon {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--field-theme-info);
+  color: var(--field-theme-white);
+  font-size: 10px;
+  font-weight: var(--field-font-weight-bold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: none;
+  outline: none;
+  transition: background-color var(--field-animation-fast) var(--field-easing-standard);
+
+  &:hover {
+    background: var(--field-theme-primary-dark);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--field-focus-color);
+    outline-offset: 2px;
+  }
+}
+
+// Error styles
+.fieldError {
+  font-size: var(--field-font-size-s);
+  color: var(--field-error-color);
+  font-weight: var(--field-font-weight-semibold);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--field-spacing-xs);
+  margin-top: var(--field-spacing-xs);
+
+  &.animationSlide {
+    overflow: hidden;
+    transition: all var(--field-animation-normal) var(--field-easing-standard);
+
+    &.enter {
+      max-height: 0;
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+
+    &.enterActive {
+      max-height: 60px;
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    &.exit {
+      max-height: 60px;
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    &.exitActive {
+      max-height: 0;
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+  }
+
+  &.animationFade {
+    transition: opacity var(--field-animation-fast) var(--field-easing-standard);
+
+    &.enter { opacity: 0; }
+    &.enterActive { opacity: 1; }
+    &.exit { opacity: 1; }
+    &.exitActive { opacity: 0; }
+  }
+
+  &.positionInline {
+    display: inline-flex;
+    margin-left: var(--field-spacing-s);
+    margin-top: 0;
+  }
+}
+
+.errorIcon {
+  color: var(--field-error-color);
+  font-size: 14px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+// Field Group styles
+.fieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--field-spacing-l);
+
+  &.spacingCompact {
+    gap: var(--field-spacing-m);
+
+    .field {
+      margin-bottom: var(--field-spacing-m);
+    }
+  }
+
+  &.spacingNormal {
+    gap: var(--field-spacing-l);
+
+    .field {
+      margin-bottom: var(--field-spacing-l);
+    }
+  }
+
+  &.spacingRelaxed {
+    gap: var(--field-spacing-xxl);
+
+    .field {
+      margin-bottom: var(--field-spacing-xxl);
+    }
+  }
+
+  &.layoutVertical {
+    .field {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  &.disabled {
+    opacity: 0.6;
+    pointer-events: none;
+  }
+}
+
+// Form-level label width classes (like DevExtreme)
+.formCompact .field {
+  --field-label-width-global: var(--field-label-width-compact);
+}
+
+.formWide .field {
+  --field-label-width-global: var(--field-label-width-wide);
+}
+
+// Loading state
+.fieldLoading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--field-spacing-m);
+  background: var(--field-theme-neutral-lighter);
+  border-radius: var(--field-border-radius-s);
+  color: var(--field-theme-neutral-secondary);
+  font-size: var(--field-font-size-s);
+}
+
+.loadingSpinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--field-theme-neutral-light);
+  border-top: 2px solid var(--field-theme-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-right: var(--field-spacing-s);
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+}
+
+// Input styling when used with Field component
+:global {
+  .field input,
+  .field select,
+  .field textarea {
+    display: block;
+    width: 100%;
+    padding: var(--field-spacing-s) var(--field-spacing-m);
+    border: 1px solid var(--field-border-color);
+    border-radius: var(--field-border-radius-s);
+    background: var(--field-theme-white);
+    font-family: var(--field-font-family);
+    font-size: var(--field-font-size-m);
+    line-height: var(--field-line-height);
+    color: var(--field-theme-neutral-primary);
+    transition: border-color var(--field-animation-fast) var(--field-easing-standard);
+
+    &:focus {
+      outline: none;
+      border-color: var(--field-focus-color);
+      box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.2);
+    }
+
+    &:disabled {
+      background: var(--field-theme-neutral-lighter);
+      color: var(--field-disabled-color);
+      cursor: not-allowed;
+    }
+
+    &::placeholder {
+      color: var(--field-theme-neutral-tertiary);
+    }
+  }
+
+  .field input[type="checkbox"],
+  .field input[type="radio"] {
+    width: auto;
+    margin-right: var(--field-spacing-s);
+  }
+}
+
+// Accessibility enhancements
+@media (forced-colors: active) {
+  .field {
+    border: 1px solid ButtonBorder;
+
+    .fieldLabel {
+      color: ButtonText;
+    }
+
+    .fieldError {
+      color: HighlightText;
+      background: Highlight;
+      padding: 2px 4px;
+      border-radius: 2px;
+    }
+
+    .requiredIndicator {
+      color: HighlightText;
+      background: Highlight;
+      padding: 0 2px;
+      border-radius: 2px;
+    }
+  }
+
+  .descriptionIcon {
+    border: 1px solid ButtonBorder;
+    background: ButtonFace;
+    color: ButtonText;
+
+    &:hover {
+      background: Highlight;
+      color: HighlightText;
+    }
+  }
+}
+
+// Reduced motion support
+@media (prefers-reduced-motion: reduce) {
+  .fieldError.animationSlide,
+  .fieldError.animationFade {
+    transition: none;
+  }
+
+  .descriptionIcon {
+    transition: none;
+  }
+
+  .loadingSpinner {
+    animation: none;
+  }
+}
+
+// Print styles
+@media print {
+  .field {
+    break-inside: avoid;
+    margin-bottom: 12px;
+
+    .fieldError {
+      display: none;
+    }
+
+    .description {
+      display: none;
+    }
+  }
+
+  .fieldGroup {
+    break-inside: avoid;
+  }
+}
