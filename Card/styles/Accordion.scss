@@ -1,0 +1,566 @@
+// ==================== Accordion Base Styles ====================
+.spfx-accordion {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+  
+  // Accordion variants
+  &.spfx-accordion-default {
+    gap: 8px;
+  }
+  
+  &.spfx-accordion-connected {
+    gap: 0;
+    
+    .spfx-accordion-card {
+      &:not(:first-child) {
+        margin-top: -1px; // Overlap borders for connected look
+      }
+      
+      &:first-child {
+        border-radius: var(--spfx-card-border-radius) var(--spfx-card-border-radius) 0 0;
+      }
+      
+      &:last-child {
+        border-radius: 0 0 var(--spfx-card-border-radius) var(--spfx-card-border-radius);
+      }
+      
+      &:only-child {
+        border-radius: var(--spfx-card-border-radius);
+      }
+      
+      &:not(:first-child):not(:last-child) {
+        border-radius: 0;
+      }
+    }
+  }
+  
+  &.spfx-accordion-outlined {
+    border: 1px solid var(--spfx-card-neutral-light);
+    border-radius: var(--spfx-card-border-radius);
+    overflow: hidden;
+    
+    .spfx-accordion-card {
+      border: none;
+      border-radius: 0;
+      
+      &:not(:last-child) {
+        border-bottom: 1px solid var(--spfx-card-neutral-light);
+      }
+    }
+  }
+  
+  // Spacing variants
+  &.spfx-accordion-spacing-none {
+    gap: 0;
+  }
+  
+  &.spfx-accordion-spacing-compact {
+    gap: 4px;
+  }
+  
+  &.spfx-accordion-spacing-regular {
+    gap: 8px;
+  }
+  
+  // Allow multiple vs single expand
+  &.single-expand {
+    .spfx-accordion-card {
+      transition: all var(--spfx-card-transition-duration) var(--spfx-card-transition-easing);
+    }
+  }
+  
+  &.allow-multiple {
+    .spfx-accordion-card {
+      transition: all var(--spfx-card-transition-duration) var(--spfx-card-transition-easing);
+    }
+  }
+  
+  // Controlled accordion indicator
+  &.controlled {
+    position: relative;
+    
+    &::before {
+      content: '';
+      position: absolute;
+      left: -3px;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: var(--spfx-card-theme-primary);
+      opacity: 0.3;
+      border-radius: 0 2px 2px 0;
+    }
+  }
+}
+
+// ==================== Accordion Card Overrides ====================
+.spfx-accordion-card {
+  // Remove default margin when in accordion
+  margin: 0;
+  
+  // Enhance hover effects in accordion context
+  &:hover {
+    z-index: 2; // Bring to front to show full shadow
+    position: relative;
+  }
+  
+  // Special styling for first and last cards in connected accordion
+  &.first {
+    .spfx-card-header {
+      &.success,
+      &.error, 
+      &.warning,
+      &.info,
+      &.default {
+        border-top-left-radius: var(--spfx-card-border-radius);
+        border-top-right-radius: var(--spfx-card-border-radius);
+      }
+    }
+  }
+  
+  &.last {
+    .spfx-card-footer {
+      border-bottom-left-radius: var(--spfx-card-border-radius);
+      border-bottom-right-radius: var(--spfx-card-border-radius);
+    }
+    
+    // If no footer, round the content area
+    &:not(:has(.spfx-card-footer)) .spfx-card-content {
+      border-bottom-left-radius: var(--spfx-card-border-radius);
+      border-bottom-right-radius: var(--spfx-card-border-radius);
+      overflow: hidden;
+    }
+  }
+  
+  // Data attributes for styling
+  &[data-accordion-expanded="true"] {
+    box-shadow: 0 2px 4px var(--spfx-card-shadow-color);
+    
+    .spfx-card-header {
+      border-bottom-color: var(--spfx-card-neutral-light);
+    }
+  }
+  
+  &[data-accordion-expanded="false"] {
+    .spfx-card-header {
+      border-bottom: none;
+    }
+  }
+}
+
+// ==================== Searchable Accordion Styles ====================
+.spfx-searchable-accordion {
+  width: 100%;
+  
+  .spfx-accordion-search {
+    margin-bottom: 16px;
+    
+    > div {
+      position: relative;
+      
+      input {
+        width: 100%;
+        padding: 8px 12px 8px 36px;
+        border: 1px solid var(--spfx-card-neutral-tertiary);
+        border-radius: 4px;
+        font-size: 14px;
+        background: var(--spfx-card-theme-white);
+        color: var(--spfx-card-neutral-primary);
+        box-sizing: border-box;
+        font-family: inherit;
+        transition: all 0.2s ease;
+        
+        &::placeholder {
+          color: var(--spfx-card-neutral-secondary);
+        }
+        
+        &:focus {
+          outline: none;
+          border-color: var(--spfx-card-theme-primary);
+          box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.2);
+        }
+        
+        &:hover {
+          border-color: var(--spfx-card-neutral-secondary);
+        }
+      }
+      
+      // Search icon
+      > i:first-child {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--spfx-card-neutral-secondary);
+        font-size: 16px;
+        pointer-events: none;
+      }
+      
+      // Clear button
+      > button {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 2px;
+        color: var(--spfx-card-neutral-secondary);
+        transition: all 0.2s ease;
+        
+        &:hover {
+          background: var(--spfx-card-neutral-lighter);
+          color: var(--spfx-card-neutral-primary);
+        }
+        
+        &:focus {
+          outline: 2px solid var(--spfx-card-theme-primary);
+          outline-offset: 1px;
+        }
+      }
+    }
+  }
+  
+  .spfx-accordion-no-results {
+    padding: 20px;
+    text-align: center;
+    color: var(--spfx-card-neutral-secondary);
+    background: var(--spfx-card-neutral-lighter);
+    border-radius: var(--spfx-card-border-radius);
+    border: 1px solid var(--spfx-card-neutral-light);
+    font-size: 14px;
+    
+    &::before {
+      content: '🔍';
+      display: block;
+      font-size: 24px;
+      margin-bottom: 8px;
+      opacity: 0.5;
+    }
+  }
+}
+
+// ==================== Keyboard Navigation Enhancements ====================
+.spfx-accordion {
+  // Focus management for keyboard navigation
+  &:focus-within {
+    outline: none;
+  }
+  
+  .spfx-accordion-card {
+    // Enhanced focus styles for keyboard users
+    &:focus-within {
+      position: relative;
+      z-index: 3;
+      
+      .spfx-card-header {
+        outline: 2px solid var(--spfx-card-theme-primary);
+        outline-offset: -2px;
+      }
+    }
+    
+    // Keyboard navigation hints
+    .spfx-card-header[role="button"] {
+      position: relative;
+      
+      &:focus::after {
+        content: '';
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 4px;
+        height: 4px;
+        background: var(--spfx-card-theme-primary);
+        border-radius: 50%;
+        animation: pulseGlow 2s infinite;
+      }
+    }
+  }
+}
+
+// ==================== Accordion Animation Enhancements ====================
+.spfx-accordion {
+  .spfx-accordion-card {
+    // Staggered animation for multiple cards
+    &[data-accordion-position="0"] { 
+      animation-delay: 0ms; 
+    }
+    &[data-accordion-position="1"] { 
+      animation-delay: 50ms; 
+    }
+    &[data-accordion-position="2"] { 
+      animation-delay: 100ms; 
+    }
+    &[data-accordion-position="3"] { 
+      animation-delay: 150ms; 
+    }
+    &[data-accordion-position="4"] { 
+      animation-delay: 200ms; 
+    }
+    // Continue pattern for more cards as needed
+    
+    .spfx-card-content {
+      // Enhanced accordion content animation
+      &.expanded {
+        animation: accordionExpand 0.4s var(--spfx-card-transition-easing) forwards;
+      }
+      
+      &.collapsed {
+        animation: accordionCollapse 0.3s var(--spfx-card-transition-easing) forwards;
+      }
+    }
+    
+    // Card entrance animation
+    &.entering {
+      animation: cardSlideIn 0.4s var(--spfx-card-transition-easing) forwards;
+    }
+    
+    &.exiting {
+      animation: cardSlideOut 0.3s var(--spfx-card-transition-easing) forwards;
+    }
+  }
+  
+  // Smooth height transitions for the accordion container
+  &.transitioning {
+    transition: height 0.4s var(--spfx-card-transition-easing);
+  }
+}
+
+// ==================== Accordion State Indicators ====================
+.spfx-accordion {
+  // Visual indicators for accordion state
+  &::before {
+    content: '';
+    position: absolute;
+    left: -4px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: linear-gradient(
+      to bottom,
+      var(--spfx-card-theme-primary) 0%,
+      var(--spfx-card-theme-primary-light) 100%
+    );
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  
+  &:hover::before,
+  &:focus-within::before {
+    opacity: 0.5;
+  }
+  
+  // Expanded card count indicator
+  &[data-expanded-count]::after {
+    content: attr(data-expanded-count) ' expanded';
+    position: absolute;
+    top: -24px;
+    right: 0;
+    font-size: 12px;
+    color: var(--spfx-card-neutral-secondary);
+    background: var(--spfx-card-neutral-lighter);
+    padding: 2px 8px;
+    border-radius: 12px;
+    border: 1px solid var(--spfx-card-neutral-light);
+  }
+  
+  &.single-expand[data-expanded-count="1"]::after {
+    content: '1 of ' attr(data-total-count) ' expanded';
+  }
+}
+
+// ==================== Connected Accordion Enhanced Styling ====================
+.spfx-accordion-connected {
+  // Add subtle gradient background
+  background: linear-gradient(
+    to bottom,
+    var(--spfx-card-neutral-lighter) 0%,
+    transparent 10%,
+    transparent 90%,
+    var(--spfx-card-neutral-lighter) 100%
+  );
+  border-radius: var(--spfx-card-border-radius);
+  padding: 1px;
+  box-shadow: 0 1px 3px var(--spfx-card-shadow-color);
+  
+  .spfx-accordion-card {
+    // Remove individual shadows since parent has shadow
+    box-shadow: none;
+    
+    &:hover {
+      box-shadow: inset 0 0 0 1px var(--spfx-card-theme-primary-light);
+    }
+    
+    // Smooth border transitions
+    border-color: transparent;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    
+    &[data-accordion-expanded="true"] {
+      border-left: 2px solid var(--spfx-card-theme-primary);
+      background: var(--spfx-card-theme-white);
+      
+      .spfx-card-header {
+        background: var(--spfx-card-theme-white);
+        color: var(--spfx-card-neutral-primary);
+        border-bottom: 1px solid var(--spfx-card-neutral-light);
+        
+        &.success,
+        &.error,
+        &.warning, 
+        &.info {
+          // Maintain variant colors but with reduced opacity
+          opacity: 0.9;
+        }
+      }
+    }
+  }
+}
+
+// ==================== Responsive Accordion Styles ====================
+@media (max-width: 768px) {
+  .spfx-accordion {
+    // Reduce spacing on mobile
+    &.spfx-accordion-spacing-regular {
+      gap: 4px;
+    }
+    
+    .spfx-accordion-card {
+      // Enhance touch targets on mobile
+      .spfx-card-header {
+        min-height: 48px; // Touch-friendly height
+        padding: 12px 16px;
+      }
+      
+      // Stack action buttons on mobile
+      .spfx-card-actions {
+        &:not(.stack-mobile) {
+          flex-wrap: wrap;
+          gap: 4px;
+        }
+      }
+    }
+  }
+  
+  .spfx-searchable-accordion {
+    .spfx-accordion-search {
+      margin-bottom: 12px;
+      
+      input {
+        padding: 12px 16px 12px 40px; // Larger touch target
+        font-size: 16px; // Prevent zoom on iOS
+      }
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .spfx-accordion-connected {
+    // Remove complex gradients on very small screens for performance
+    background: var(--spfx-card-neutral-lighter);
+    padding: 0;
+    
+    .spfx-accordion-card {
+      &[data-accordion-expanded="true"] {
+        border-left-width: 1px; // Thinner highlight
+      }
+    }
+  }
+  
+  .spfx-searchable-accordion {
+    .spfx-accordion-no-results {
+      padding: 16px;
+      font-size: 13px;
+      
+      &::before {
+        font-size: 20px;
+        margin-bottom: 6px;
+      }
+    }
+  }
+}
+
+// ==================== Animation Keyframes ====================
+@keyframes accordionExpand {
+  from {
+    max-height: 0;
+    opacity: 0;
+    transform: scaleY(0.95);
+  }
+  to {
+    max-height: 2000px;
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+@keyframes accordionCollapse {
+  from {
+    max-height: 2000px;
+    opacity: 1;
+    transform: scaleY(1);
+  }
+  to {
+    max-height: 0;
+    opacity: 0;
+    transform: scaleY(0.95);
+  }
+}
+
+@keyframes cardSlideIn {
+  from {
+    transform: translateX(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes cardSlideOut {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(-20px);
+    opacity: 0;
+  }
+}
+
+@keyframes accordionGlow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(0, 120, 212, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(0, 120, 212, 0.1);
+  }
+}
+
+// ==================== High Contrast Mode Support ====================
+@media (forced-colors: active) {
+  .spfx-accordion {
+    border: 1px solid ButtonBorder;
+    background: ButtonFace;
+    
+    &::before,
+    &::after {
+      display: none; // Hide decorative elements
+    }
+    
+    .spfx-accordion-card {
+      border: 1px solid ButtonBorder;
+      background: ButtonFace;
+      color: ButtonText;
+      
+      &:hover {
+        background: Highlight;
+        color: HighlightText;
+      }
+      
+      &[data-accordion
