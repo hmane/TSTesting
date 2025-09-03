@@ -1,0 +1,1368 @@
+// ==================== SharePoint Theme Variables ====================
+// Import SharePoint/Fluent UI theme variables if available
+// @import '~@fluentui/react/dist/sass/References';
+
+// Define CSS custom properties for SharePoint theming
+:root {
+  // Primary theme colors
+  --spfx-card-theme-primary: var(--themePrimary, #0078d4);
+  --spfx-card-theme-primary-dark: var(--themeDark, #106ebe);
+  --spfx-card-theme-primary-light: var(--themeLight, #c7e0f4);
+  
+  // Neutral colors
+  --spfx-card-theme-white: var(--white, #ffffff);
+  --spfx-card-theme-black: var(--black, #000000);
+  --spfx-card-neutral-lighter: var(--neutralLighter, #f8f9fa);
+  --spfx-card-neutral-light: var(--neutralLight, #edebe9);
+  --spfx-card-neutral-tertiary: var(--neutralTertiary, #a19f9d);
+  --spfx-card-neutral-secondary: var(--neutralSecondary, #605e5c);
+  --spfx-card-neutral-primary: var(--neutralPrimary, #323130);
+  
+  // Semantic colors
+  --spfx-card-success: var(--green, #107c10);
+  --spfx-card-success-dark: var(--greenDark, #0e6e0e);
+  --spfx-card-error: var(--red, #d13438);
+  --spfx-card-error-dark: var(--redDark, #b52c31);
+  --spfx-card-warning: var(--yellow, #ffb900);
+  --spfx-card-warning-dark: var(--yellowDark, #e6a500);
+  --spfx-card-info: var(--themePrimary, #0078d4);
+  
+  // Card specific variables
+  --spfx-card-border-radius: 8px;
+  --spfx-card-border-width: 1px;
+  --spfx-card-shadow-color: rgba(0, 0, 0, 0.1);
+  --spfx-card-transition-duration: 0.3s;
+  --spfx-card-transition-easing: cubic-bezier(0.4, 0, 0.2, 1);
+  
+  // Z-index levels
+  --spfx-card-z-base: 1;
+  --spfx-card-z-elevated: 10;
+  --spfx-card-z-maximized: 1030;
+  --spfx-card-z-backdrop: 1025;
+}
+
+// ==================== Card Base Styles ====================
+.spfx-card {
+  background: var(--spfx-card-theme-white);
+  border-radius: var(--spfx-card-border-radius);
+  border: var(--spfx-card-border-width) solid var(--spfx-card-neutral-light);
+  overflow: hidden;
+  transition: all var(--spfx-card-transition-duration) var(--spfx-card-transition-easing);
+  position: relative;
+  font-family: 'Segoe UI', 'Segoe UI Web (West European)', 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', sans-serif;
+  isolation: isolate;
+  will-change: transform, box-shadow, border-color;
+  contain: layout style;
+  
+  // Base hover and focus states
+  &:not(.disabled) {
+    &:hover {
+      box-shadow: 0 2px 4px var(--spfx-card-shadow-color), 0 4px 8px var(--spfx-card-shadow-color);
+      transform: translateY(-1px);
+      border-color: var(--spfx-card-neutral-tertiary);
+    }
+    
+    &:focus-within {
+      outline: 2px solid var(--spfx-card-theme-primary);
+      outline-offset: 2px;
+    }
+  }
+
+  // Disabled state
+  &.disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    
+    * {
+      pointer-events: none;
+    }
+  }
+
+  // Loading state
+  &.loading {
+    position: relative;
+    
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(
+        90deg,
+        transparent,
+        var(--spfx-card-theme-primary),
+        transparent
+      );
+      animation: loadingBar 1.5s infinite;
+      z-index: var(--spfx-card-z-elevated);
+    }
+  }
+
+  // Highlight effect for programmatic changes
+  &.highlight {
+    border-color: var(--spfx-card-theme-primary);
+    box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.3);
+    animation: cardHighlight 0.6s ease-out;
+  }
+}
+
+// ==================== Card Size Variants ====================
+.spfx-card-compact {
+  font-size: 14px;
+  
+  .spfx-card-header {
+    padding: 8px 12px;
+    min-height: 40px;
+    
+    .spfx-card-header-text {
+      font-size: 14px;
+      font-weight: 400;
+    }
+  }
+  
+  .spfx-card-body {
+    padding: 8px 12px;
+  }
+  
+  .spfx-card-footer {
+    padding: 6px 12px;
+  }
+}
+
+.spfx-card-regular {
+  font-size: 16px;
+  
+  .spfx-card-header {
+    padding: 16px 20px;
+    min-height: 56px;
+    
+    .spfx-card-header-text {
+      font-size: 16px;
+      font-weight: 600;
+    }
+  }
+  
+  .spfx-card-body {
+    padding: 16px 20px;
+  }
+  
+  .spfx-card-footer {
+    padding: 12px 20px;
+  }
+}
+
+.spfx-card-large {
+  font-size: 18px;
+  
+  .spfx-card-header {
+    padding: 24px 28px;
+    min-height: 72px;
+    
+    .spfx-card-header-text {
+      font-size: 18px;
+      font-weight: 600;
+    }
+  }
+  
+  .spfx-card-body {
+    padding: 24px 28px;
+  }
+  
+  .spfx-card-footer {
+    padding: 16px 28px;
+  }
+}
+
+.spfx-card-full-width {
+  width: 100%;
+  font-size: 16px;
+  
+  .spfx-card-header {
+    padding: 20px 24px;
+    min-height: 60px;
+    
+    .spfx-card-header-text {
+      font-size: 16px;
+      font-weight: 600;
+    }
+  }
+  
+  .spfx-card-body {
+    padding: 20px 24px;
+  }
+  
+  .spfx-card-footer {
+    padding: 16px 24px;
+  }
+}
+
+// ==================== Card Elevation Styles ====================
+.spfx-card {
+  &.elevation-1 { 
+    box-shadow: 0 0.6px 1.8px var(--spfx-card-shadow-color);
+  }
+  &.elevation-2 { 
+    box-shadow: 0 1.6px 3.6px var(--spfx-card-shadow-color);
+  }
+  &.elevation-3 { 
+    box-shadow: 0 3.2px 7.2px var(--spfx-card-shadow-color);
+  }
+  &.elevation-4 { 
+    box-shadow: 0 6.4px 14.4px var(--spfx-card-shadow-color);
+  }
+  &.elevation-5 { 
+    box-shadow: 0 25.6px 57.6px rgba(0, 0, 0, 0.22), 0 4.8px 14.4px rgba(0, 0, 0, 0.18);
+  }
+}
+
+// ==================== Card Header Styles ====================
+.spfx-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: all 0.2s ease;
+  border-bottom: 1px solid var(--spfx-card-neutral-light);
+  position: relative;
+  background: var(--spfx-card-neutral-lighter);
+  
+  &.clickable {
+    cursor: pointer;
+    user-select: none;
+    
+    &:hover {
+      filter: brightness(0.96);
+    }
+    
+    &:active {
+      transform: scale(0.99);
+    }
+    
+    &:focus {
+      outline: 2px solid var(--spfx-card-theme-primary);
+      outline-offset: -2px;
+    }
+  }
+
+  // Header content wrapper
+  &-content {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  // Header text
+  &-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+  }
+
+  // Loading shimmer in header
+  &.loading .spfx-card-header-loading-shimmer {
+    background: linear-gradient(
+      90deg, 
+      var(--spfx-card-neutral-lighter) 25%, 
+      var(--spfx-card-neutral-light) 50%, 
+      var(--spfx-card-neutral-lighter) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    margin-right: 8px;
+  }
+}
+
+// ==================== Card Header Variants ====================
+.spfx-card-header {
+  &.success { 
+    background: var(--spfx-card-success);
+    color: var(--spfx-card-theme-white);
+    border-bottom-color: rgba(255, 255, 255, 0.2);
+  }
+  
+  &.error { 
+    background: var(--spfx-card-error);
+    color: var(--spfx-card-theme-white);
+    border-bottom-color: rgba(255, 255, 255, 0.2);
+  }
+  
+  &.warning { 
+    background: var(--spfx-card-warning);
+    color: var(--spfx-card-neutral-primary);
+    border-bottom-color: rgba(0, 0, 0, 0.1);
+  }
+  
+  &.info { 
+    background: var(--spfx-card-info);
+    color: var(--spfx-card-theme-white);
+    border-bottom-color: rgba(255, 255, 255, 0.2);
+  }
+  
+  &.default { 
+    background: var(--spfx-card-neutral-lighter);
+    color: var(--spfx-card-neutral-primary);
+    border-bottom-color: var(--spfx-card-neutral-light);
+  }
+}
+
+// ==================== Action Buttons Styles ====================
+.spfx-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  z-index: var(--spfx-card-z-base);
+
+  &.position-left {
+    order: -1;
+    margin-right: auto;
+  }
+  
+  &.position-center {
+    margin: 0 auto;
+  }
+  
+  &.position-right {
+    margin-left: auto;
+  }
+}
+
+.spfx-card-action-btn {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  min-height: 32px;
+  color: inherit;
+  
+  &:focus {
+    outline: 2px solid var(--spfx-card-theme-primary);
+    outline-offset: 1px;
+  }
+
+  &:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.25);
+    transform: translateY(-1px);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  // Button variants
+  &.primary {
+    background: var(--spfx-card-theme-primary);
+    border-color: var(--spfx-card-theme-primary-dark);
+    color: var(--spfx-card-theme-white);
+
+    &:hover:not(:disabled) {
+      background: var(--spfx-card-theme-primary-dark);
+    }
+  }
+
+  &.secondary {
+    background: var(--spfx-card-neutral-tertiary);
+    border-color: var(--spfx-card-neutral-secondary);
+    color: var(--spfx-card-theme-white);
+
+    &:hover:not(:disabled) {
+      background: var(--spfx-card-neutral-secondary);
+    }
+  }
+
+  &.danger {
+    background: var(--spfx-card-error);
+    border-color: var(--spfx-card-error-dark);
+    color: var(--spfx-card-theme-white);
+
+    &:hover:not(:disabled) {
+      background: var(--spfx-card-error-dark);
+    }
+  }
+}
+
+// Expand/Collapse and Maximize buttons
+.spfx-card-expand-btn,
+.spfx-card-maximize-btn {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+  color: inherit;
+
+  &:focus {
+    outline: 2px solid var(--spfx-card-theme-primary);
+    outline-offset: 2px;
+  }
+
+  &:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.25);
+    transform: scale(1.05);
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(0.95);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.spfx-card-expand-btn {
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  
+  .spfx-card-expand-icon {
+    transition: transform 0.3s ease;
+    width: 16px;
+    height: 16px;
+
+    &.expanded {
+      transform: rotate(180deg);
+    }
+  }
+}
+
+.spfx-card-maximize-btn {
+  border-radius: 4px;
+  width: 32px;
+  height: 32px;
+}
+
+// ==================== Card Content Styles ====================
+.spfx-card-content {
+  overflow: hidden;
+  transition: all 0.4s var(--spfx-card-transition-easing);
+  contain: layout;
+
+  &.collapsed {
+    max-height: 0;
+    opacity: 0;
+  }
+
+  &.expanded {
+    max-height: 2000px;
+    opacity: 1;
+  }
+
+  &.no-animation {
+    transition: none;
+  }
+}
+
+.spfx-card-body {
+  // Padding variants
+  &.padding-none { 
+    padding: 0; 
+  }
+  &.padding-compact { 
+    padding: 8px; 
+  }
+  &.padding-comfortable { 
+    padding: 16px; 
+  }
+  &.padding-spacious { 
+    padding: 24px; 
+  }
+  &.padding-loose { 
+    padding: 32px; 
+  }
+}
+
+// ==================== Card Footer Styles ====================
+.spfx-card-footer {
+  border-top: 1px solid var(--spfx-card-neutral-light);
+  background: var(--spfx-card-neutral-lighter);
+  transition: all 0.2s ease;
+  
+  // Padding variants
+  &.padding-none { 
+    padding: 0; 
+  }
+  &.padding-compact { 
+    padding: 8px 12px; 
+  }
+  &.padding-comfortable { 
+    padding: 12px 20px; 
+  }
+  &.padding-spacious { 
+    padding: 16px 24px; 
+  }
+  &.padding-loose { 
+    padding: 20px 32px; 
+  }
+  
+  // Text alignment
+  &.text-left { 
+    text-align: left; 
+  }
+  &.text-center { 
+    text-align: center; 
+  }
+  &.text-right { 
+    text-align: right; 
+  }
+  
+  &.no-border {
+    border-top: none;
+  }
+}
+
+// ==================== Loading States ====================
+.spfx-card-loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.95);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--spfx-card-z-elevated);
+  backdrop-filter: blur(2px);
+  border-radius: var(--spfx-card-border-radius);
+}
+
+.spfx-card-loading-spinner {
+  margin-bottom: 12px;
+}
+
+.spfx-card-loading-text {
+  color: var(--spfx-card-neutral-secondary);
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.spfx-card-loading-skeleton,
+.spfx-card-loading-shimmer,
+.spfx-card-content-loading-placeholder {
+  .skeleton-header,
+  .skeleton-line,
+  > div {
+    background: var(--spfx-card-neutral-lighter);
+    border-radius: 4px;
+    
+    &:not(:last-child) {
+      margin-bottom: 8px;
+    }
+  }
+}
+
+.spfx-card-loading-shimmer,
+.spfx-card-header-loading-shimmer,
+.spfx-card-content-loading-placeholder > div {
+  background: linear-gradient(
+    90deg, 
+    var(--spfx-card-neutral-lighter) 25%, 
+    var(--spfx-card-neutral-light) 50%, 
+    var(--spfx-card-neutral-lighter) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite ease-in-out;
+}
+
+// ==================== Error States ====================
+.spfx-card-error-boundary {
+  padding: 20px;
+  text-align: center;
+  color: var(--spfx-card-error);
+  background: var(--spfx-card-neutral-lighter);
+  border: 1px solid var(--spfx-card-error);
+  border-radius: 4px;
+  margin: 16px;
+
+  &-title {
+    font-weight: 600;
+    margin-bottom: 8px;
+    font-size: 16px;
+  }
+
+  &-message {
+    font-size: 14px;
+    margin-bottom: 12px;
+    color: var(--spfx-card-neutral-secondary);
+  }
+
+  &-button {
+    padding: 8px 16px;
+    border: 1px solid var(--spfx-card-theme-primary);
+    background: var(--spfx-card-theme-primary);
+    color: var(--spfx-card-theme-white);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: var(--spfx-card-theme-primary-dark);
+      border-color: var(--spfx-card-theme-primary-dark);
+    }
+
+    &:focus {
+      outline: 2px solid var(--spfx-card-theme-primary);
+      outline-offset: 2px;
+    }
+  }
+}
+
+// ==================== Maximized Card Styles ====================
+.spfx-card-maximized-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--spfx-card-z-maximized);
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.spfx-card-maximized-content {
+  width: 100vw;
+  height: 100vh;
+  background: var(--spfx-card-theme-white);
+  border-radius: 0;
+  box-shadow: 0 25.6px 57.6px rgba(0, 0, 0, 0.22), 0 4.8px 14.4px rgba(0, 0, 0, 0.18);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  outline: none;
+  animation: maximizeIn 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.spfx-card-maximized-body {
+  flex: 1;
+  overflow: auto;
+}
+
+.spfx-card.maximized-placeholder {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+// ==================== Scrollable Content Styles ====================
+.spfx-scrollable-content {
+  .spfx-card-body {
+    overflow-y: auto;
+    overflow-x: hidden;
+    
+    // Custom scrollbar styling
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+    
+    &::-webkit-scrollbar-track {
+      background: var(--spfx-card-neutral-lighter);
+    }
+    
+    &::-webkit-scrollbar-thumb {
+      background: var(--spfx-card-neutral-tertiary);
+      border-radius: 3px;
+      
+      &:hover {
+        background: var(--spfx-card-neutral-secondary);
+      }
+    }
+  }
+}
+
+// ==================== Tabbed Content Styles ====================
+.spfx-tabbed-content {
+  .spfx-tab-headers {
+    display: flex;
+    border-bottom: 1px solid var(--spfx-card-neutral-light);
+    margin-bottom: 16px;
+  }
+  
+  .spfx-tab-header {
+    padding: 8px 16px;
+    border: none;
+    background: transparent;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--spfx-card-neutral-primary);
+    transition: all 0.2s ease;
+    
+    &.active {
+      border-bottom-color: var(--spfx-card-theme-primary);
+      color: var(--spfx-card-theme-primary);
+      font-weight: 600;
+    }
+    
+    &:hover:not(:disabled) {
+      color: var(--spfx-card-theme-primary);
+      background: var(--spfx-card-neutral-lighter);
+    }
+    
+    &:focus {
+      outline: 2px solid var(--spfx-card-theme-primary);
+      outline-offset: 2px;
+    }
+    
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+}
+
+// ==================== Collapsible Section Styles ====================
+.spfx-collapsible-section {
+  .spfx-collapsible-header {
+    width: 100%;
+    padding: 12px 0;
+    border: none;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--spfx-card-neutral-primary);
+    transition: color 0.2s ease;
+    
+    &:hover {
+      color: var(--spfx-card-theme-primary);
+    }
+    
+    &:focus {
+      outline: 2px solid var(--spfx-card-theme-primary);
+      outline-offset: 2px;
+    }
+    
+    i {
+      transition: transform 0.3s ease;
+      font-size: 12px;
+    }
+    
+    &[aria-expanded="true"] i {
+      transform: rotate(180deg);
+    }
+  }
+  
+  .spfx-collapsible-content {
+    overflow: hidden;
+    transition: max-height 0.3s ease, opacity 0.3s ease;
+    
+    &.collapsed {
+      max-height: 0;
+      opacity: 0;
+    }
+    
+    &.expanded {
+      max-height: 1000px;
+      opacity: 1;
+    }
+  }
+}
+
+// ==================== Footer Variants ====================
+.spfx-action-footer,
+.spfx-status-footer,
+.spfx-progress-footer,
+.spfx-expandable-footer,
+.spfx-multi-column-footer {
+  font-size: 12px;
+  
+  button {
+    transition: all 0.2s ease;
+    
+    &:focus {
+      outline: 2px solid var(--spfx-card-theme-primary);
+      outline-offset: 2px;
+    }
+  }
+}
+
+.spfx-progress-footer {
+  .progress-bar {
+    width: 100%;
+    height: 6px;
+    background: var(--spfx-card-neutral-light);
+    border-radius: 3px;
+    overflow: hidden;
+    
+    .progress-fill {
+      height: 100%;
+      background: var(--spfx-card-theme-primary);
+      border-radius: 3px;
+      transition: width 0.3s ease;
+    }
+  }
+}
+
+// ==================== Responsive Design ====================
+// Medium screens (tablets)
+@media (max-width: 1024px) {
+  .spfx-card {
+    &-header {
+      &.size-compact {
+        padding: 6px 12px;
+        min-height: 36px;
+      }
+      &.size-regular {
+        padding: 12px 16px;
+        min-height: 48px;
+      }
+      &.size-large {
+        padding: 18px 20px;
+        min-height: 60px;
+      }
+    }
+    
+    &-body {
+      &.padding-comfortable { padding: 12px 16px; }
+      &.padding-spacious { padding: 16px 20px; }
+      &.padding-loose { padding: 20px 24px; }
+    }
+    
+    &-footer {
+      &.padding-comfortable { padding: 8px 16px; }
+      &.padding-spacious { padding: 12px 20px; }
+      &.padding-loose { padding: 16px 24px; }
+    }
+  }
+}
+
+// Small screens (phones)
+@media (max-width: 768px) {
+  .spfx-card {
+    border-radius: 6px;
+
+    &-header {
+      flex-wrap: wrap;
+      gap: 8px;
+      
+      &.size-compact {
+        padding: 6px 10px;
+      }
+      &.size-regular {
+        padding: 10px 12px;
+      }
+      &.size-large {
+        padding: 16px 16px;
+      }
+    }
+    
+    &-body {
+      &.padding-comfortable { padding: 12px; }
+      &.padding-spacious { padding: 16px; }
+      &.padding-loose { padding: 20px; }
+    }
+
+    &-footer {
+      &.padding-comfortable { padding: 8px 12px; }
+      &.padding-spacious { padding: 12px 16px; }
+      &.padding-loose { padding: 16px 20px; }
+    }
+
+    &-actions {
+      gap: 6px;
+
+      &.stack-mobile {
+        flex-direction: column;
+        align-items: stretch;
+        width: 100%;
+        margin-top: 8px;
+        order: 10;
+      }
+    }
+    
+    &-action-btn {
+      padding: 4px 8px;
+      font-size: 12px;
+      min-height: 28px;
+
+      &.desktop-only {
+        display: none;
+      }
+
+      &.hide-text-mobile .spfx-card-action-text {
+        display: none;
+      }
+    }
+    
+    &-expand-btn,
+    &-maximize-btn {
+      width: 28px;
+      height: 28px;
+    }
+  }
+
+  // Footer responsive adjustments
+  .spfx-action-footer > div {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    
+    > div:last-child {
+      justify-content: center;
+    }
+  }
+  
+  .spfx-multi-column-footer > div > div:last-child {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    text-align: center;
+  }
+
+  // Tabbed content mobile adjustments
+  .spfx-tabbed-content .spfx-tab-headers {
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+}
+
+// Extra small screens
+@media (max-width: 480px) {
+  .spfx-card {
+    &-header {
+      &.size-compact {
+        padding: 4px 8px;
+        min-height: 32px;
+      }
+      &.size-regular {
+        padding: 8px 10px;
+        min-height: 40px;
+      }
+      &.size-large {
+        padding: 12px 12px;
+        min-height: 48px;
+      }
+    }
+    
+    &-body {
+      &.padding-comfortable { padding: 8px; }
+      &.padding-spacious { padding: 12px; }
+      &.padding-loose { padding: 16px; }
+    }
+
+    &-footer {
+      &.padding-comfortable { padding: 6px 8px; }
+      &.padding-spacious { padding: 8px 12px; }
+      &.padding-loose { padding: 12px 16px; }
+    }
+
+    &-action-btn {
+      padding: 3px 6px;
+      font-size: 11px;
+      min-height: 24px;
+      
+      span {
+        display: none; // Hide text on very small screens
+      }
+    }
+    
+    &-expand-btn,
+    &-maximize-btn {
+      width: 24px;
+      height: 24px;
+    }
+  }
+}
+
+// ==================== High Contrast Mode Support ====================
+@media (forced-colors: active) {
+  .spfx-card {
+    border: 2px solid ButtonBorder;
+    background: ButtonFace;
+    color: ButtonText;
+    
+    &:hover {
+      border-color: Highlight;
+    }
+    
+    &:focus-within {
+      outline: 2px solid Highlight;
+    }
+    
+    &.highlight {
+      border-color: Highlight;
+      box-shadow: none;
+    }
+  }
+  
+  .spfx-card-header {
+    border-bottom: 1px solid ButtonBorder;
+    
+    &.success,
+    &.error,
+    &.warning,
+    &.info,
+    &.default {
+      background: ButtonFace;
+      color: ButtonText;
+      border-bottom-color: ButtonBorder;
+    }
+    
+    &.clickable {
+      &:hover {
+        background: Highlight;
+        color: HighlightText;
+      }
+      
+      &:focus {
+        outline: 2px solid Highlight;
+      }
+    }
+  }
+
+  .spfx-card-action-btn,
+  .spfx-card-expand-btn,
+  .spfx-card-maximize-btn {
+    border: 1px solid ButtonBorder;
+    background: ButtonFace;
+    color: ButtonText;
+
+    &:hover:not(:disabled) {
+      background: Highlight;
+      color: HighlightText;
+      border-color: Highlight;
+    }
+    
+    &:focus {
+      outline: 2px solid Highlight;
+    }
+    
+    &.primary,
+    &.secondary,
+    &.danger {
+      background: ButtonFace;
+      color: ButtonText;
+      border-color: ButtonBorder;
+    }
+  }
+
+  .spfx-card-footer {
+    border-top: 1px solid ButtonBorder;
+    background: ButtonFace;
+    color: ButtonText;
+  }
+
+  .spfx-card-loading-overlay {
+    background: ButtonFace;
+    color: ButtonText;
+  }
+
+  .spfx-card-error-boundary {
+    background: ButtonFace;
+    color: ButtonText;
+    border-color: ButtonBorder;
+  }
+}
+
+// ==================== Reduced Motion Support ====================
+@media (prefers-reduced-motion: reduce) {
+  .spfx-card,
+  .spfx-card-header,
+  .spfx-card-content,
+  .spfx-card-action-btn,
+  .spfx-card-expand-btn,
+  .spfx-card-maximize-btn,
+  .spfx-card-footer,
+  .spfx-card-expand-icon,
+  .spfx-collapsible-header i,
+  .spfx-collapsible-content,
+  .spfx-tab-header,
+  .spfx-progress-footer .progress-fill {
+    transition: none !important;
+    animation: none !important;
+  }
+
+  .spfx-card-loading-shimmer,
+  .spfx-card-header-loading-shimmer,
+  .spfx-card-content-loading-placeholder > div {
+    animation: none !important;
+    background: var(--spfx-card-neutral-light) !important;
+  }
+
+  .spfx-card.highlight {
+    animation: none !important;
+    border-color: var(--spfx-card-theme-primary);
+    box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.3);
+  }
+
+  .spfx-card-maximized-backdrop,
+  .spfx-card-maximized-content {
+    animation: none !important;
+  }
+}
+
+// ==================== Print Styles ====================
+@media print {
+  .spfx-card {
+    break-inside: avoid;
+    box-shadow: none !important;
+    border: 1px solid #000 !important;
+    background: white !important;
+    
+    &:hover {
+      transform: none !important;
+      box-shadow: none !important;
+    }
+    
+    &.highlight {
+      border-color: #000 !important;
+      box-shadow: none !important;
+      animation: none !important;
+    }
+  }
+
+  .spfx-card-header {
+    background: white !important;
+    color: black !important;
+    border-bottom: 1px solid #000 !important;
+  }
+
+  .spfx-card-content.collapsed {
+    max-height: none !important;
+    opacity: 1 !important;
+  }
+
+  .spfx-card-loading-overlay,
+  .spfx-card-maximized-backdrop {
+    display: none !important;
+  }
+
+  .spfx-card-action-btn,
+  .spfx-card-expand-btn,
+  .spfx-card-maximize-btn {
+    display: none !important;
+  }
+
+  .spfx-card-footer {
+    background: white !important;
+    border-top: 1px solid #000 !important;
+  }
+}
+
+// ==================== Animation Keyframes ====================
+@keyframes cardHighlight {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 120, 212, 0.4);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(0, 120, 212, 0.2);
+    transform: scale(1.02);
+  }
+  100% {
+    box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.3);
+    transform: scale(1);
+  }
+}
+
+@keyframes shimmer {
+  0% { 
+    background-position: -200% 0; 
+  }
+  100% { 
+    background-position: 200% 0; 
+  }
+}
+
+@keyframes loadingBar {
+  0% { 
+    transform: translateX(-100%); 
+  }
+  50% { 
+    transform: translateX(0%); 
+  }
+  100% { 
+    transform: translateX(100%); 
+  }
+}
+
+@keyframes fadeIn {
+  from { 
+    opacity: 0; 
+  }
+  to { 
+    opacity: 1; 
+  }
+}
+
+@keyframes maximizeIn {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes maximizeOut {
+  from {
+    transform: scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+}
+
+@keyframes loadingDots {
+  0%, 80%, 100% { 
+    transform: scale(0.8); 
+    opacity: 0.5; 
+  }
+  40% { 
+    transform: scale(1); 
+    opacity: 1; 
+  }
+}
+
+@keyframes progressIndeterminate {
+  0% { 
+    left: -30%; 
+  }
+  50% { 
+    left: 50%; 
+  }
+  100% { 
+    left: 100%; 
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { 
+    opacity: 0.7; 
+    transform: scale(1); 
+  }
+  50% { 
+    opacity: 1; 
+    transform: scale(1.05); 
+  }
+}
+
+// ==================== Focus Visible Support ====================
+.spfx-card {
+  &:focus-visible,
+  *:focus-visible {
+    outline: 2px solid var(--spfx-card-theme-primary);
+    outline-offset: 2px;
+  }
+}
+
+// Remove focus outline for mouse users
+.spfx-card {
+  &:focus:not(:focus-visible),
+  *:focus:not(:focus-visible) {
+    outline: none;
+  }
+}
+
+// ==================== Dark Mode Support (Future-proofing) ====================
+@media (prefers-color-scheme: dark) {
+  :root {
+    --spfx-card-theme-white: #1f1f1f;
+    --spfx-card-theme-black: #ffffff;
+    --spfx-card-neutral-lighter: #2d2d30;
+    --spfx-card-neutral-light: #3e3e42;
+    --spfx-card-neutral-tertiary: #6e6e70;
+    --spfx-card-neutral-secondary: #9a9a9c;
+    --spfx-card-neutral-primary: #ffffff;
+    --spfx-card-shadow-color: rgba(0, 0, 0, 0.3);
+  }
+}
+
+// ==================== Custom Scrollbar for Webkit ====================
+.spfx-card {
+  * {
+    &::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    
+    &::-webkit-scrollbar-track {
+      background: var(--spfx-card-neutral-lighter);
+      border-radius: 4px;
+    }
+    
+    &::-webkit-scrollbar-thumb {
+      background: var(--spfx-card-neutral-tertiary);
+      border-radius: 4px;
+      
+      &:hover {
+        background: var(--spfx-card-neutral-secondary);
+      }
+    }
+    
+    &::-webkit-scrollbar-corner {
+      background: var(--spfx-card-neutral-lighter);
+    }
+  }
+}
+
+// ==================== Utility Classes ====================
+.spfx-card {
+  // Spacing utilities
+  &.no-margin { margin: 0 !important; }
+  &.no-padding { padding: 0 !important; }
+  
+  // Border utilities
+  &.no-border { border: none !important; }
+  &.no-border-radius { border-radius: 0 !important; }
+  
+  // Shadow utilities
+  &.no-shadow { box-shadow: none !important; }
+  
+  // Animation utilities
+  &.no-animation,
+  &.no-animation * {
+    transition: none !important;
+    animation: none !important;
+  }
+  
+  // Visibility utilities
+  &.hidden { display: none !important; }
+  &.invisible { visibility: hidden !important; }
+}
