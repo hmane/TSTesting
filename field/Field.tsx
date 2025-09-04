@@ -4,6 +4,7 @@ import type { FieldProps, FieldContextType, ValidationState, FieldRenderProps } 
 import { focusController } from './controller/FocusController';
 import { useLazyField } from './hooks/useLazyField';
 import { useResponsiveLayout } from './hooks/useResponsiveLayout';
+import { useParentDetection } from './hooks/useParentDetection';
 import { 
   generateFieldClasses, 
   generateFieldStyles, 
@@ -33,7 +34,7 @@ const DefaultLoadingComponent: React.FC = () => (
   </div>
 );
 
-// Main Field Component with RHF Integration
+// Main Field Component with Enhanced Parent Detection
 export const Field = <TFieldValues extends FieldValues = FieldValues>({
   id,
   name,
@@ -53,8 +54,9 @@ export const Field = <TFieldValues extends FieldValues = FieldValues>({
   onFocus,
   onLoad,
   onFieldChange,
+  expandParent = true, // New prop to control parent expansion
   children,
-}: FieldProps<TFieldValues>) => {
+}: FieldProps<TFieldValues> & { expandParent?: boolean }) => {
   const fieldRef = useRef<HTMLDivElement>(null);
   const fieldId = id || name || generateFieldId();
 
@@ -71,13 +73,65 @@ export const Field = <TFieldValues extends FieldValues = FieldValues>({
     onLoad,
   });
 
+  // Parent detection hook
+  const { 
+    detectParent, 
+    expandParentCard, 
+    expandParentAccordion 
+  } = useParentDetection();
+
   // Merge refs for lazy loading
   const mergedRef = useCallback((node: HTMLDivElement | null) => {
     fieldRef.current = node;
     (lazyRef as any).current = node;
   }, [lazyRef]);
 
-  // Focus function for controller
+  // Enhanced focus function with parent expansion
+  const focusFieldWithExpansion = useCallback(async (): Promise<boolean> => {
+    if (!fieldRef.current) return false;
+
+    try {
+      // Detect parent containers
+      const parentInfo = detectParent(fieldRef);
+      
+      if (expandParent && parentInfo) {
+        if (parentInfo.type === 'card' && !parentInfo.isExpanded) {
+          // Expand parent card first
+          const expanded = await expandParentCard(parentInfo.id);
+          if (expanded) {
+            // Wait a bit for animation to start
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+        } else if (parentInfo.type === 'accordion' && !parentInfo.isExpanded) {
+          // Expand parent accordion card
+          const expanded = await expandParentAccordion(
+            parentInfo.accordionId!, 
+            parentInfo.id
+          );
+          if (expanded) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+        }
+      }
+
+      // Focus the field
+      const success = focusFirstElement(fieldRef.current);
+      if (success) {
+        onFocus?.();
+      }
+      return success;
+    } catch (error) {
+      console.warn(`Failed to focus field ${fieldId} with parent expansion:`, error);
+      // Fallback to simple focus
+      const success = focusFirstElement(fieldRef.current);
+      if (success) {
+        onFocus?.();
+      }
+      return success;
+    }
+  }, [fieldId, onFocus, expandParent, detectParent, expandParentCard, expandParentAccordion]);
+
+  // Regular focus function (without expansion)
   const focusField = useCallback((): boolean => {
     if (fieldRef.current) {
       const success = focusFirstElement(fieldRef.current);
@@ -101,6 +155,36 @@ export const Field = <TFieldValues extends FieldValues = FieldValues>({
     return false;
   }, []);
 
+  // Enhanced scroll with expansion
+  const scrollToFieldWithExpansion = useCallback(async (): Promise<boolean> => {
+    if (!fieldRef.current) return false;
+
+    try {
+      // Detect and expand parent if needed
+      const parentInfo = detectParent(fieldRef);
+      
+      if (expandParent && parentInfo) {
+        if (parentInfo.type === 'card' && !parentInfo.isExpanded) {
+          await expandParentCard(parentInfo.id);
+          await new Promise(resolve => setTimeout(resolve, 100));
+        } else if (parentInfo.type === 'accordion' && !parentInfo.isExpanded) {
+          await expandParentAccordion(parentInfo.accordionId!, parentInfo.id);
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
+
+      // Scroll to field
+      return scrollToElement(fieldRef.current, {
+        behavior: 'smooth',
+        block: 'center',
+        inline: 'nearest',
+      });
+    } catch (error) {
+      console.warn(`Failed to scroll to field ${fieldId} with expansion:`, error);
+      return scrollToField();
+    }
+  }, [fieldId, expandParent, detectParent, expandParentCard, expandParentAccordion, scrollToField]);
+
   // RHF validation function
   const rhfValidationFn = useCallback(async (): Promise<boolean> => {
     if (activeControl && name) {
@@ -115,30 +199,40 @@ export const Field = <TFieldValues extends FieldValues = FieldValues>({
     return true;
   }, [activeControl, name]);
 
-  // Register with focus controller
+  // Register with focus controller (enhanced with parent expansion)
   useEffect(() => {
     focusController.registerField(fieldId, {
       element: fieldRef.current || undefined,
-      focusFn: focusField,
-      scrollFn: scrollToField,
+      focusFn: focusFieldWithExpansion, // Use enhanced focus function
+      scrollFn: scrollToFieldWithExpansion, // Use enhanced scroll function
+      simpleFocusFn: focusField, // Also register simple focus for backward compatibility
+      simpleScrollFn: scrollToField, // Also register simple scroll
       rhfValidationFn: name ? rhfValidationFn : undefined,
     });
 
     return () => {
       focusController.unregisterField(fieldId);
     };
-  }, [fieldId, focusField, scrollToField, rhfValidationFn, name]);
+  }, [
+    fieldId, 
+    focusFieldWithExpansion, 
+    scrollToFieldWithExpansion,
+    focusField,
+    scrollToField,
+    rhfValidationFn, 
+    name
+  ]);
 
-  // Auto focus on mount
+  // Auto focus on mount (with expansion)
   useEffect(() => {
     if (autoFocus && isVisible) {
       const timer = setTimeout(() => {
-        focusField();
+        focusFieldWithExpansion();
       }, 100);
 
       return () => clearTimeout(timer);
     }
-  }, [autoFocus, isVisible, focusField]);
+  }, [autoFocus, isVisible, focusFieldWithExpansion]);
 
   // Detect if field has label
   const hasLabel = useMemo(() => hasLabelComponent(children), [children]);
@@ -240,6 +334,7 @@ export const Field = <TFieldValues extends FieldValues = FieldValues>({
                 data-is-valid={validationState.isValid}
                 data-validation-message={validationState.error || ''}
                 data-rhf-field={name}
+                data-expand-parent={expandParent}
               >
                 <div className={styles.fieldContent}>
                   {typeof children === 'function' 
@@ -296,6 +391,7 @@ export const Field = <TFieldValues extends FieldValues = FieldValues>({
         data-field-id={fieldId}
         data-is-valid={validationState.isValid}
         data-validation-message={validationState.error || ''}
+        data-expand-parent={expandParent}
       >
         <div className={styles.fieldContent}>
           {typeof children === 'function' 
