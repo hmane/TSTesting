@@ -1,4 +1,5 @@
 import React, { memo, useMemo, createContext, useContext } from 'react';
+import { useFormContext } from 'react-hook-form';
 import type { FieldGroupProps, FieldGroupContextType } from '../Field.types';
 import styles from '../Field.module.scss';
 
@@ -19,7 +20,13 @@ export const FieldGroup = memo<FieldGroupProps>(({
 	spacing = 'normal',
 	layout = 'horizontal',
 	disabled = false,
+    control, // ADD: Accept the control prop
 }) => {
+    // ADD: Try to get form context to find a control object if not passed directly
+    const formContext = useFormContext();
+    const activeControl = control || formContext?.control;
+
+
 	const groupClasses = useMemo(() => {
 		const classes = [styles.fieldGroup];
 		
@@ -71,8 +78,9 @@ export const FieldGroup = memo<FieldGroupProps>(({
 			spacing,
 			layout,
 			disabled,
+            control: activeControl, // ADD: Pass the active control object through context
 		}),
-		[labelWidth, spacing, layout, disabled]
+		[labelWidth, spacing, layout, disabled, activeControl]
 	);
 
 	return (
