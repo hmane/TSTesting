@@ -1,142 +1,191 @@
 import { ReactNode, CSSProperties } from 'react';
+import { 
+  FieldPath, 
+  FieldValues, 
+  Control, 
+  RegisterOptions, 
+  FieldError,
+  UseFormStateReturn,
+  ControllerRenderProps
+} from 'react-hook-form';
 
+// Enhanced ValidationState with RHF support
 export interface ValidationState {
-	isValid: boolean;
-	error?: string;
-	isDirty: boolean;
-	isTouched: boolean;
+  isValid: boolean;
+  error?: string;
+  isDirty: boolean;
+  isTouched: boolean;
+  isValidating?: boolean;
 }
 
+// Enhanced FieldContextType with RHF integration
 export interface FieldContextType {
-	fieldName: string;
-	fieldId: string;
-	validationState: ValidationState;
-	disabled?: boolean;
-	layout: LayoutType;
+  fieldName: string;
+  fieldId: string;
+  validationState: ValidationState;
+  disabled?: boolean;
+  layout: LayoutType;
+  // RHF integration (optional)
+  rhfField?: {
+    name: string;
+    control?: Control<any>;
+    fieldError?: FieldError;
+    fieldState?: {
+      isDirty: boolean;
+      isTouched: boolean;
+      isValidating: boolean;
+      invalid: boolean;
+    };
+  };
 }
 
 export type LayoutType = 'auto' | 'horizontal' | 'vertical';
 export type LabelWidthType = number | 'auto' | 'compact' | 'normal' | 'wide';
 export type SpacingType = 'compact' | 'normal' | 'relaxed';
 
-export interface FieldProps {
-	/** Field identifier for focus management */
-	id?: string;
+// Enhanced FieldProps with optional RHF support
+export interface FieldProps<TFieldValues extends FieldValues = FieldValues> {
+  /** Field identifier for focus management */
+  id?: string;
 
-	/** Field name for form handling */
-	name?: string;
+  /** Field name for form handling */
+  name?: FieldPath<TFieldValues>;
 
-	/** Layout direction */
-	layout?: LayoutType;
+  /** React Hook Form control (optional) */
+  control?: Control<TFieldValues>;
 
-	/** Whether field is disabled */
-	disabled?: boolean;
+  /** React Hook Form validation rules (optional) */
+  rules?: RegisterOptions<TFieldValues>;
 
-	/** Validation state */
-	isValid?: boolean;
+  /** Layout direction */
+  layout?: LayoutType;
 
-	/** Error message to display */
-	error?: string;
+  /** Whether field is disabled */
+  disabled?: boolean;
 
-	/** Label width configuration */
-	labelWidth?: LabelWidthType;
+  /** Manual validation state (overrides RHF if provided) */
+  isValid?: boolean;
 
-	/** Background color */
-	backgroundColor?: string;
+  /** Manual error message (overrides RHF if provided) */
+  error?: string;
 
-	/** Custom CSS class */
-	className?: string;
+  /** Label width configuration */
+  labelWidth?: LabelWidthType;
 
-	/** Custom styles */
-	style?: CSSProperties;
+  /** Background color */
+  backgroundColor?: string;
 
-	/** Auto focus on mount */
-	autoFocus?: boolean;
+  /** Custom CSS class */
+  className?: string;
 
-	/** Lazy loading */
-	lazy?: boolean;
+  /** Custom styles */
+  style?: CSSProperties;
 
-	/** Loading component for lazy fields */
-	loadingComponent?: ReactNode;
+  /** Auto focus on mount */
+  autoFocus?: boolean;
 
-	/** Focus callback */
-	onFocus?: () => void;
+  /** Lazy loading */
+  lazy?: boolean;
 
-	/** Load callback for lazy fields */
-	onLoad?: () => void;
+  /** Loading component for lazy fields */
+  loadingComponent?: ReactNode;
 
-	/** Children components */
-	children: ReactNode;
+  /** Focus callback */
+  onFocus?: () => void;
+
+  /** Load callback for lazy fields */
+  onLoad?: () => void;
+
+  /** RHF field change callback */
+  onFieldChange?: (value: any) => void;
+
+  /** Children components or render prop */
+  children: ReactNode | ((props: FieldRenderProps<TFieldValues>) => ReactNode);
 }
 
+// Render props for advanced usage
+export interface FieldRenderProps<TFieldValues extends FieldValues = FieldValues> {
+  field?: ControllerRenderProps<TFieldValues>;
+  fieldState?: {
+    invalid: boolean;
+    isTouched: boolean;
+    isDirty: boolean;
+    isValidating: boolean;
+    error?: FieldError;
+  };
+  formState?: UseFormStateReturn<TFieldValues>;
+}
+
+// Component props (unchanged)
 export interface LabelProps {
-	children: ReactNode;
-	required?: boolean;
-	htmlFor?: string;
-	wrap?: 'normal' | 'break-word' | 'nowrap';
-	className?: string;
-	style?: CSSProperties;
+  children: ReactNode;
+  required?: boolean;
+  htmlFor?: string;
+  wrap?: 'normal' | 'break-word' | 'nowrap';
+  className?: string;
+  style?: CSSProperties;
 }
 
 export interface DescriptionProps {
-	children: ReactNode;
-	icon?: string; // Fluent UI icon name
-	position?: 'inline' | 'end';
-	delay?: number; // Tooltip delay
-	className?: string;
-	style?: CSSProperties;
+  children: ReactNode;
+  icon?: string;
+  position?: 'inline' | 'end';
+  delay?: number;
+  className?: string;
+  style?: CSSProperties;
 }
 
 export interface ErrorProps {
-	children?: ReactNode;
-	animation?: 'slide' | 'fade' | 'none';
-	position?: 'below' | 'inline';
-	className?: string;
-	style?: CSSProperties;
+  children?: ReactNode;
+  animation?: 'slide' | 'fade' | 'none';
+  position?: 'below' | 'inline';
+  className?: string;
+  style?: CSSProperties;
 }
 
 export interface FieldGroupProps {
-	id?: string;
-	children: ReactNode;
-	labelWidth?: LabelWidthType;
-	className?: string;
-	style?: CSSProperties;
-	spacing?: SpacingType;
-	layout?: LayoutType;
-	disabled?: boolean;
+  id?: string;
+  children: ReactNode;
+  labelWidth?: LabelWidthType;
+  className?: string;
+  style?: CSSProperties;
+  spacing?: SpacingType;
+  layout?: LayoutType;
+  disabled?: boolean;
 }
 
 export interface FieldGroupContextType {
-	labelWidth: LabelWidthType;
-	spacing: SpacingType;
-	layout: LayoutType;
-	disabled?: boolean;
+  labelWidth: LabelWidthType;
+  spacing: SpacingType;
+  layout: LayoutType;
+  disabled?: boolean;
 }
 
-// Focus Controller types
+// Enhanced Focus Controller types
 export interface FieldRegistration {
-	element?: HTMLElement;
-	focusFn: () => boolean;
-	scrollFn: () => boolean;
+  element?: HTMLElement;
+  focusFn: () => boolean;
+  scrollFn: () => boolean;
+  rhfValidationFn?: () => Promise<boolean>; // New RHF validation
 }
 
 export interface ValidationResult {
-	isValid: boolean;
-	errors: { [fieldId: string]: string };
-	fieldCount: number;
+  isValid: boolean;
+  errors: { [fieldId: string]: string };
+  fieldCount: number;
+  rhfErrors?: { [fieldName: string]: FieldError }; // RHF errors
 }
 
 export interface FieldValidationState {
-	isValid: boolean;
-	error: string;
-	source: 'direct' | 'nested' | 'data-attribute' | 'default';
-	element: HTMLElement;
+  isValid: boolean;
+  error: string;
+  source: 'direct' | 'nested' | 'data-attribute' | 'rhf' | 'default';
+  element: HTMLElement;
+  rhfFieldState?: {
+    isDirty: boolean;
+    isTouched: boolean;
+    isValidating: boolean;
+  };
 }
 
 export type FieldValidationMap = Map<string, FieldValidationState>;
-
-// Render props for lazy loading
-export interface FieldRenderProps {
-	isLoaded: boolean;
-	load: () => void;
-}
