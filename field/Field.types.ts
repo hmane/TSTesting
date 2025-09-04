@@ -1,4 +1,4 @@
-import { ReactNode, CSSProperties } from 'react';
+import { ReactNode, CSSProperties, RefObject } from 'react';
 import { 
   FieldPath, 
   FieldValues, 
@@ -43,7 +43,7 @@ export type LayoutType = 'auto' | 'horizontal' | 'vertical';
 export type LabelWidthType = number | 'auto' | 'compact' | 'normal' | 'wide';
 export type SpacingType = 'compact' | 'normal' | 'relaxed';
 
-// Enhanced FieldProps with optional RHF support
+// Enhanced FieldProps with parent expansion support
 export interface FieldProps<TFieldValues extends FieldValues = FieldValues> {
   /** Field identifier for focus management */
   id?: string;
@@ -89,6 +89,9 @@ export interface FieldProps<TFieldValues extends FieldValues = FieldValues> {
 
   /** Loading component for lazy fields */
   loadingComponent?: ReactNode;
+
+  /** Enable automatic parent card/accordion expansion when focusing (default: true) */
+  expandParent?: boolean;
 
   /** Focus callback */
   onFocus?: () => void;
@@ -161,12 +164,17 @@ export interface FieldGroupContextType {
   disabled?: boolean;
 }
 
-// Enhanced Focus Controller types
+// Enhanced Focus Controller types with parent expansion
 export interface FieldRegistration {
   element?: HTMLElement;
-  focusFn: () => boolean;
-  scrollFn: () => boolean;
-  rhfValidationFn?: () => Promise<boolean>; // New RHF validation
+  // Enhanced focus functions that can expand parents
+  focusFn: () => Promise<boolean> | boolean;
+  scrollFn: () => Promise<boolean> | boolean;
+  // Backward compatibility - simple focus/scroll without expansion  
+  simpleFocusFn?: () => boolean;
+  simpleScrollFn?: () => boolean;
+  // RHF validation
+  rhfValidationFn?: () => Promise<boolean>;
 }
 
 export interface ValidationResult {
@@ -189,3 +197,57 @@ export interface FieldValidationState {
 }
 
 export type FieldValidationMap = Map<string, FieldValidationState>;
+
+// Parent detection types
+export interface ParentInfo {
+  type: 'card' | 'accordion';
+  id: string;
+  isExpanded: boolean;
+  element: HTMLElement;
+  accordionId?: string; // For accordion cards
+}
+
+export interface ParentDetectionHook {
+  detectParent: (fieldRef: RefObject<HTMLElement>) => ParentInfo | null;
+  expandParentCard: (cardId: string) => Promise<boolean>;
+  expandParentAccordion: (accordionId: string, cardId: string) => Promise<boolean>;
+  isParentExpanded: (fieldRef: RefObject<HTMLElement>) => boolean;
+  getParentInfo: (fieldRef: RefObject<HTMLElement>) => ParentInfo | null;
+}
+
+// Enhanced field focus context
+export interface FieldParentContext {
+  hasParent: boolean;
+  parentType?: 'card' | 'accordion';
+  parentId?: string;
+  isParentExpanded: boolean;
+  parentElement?: HTMLElement;
+  isInAccordion: boolean;
+  accordionId?: string;
+}
+
+// Enhanced validation statistics
+export interface ValidationStats {
+  totalFields: number;
+  validFields: number;
+  invalidFields: number;
+  rhfFields: number;
+  fieldsInCards: number;
+  fieldsInAccordions: number;
+  collapsedParents: number;
+  validationSources: { [source: string]: number };
+}
+
+// Enhanced field debug information
+export interface FieldDebugInfo {
+  registeredFields: string[];
+  fieldDetails: Array<{
+    id: string;
+    hasElement: boolean;
+    hasRHF: boolean;
+    parentType: string | null;
+    isParentExpanded: boolean | null;
+  }>;
+}
+
+// Form submission
