@@ -5,6 +5,7 @@ import { focusController } from './controller/FocusController';
 import { useLazyField } from './hooks/useLazyField';
 import { useResponsiveLayout } from './hooks/useResponsiveLayout';
 import { useParentDetection } from './hooks/useParentDetection';
+import { useFieldGroupContext } from './components/FieldGroup'; // Import FieldGroup context
 import { 
   generateFieldClasses, 
   generateFieldStyles, 
@@ -34,7 +35,7 @@ const DefaultLoadingComponent: React.FC = () => (
   </div>
 );
 
-// Main Field Component with Enhanced Parent Detection
+// Main Field Component with Enhanced Parent Detection and FieldGroup Control Support
 export const Field = <TFieldValues extends FieldValues = FieldValues>({
   id,
   name,
@@ -54,18 +55,35 @@ export const Field = <TFieldValues extends FieldValues = FieldValues>({
   onFocus,
   onLoad,
   onFieldChange,
-  expandParent = true, // New prop to control parent expansion
+  expandParent = true,
   children,
-}: FieldProps<TFieldValues> & { expandParent?: boolean }) => {
+}: FieldProps<TFieldValues>) => {
   const fieldRef = useRef<HTMLDivElement>(null);
   const fieldId = id || name || generateFieldId();
 
+  // Get FieldGroup context for control and other inherited properties
+  const fieldGroupContext = useFieldGroupContext();
+
   // Try to get form context (optional)
   const formContext = useFormContext<TFieldValues>();
-  const activeControl = control || formContext?.control;
+
+  // Control resolution priority:
+  // 1. Explicit control prop
+  // 2. FieldGroup context control
+  // 3. FormProvider context control
+  const activeControl = control || fieldGroupContext?.control || formContext?.control;
+
+  // Inherit layout from FieldGroup if not explicitly set
+  const effectiveLayout = layout || fieldGroupContext?.layout || 'horizontal';
+
+  // Inherit labelWidth from FieldGroup if not explicitly set
+  const effectiveLabelWidth = labelWidth || fieldGroupContext?.labelWidth;
+
+  // Inherit disabled state from FieldGroup if not explicitly set
+  const effectiveDisabled = disabled || fieldGroupContext?.disabled || false;
 
   // Responsive layout hook
-  const { currentLayout } = useResponsiveLayout({ layout });
+  const { currentLayout } = useResponsiveLayout({ layout: effectiveLayout });
 
   // Lazy loading hook
   const { isVisible, manualLoad, fieldRef: lazyRef } = useLazyField({
@@ -237,23 +255,23 @@ export const Field = <TFieldValues extends FieldValues = FieldValues>({
   // Detect if field has label
   const hasLabel = useMemo(() => hasLabelComponent(children), [children]);
 
-  // Field classes
+  // Field classes (using effective values from FieldGroup context)
   const fieldClasses = useMemo(
     () => generateFieldClasses(
       styles.field,
       currentLayout,
       hasLabel,
-      disabled,
-      labelWidth,
+      effectiveDisabled,
+      effectiveLabelWidth,
       className
     ),
-    [currentLayout, hasLabel, disabled, labelWidth, className]
+    [currentLayout, hasLabel, effectiveDisabled, effectiveLabelWidth, className]
   );
 
-  // Field styles
+  // Field styles (using effective values from FieldGroup context)
   const fieldStyles = useMemo(
-    () => generateFieldStyles(labelWidth, backgroundColor, style),
-    [labelWidth, backgroundColor, style]
+    () => generateFieldStyles(effectiveLabelWidth, backgroundColor, style),
+    [effectiveLabelWidth, backgroundColor, style]
   );
 
   // Render with RHF Controller if name and control are provided
@@ -278,7 +296,7 @@ export const Field = <TFieldValues extends FieldValues = FieldValues>({
             fieldName: name,
             fieldId,
             validationState,
-            disabled,
+            disabled: effectiveDisabled,
             layout: currentLayout as 'horizontal' | 'vertical',
             rhfField: {
               name,
@@ -335,6 +353,7 @@ export const Field = <TFieldValues extends FieldValues = FieldValues>({
                 data-validation-message={validationState.error || ''}
                 data-rhf-field={name}
                 data-expand-parent={expandParent}
+                data-field-group-inherited={fieldGroupContext ? 'true' : 'false'}
               >
                 <div className={styles.fieldContent}>
                   {typeof children === 'function' 
@@ -363,7 +382,7 @@ export const Field = <TFieldValues extends FieldValues = FieldValues>({
     fieldName: name || fieldId,
     fieldId,
     validationState,
-    disabled,
+    disabled: effectiveDisabled,
     layout: currentLayout as 'horizontal' | 'vertical',
   };
 
@@ -392,6 +411,7 @@ export const Field = <TFieldValues extends FieldValues = FieldValues>({
         data-is-valid={validationState.isValid}
         data-validation-message={validationState.error || ''}
         data-expand-parent={expandParent}
+        data-field-group-inherited={fieldGroupContext ? 'true' : 'false'}
       >
         <div className={styles.fieldContent}>
           {typeof children === 'function' 
