@@ -1,4 +1,5 @@
 import { CSSProperties } from 'react';
+import { WebPartContext } from '@microsoft/sp-webpart-base';
 
 export interface IPrincipal {
 	id: string;
@@ -12,6 +13,8 @@ export interface IPrincipal {
 export type ActivityVariant = 'compact' | 'detailed' | 'timeline' | 'inline';
 
 export interface ActivityItemProps {
+	context: WebPartContext;
+	
 	/** Unique identifier for the item */
 	itemId?: string;
 
