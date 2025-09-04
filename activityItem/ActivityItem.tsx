@@ -56,6 +56,7 @@ const getAbsoluteTime = (date: Date, showTime: boolean = true): string => {
 
 // Main ActivityItem Component
 export const ActivityItem = memo<ActivityItemProps>(({
+	context,
 	itemId,
 	createdBy,
 	createdDate,
@@ -136,7 +137,7 @@ export const ActivityItem = memo<ActivityItemProps>(({
 	) => (
 		<LivePersona
 			upn={user.email}
-			serviceScope={undefined} // Will be provided by SPFx context
+			serviceScope={context.serviceScope}
 			clickAction={onClickHandler}
 			size={size}
 			showInitialsOnly={false}
@@ -144,7 +145,7 @@ export const ActivityItem = memo<ActivityItemProps>(({
 			disableHover={false}
 			template={showSharedFiles ? undefined : '{{DisplayName}}'}
 		/>
-	), [showSharedFiles]);
+	), [context, showSharedFiles]);
 
 	// Render time with tooltip
 	const renderTimeWithTooltip = useCallback((timeData: typeof timeInfo.created, label: string) => (
