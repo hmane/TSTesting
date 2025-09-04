@@ -1,0 +1,486 @@
+// styles/Autocomplete.scss
+@import '~@fluentui/react/lib/common/common';
+@import '~devextreme/dist/css/dx.common.css';
+
+// SharePoint theme integration variables
+:root {
+  --autocomplete-primary: var(--palette-themePrimary, #0078d4);
+  --autocomplete-primary-hover: var(--palette-themeDarkAlt, #106ebe);
+  --autocomplete-border: var(--palette-neutralTertiary, #a19f9d);
+  --autocomplete-border-hover: var(--palette-themePrimary, #0078d4);
+  --autocomplete-text: var(--palette-neutralPrimary, #323130);
+  --autocomplete-text-secondary: var(--palette-neutralSecondary, #605e5c);
+  --autocomplete-background: var(--palette-white, #ffffff);
+  --autocomplete-background-hover: var(--palette-neutralLighter, #f3f2f1);
+  --autocomplete-background-selected: var(--palette-themeLight, #c7e0f4);
+  --autocomplete-shadow: var(--elevation4, 0 1.6px 3.6px 0 rgba(0, 0, 0, 0.132), 0 0.3px 0.9px 0 rgba(0, 0, 0, 0.108));
+  --autocomplete-border-radius: var(--borderRadius, 2px);
+}
+
+// Main container
+.autocomplete-container {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+  font-family: var(--fontFamilyBase, 'Segoe UI', 'Segoe UI Web', -apple-system, BlinkMacSystemFont, 'Roboto', 'Helvetica Neue', sans-serif);
+
+  // Single select specific styling
+  &--single {
+    .dx-textbox {
+      .dx-texteditor-input {
+        font-size: var(--fontSizeMedium, 14px);
+        line-height: 1.4;
+        color: var(--autocomplete-text);
+        
+        &::placeholder {
+          color: var(--autocomplete-text-secondary);
+          opacity: 0.8;
+        }
+      }
+    }
+  }
+
+  // Multi select specific styling
+  &--multi {
+    .dx-tagbox {
+      .dx-texteditor-input {
+        font-size: var(--fontSizeMedium, 14px);
+        line-height: 1.4;
+        color: var(--autocomplete-text);
+        min-height: 20px;
+      }
+
+      // Tag styling
+      .dx-tag {
+        background-color: var(--autocomplete-background-selected);
+        border: 1px solid var(--autocomplete-primary);
+        border-radius: calc(var(--autocomplete-border-radius) - 1px);
+        color: var(--autocomplete-primary);
+        font-size: var(--fontSizeSmall, 12px);
+        font-weight: 500;
+        padding: 2px 8px;
+        margin: 2px 4px 2px 0;
+        transition: all 0.2s cubic-bezier(0.165, 0.84, 0.44, 1);
+        max-width: 200px;
+        
+        &:hover {
+          background-color: var(--autocomplete-primary);
+          color: var(--autocomplete-background);
+          transform: translateY(-1px);
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .dx-tag-content {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .dx-tag-remove-button {
+          margin-left: 4px;
+          opacity: 0.7;
+          transition: opacity 0.2s ease;
+          
+          &:hover {
+            opacity: 1;
+          }
+        }
+      }
+
+      // Multi-tag indicator styling
+      .dx-tagbox-multi-tag {
+        background-color: var(--autocomplete-text-secondary);
+        color: var(--autocomplete-background);
+        border: none;
+        font-weight: 600;
+        
+        &:hover {
+          background-color: var(--autocomplete-text);
+        }
+      }
+    }
+  }
+}
+
+// DevExtreme component overrides
+.dx-textbox,
+.dx-tagbox {
+  &.dx-editor-outlined {
+    .dx-texteditor-container {
+      border: 1px solid var(--autocomplete-border);
+      border-radius: var(--autocomplete-border-radius);
+      background-color: var(--autocomplete-background);
+      transition: all 0.2s cubic-bezier(0.165, 0.84, 0.44, 1);
+      min-height: 32px;
+
+      &:hover {
+        border-color: var(--autocomplete-border-hover);
+        box-shadow: 0 0 0 1px var(--autocomplete-border-hover);
+      }
+
+      &.dx-state-focused {
+        border-color: var(--autocomplete-primary);
+        box-shadow: 0 0 0 1px var(--autocomplete-primary);
+        outline: none;
+      }
+
+      &.dx-state-invalid {
+        border-color: var(--palette-red, #d13438);
+        box-shadow: 0 0 0 1px var(--palette-red, #d13438);
+      }
+
+      &.dx-state-readonly {
+        background-color: var(--palette-neutralLighterAlt, #faf9f8);
+        border-color: var(--palette-neutralQuaternaryAlt, #e1dfdd);
+        
+        .dx-texteditor-input {
+          color: var(--autocomplete-text-secondary);
+        }
+      }
+
+      &.dx-state-disabled {
+        background-color: var(--palette-neutralLighterAlt, #faf9f8);
+        border-color: var(--palette-neutralQuaternaryAlt, #e1dfdd);
+        opacity: 0.6;
+        
+        .dx-texteditor-input {
+          color: var(--palette-neutralTertiary, #a19f9d);
+        }
+      }
+    }
+
+    // Input field styling
+    .dx-texteditor-input-container {
+      padding: 6px 12px;
+      
+      .dx-texteditor-input {
+        background: transparent;
+        border: none;
+        outline: none;
+        color: var(--autocomplete-text);
+        font-family: inherit;
+        
+        &:focus {
+          outline: none;
+        }
+      }
+    }
+
+    // Buttons (clear, dropdown)
+    .dx-texteditor-buttons-container {
+      .dx-button {
+        background: transparent;
+        border: none;
+        color: var(--autocomplete-text-secondary);
+        transition: all 0.2s ease;
+        
+        &:hover {
+          background-color: var(--autocomplete-background-hover);
+          color: var(--autocomplete-text);
+        }
+        
+        &:focus {
+          outline: 1px solid var(--autocomplete-primary);
+          outline-offset: -1px;
+        }
+      }
+    }
+  }
+}
+
+// Dropdown styling
+.dx-dropdowneditor-overlay {
+  .dx-overlay-content {
+    border: 1px solid var(--autocomplete-border);
+    border-radius: var(--autocomplete-border-radius);
+    box-shadow: var(--autocomplete-shadow);
+    background-color: var(--autocomplete-background);
+    max-height: 300px;
+    overflow-y: auto;
+    z-index: 1000;
+
+    // Custom scrollbar
+    &::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background-color: var(--palette-neutralLighter, #f3f2f1);
+      border-radius: 4px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background-color: var(--palette-neutralTertiary, #a19f9d);
+      border-radius: 4px;
+      
+      &:hover {
+        background-color: var(--palette-neutralSecondary, #605e5c);
+      }
+    }
+  }
+
+  // List items
+  .dx-list-item {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--palette-neutralLighter, #f3f2f1);
+    color: var(--autocomplete-text);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    position: relative;
+    
+    &:last-child {
+      border-bottom: none;
+    }
+
+    &:hover {
+      background-color: var(--autocomplete-background-hover);
+    }
+
+    &.dx-state-focused {
+      background-color: var(--autocomplete-background-selected);
+      color: var(--autocomplete-primary);
+      outline: none;
+    }
+
+    &.dx-state-selected {
+      background-color: var(--autocomplete-primary);
+      color: var(--autocomplete-background);
+      font-weight: 500;
+      
+      &::after {
+        content: '\E73E'; // Checkmark icon
+        font-family: 'Fabric MDL2 Icons';
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+      }
+    }
+
+    // Recent item indicator
+    &[data-recent="true"] {
+      &::before {
+        content: '\E823'; // Recent icon
+        font-family: 'Fabric MDL2 Icons';
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--palette-themeTertiary, #6bb700);
+        font-size: 12px;
+      }
+      
+      padding-left: 32px;
+    }
+  }
+
+  // No data message
+  .dx-list-item-selected {
+    background-color: transparent;
+  }
+}
+
+// Loading states
+.autocomplete-container {
+  &.is-loading {
+    .dx-texteditor-container {
+      position: relative;
+      
+      &::after {
+        content: '';
+        position: absolute;
+        top: 2px;
+        right: 2px;
+        bottom: 2px;
+        width: 28px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          var(--autocomplete-background-hover),
+          transparent
+        );
+        animation: loading-shimmer 1.5s infinite;
+        border-radius: 0 var(--autocomplete-border-radius) var(--autocomplete-border-radius) 0;
+      }
+    }
+  }
+}
+
+// Selection limit indicator
+.autocomplete-selection-limit {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 12px;
+  background-color: var(--palette-yellowLight, #fff4ce);
+  border: 1px solid var(--palette-yellow, #ffb900);
+  border-radius: var(--autocomplete-border-radius);
+  margin-top: 4px;
+  font-size: var(--fontSizeSmall, 12px);
+  color: var(--palette-neutralPrimary, #323130);
+
+  .autocomplete-selection-count {
+    font-weight: 600;
+  }
+
+  .autocomplete-clear-button {
+    background: none;
+    border: none;
+    color: var(--autocomplete-primary);
+    cursor: pointer;
+    font-size: var(--fontSizeSmall, 12px);
+    text-decoration: underline;
+    
+    &:hover {
+      color: var(--autocomplete-primary-hover);
+    }
+  }
+}
+
+// Keyboard shortcut hints
+.autocomplete-shortcuts-hint {
+  position: absolute;
+  bottom: -20px;
+  left: 0;
+  font-size: var(--fontSizeXSmall, 10px);
+  color: var(--autocomplete-text-secondary);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  
+  .autocomplete-container:focus-within & {
+    opacity: 1;
+  }
+}
+
+// Responsive design
+@media screen and (max-width: 640px) {
+  .autocomplete-container {
+    .dx-texteditor-input-container {
+      padding: 8px 12px;
+    }
+
+    .dx-tag {
+      font-size: var(--fontSizeXSmall, 10px);
+      padding: 1px 6px;
+      margin: 1px 2px 1px 0;
+      max-width: 150px;
+    }
+
+    .dx-dropdowneditor-overlay {
+      .dx-overlay-content {
+        max-height: 250px;
+      }
+
+      .dx-list-item {
+        padding: 12px;
+        font-size: var(--fontSizeMedium, 14px);
+      }
+    }
+  }
+}
+
+// High contrast mode
+@media screen and (-ms-high-contrast: active) {
+  .autocomplete-container {
+    .dx-texteditor-container {
+      border: 2px solid WindowText !important;
+      background-color: Window !important;
+    }
+
+    .dx-texteditor-input {
+      color: WindowText !important;
+    }
+
+    .dx-tag {
+      border: 1px solid WindowText !important;
+      background-color: Highlight !important;
+      color: HighlightText !important;
+    }
+  }
+
+  .dx-dropdowneditor-overlay {
+    .dx-overlay-content {
+      border: 2px solid WindowText !important;
+      background-color: Window !important;
+    }
+
+    .dx-list-item {
+      color: WindowText !important;
+      
+      &.dx-state-focused,
+      &.dx-state-selected {
+        background-color: Highlight !important;
+        color: HighlightText !important;
+      }
+    }
+  }
+}
+
+// RTL support
+.dx-rtl {
+  .autocomplete-container {
+    .dx-tag {
+      margin: 2px 0 2px 4px;
+    }
+
+    .dx-list-item {
+      &[data-recent="true"] {
+        &::before {
+          left: auto;
+          right: 12px;
+        }
+        
+        padding-left: 12px;
+        padding-right: 32px;
+      }
+
+      &.dx-state-selected {
+        &::after {
+          right: auto;
+          left: 12px;
+        }
+      }
+    }
+  }
+}
+
+// Print styles
+@media print {
+  .autocomplete-container {
+    .dx-texteditor-buttons-container,
+    .autocomplete-shortcuts-hint {
+      display: none !important;
+    }
+
+    .dx-texteditor-container {
+      border: 1px solid #000 !important;
+      background: white !important;
+    }
+
+    .dx-tag {
+      border: 1px solid #000 !important;
+      background: white !important;
+      color: black !important;
+    }
+  }
+}
+
+// Animations
+@keyframes loading-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+// Reduced motion support
+@media (prefers-reduced-motion: reduce) {
+  .autocomplete-container *,
+  .dx-dropdowneditor-overlay * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
