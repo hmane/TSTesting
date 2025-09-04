@@ -1,5 +1,6 @@
 // Autocomplete.tsx
 import * as React from 'react';
+import { Controller, useFormContext, Control, FieldValues, FieldPath } from 'react-hook-form';
 import { TextBox } from 'devextreme-react/text-box';
 import { TagBox } from 'devextreme-react/tag-box';
 import { useTheme } from '@fluentui/react/lib/Theme';
@@ -7,7 +8,8 @@ import {
   AutocompleteProps, 
   isSingleSelect, 
   isMultiSelect,
-  AUTOCOMPLETE_CONSTANTS 
+  AUTOCOMPLETE_CONSTANTS,
+  BaseAutocompleteProps
 } from './types/AutocompleteTypes';
 import { useEnhancedDataSource } from './hooks/useEnhancedDataSource';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
@@ -17,7 +19,8 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import './styles/Autocomplete.scss';
 
 /**
- * Internal Autocomplete component (wrapped by ErrorBoundary)
+ * Internal Autocomplete component (wrapped by ErrorBoundary and Controller)
+ * This contains the core UI and logic.
  */
 const AutocompleteInner: React.FC<AutocompleteProps> = (props) => {
   const {
@@ -86,8 +89,6 @@ const AutocompleteInner: React.FC<AutocompleteProps> = (props) => {
     onValueChanged,
     currentValue: value,
     onSelectAll: () => {
-      // Note: SelectAll would need to be implemented based on current dataset
-      // This is a placeholder for the functionality
       console.warn('SelectAll functionality needs to be implemented with access to full dataset');
     }
   });
@@ -99,9 +100,7 @@ const AutocompleteInner: React.FC<AutocompleteProps> = (props) => {
     // Check selection limit for multi-select
     if (isMultiSelectMode && Array.isArray(newValue) && maxSelect > 1) {
       if (newValue.length > maxSelect) {
-        if (onSelectionLimitReached) {
-          onSelectionLimitReached();
-        }
+        onSelectionLimitReached?.();
         return; // Don't allow exceeding the limit
       }
     }
@@ -142,15 +141,8 @@ const AutocompleteInner: React.FC<AutocompleteProps> = (props) => {
     // Call the original handler
     onValueChanged(newValue);
   }, [
-    isMultiSelectMode, 
-    maxSelect, 
-    onSelectionLimitReached, 
-    enableRecentCache, 
-    recentCacheKey, 
-    displayExpr, 
-    valueExpr, 
-    cacheHelpers, 
-    onValueChanged
+    isMultiSelectMode, maxSelect, onSelectionLimitReached, enableRecentCache, 
+    recentCacheKey, displayExpr, valueExpr, cacheHelpers, onValueChanged
   ]);
 
   // Merge component refs
@@ -175,7 +167,6 @@ const AutocompleteInner: React.FC<AutocompleteProps> = (props) => {
     minSearchLength,
     searchEnabled: true,
     onValueChanged: handleValueChanged,
-    // Apply SharePoint theme colors
     elementAttr: {
       ...devExtremeProps.elementAttr,
       'data-autocomplete-scope': keyboardScope,
@@ -184,10 +175,6 @@ const AutocompleteInner: React.FC<AutocompleteProps> = (props) => {
         '--dx-color-primary-hover': theme.palette.themeDarkAlt,
         '--dx-color-border': theme.palette.neutralTertiary,
         '--dx-color-border-hover': theme.palette.themePrimary,
-        '--dx-color-text': theme.palette.neutralPrimary,
-        '--dx-color-text-secondary': theme.palette.neutralSecondary,
-        '--dx-color-background': theme.palette.white,
-        '--dx-color-background-hover': theme.palette.neutralLighter,
         ...devExtremeProps.elementAttr?.style
       }
     }
@@ -204,21 +191,19 @@ const AutocompleteInner: React.FC<AutocompleteProps> = (props) => {
         />
       );
     }
-
     if (isMultiSelect(props)) {
       return (
         <TagBox
           {...commonProps}
-          maxDisplayedTags={props.maxDisplayedTags || 3}
-          showMultiTagOnly={props.showMultiTagOnly || false}
-          multiline={props.multiline || false}
-          selectAllMode={props.selectAllMode || 'page'}
-          showSelectionControls={props.showSelectionControls || false}
+          maxDisplayedTags={(props as any).maxDisplayedTags || 3}
+          showMultiTagOnly={(props as any).showMultiTagOnly || false}
+          multiline={(props as any).multiline || false}
+          selectAllMode={(props as any).selectAllMode || 'page'}
+          showSelectionControls={(props as any).showSelectionControls || false}
           maxLength={maxSelect > 1 ? maxSelect : undefined}
         />
       );
     }
-
     return null;
   };
 
@@ -226,35 +211,48 @@ const AutocompleteInner: React.FC<AutocompleteProps> = (props) => {
     <div 
       ref={mergedRef}
       className={`autocomplete-container ${isMultiSelectMode ? 'autocomplete-container--multi' : 'autocomplete-container--single'}`}
-      style={{
-        position: 'relative',
-        display: 'inline-block',
-        width: '100%'
-      }}
     >
       {renderInputComponent()}
-      
-      {showLoadingSpinner && (
-        <LoadingSpinner
-          {...loadingSpinnerProps}
-          position="right"
-          ariaLabel="Loading autocomplete options"
-        />
-      )}
+      {showLoadingSpinner && <LoadingSpinner {...loadingSpinnerProps} position="right" />}
     </div>
   );
 };
 
+
 /**
- * Main Autocomplete component with error boundary
+ * Main Autocomplete component with Error Boundary and React Hook Form integration.
  */
-export const Autocomplete: React.FC<AutocompleteProps> = (props) => {
+export const Autocomplete = <TFieldValues extends FieldValues = FieldValues>(
+  props: AutocompleteProps<TFieldValues>
+) => {
+  const { name, control, onValueChanged, ...rest } = props;
+  const formContext = useFormContext<TFieldValues>();
+  const activeControl = control || formContext?.control;
+
   return (
-    <ErrorBoundary 
-      componentName="Autocomplete"
-      onError={props.onDataSourceError}
-    >
-      <AutocompleteInner {...props} />
+    <ErrorBoundary componentName="Autocomplete" onError={props.onDataSourceError}>
+      {name && activeControl ? (
+        // RHF-controlled mode
+        <Controller
+          name={name}
+          control={activeControl}
+          render={({ field }) => (
+            <AutocompleteInner
+              {...rest}
+              value={field.value}
+              onValueChanged={(newValue) => {
+                // Update RHF state
+                field.onChange(newValue);
+                // Also call the original callback if provided
+                onValueChanged?.(newValue);
+              }}
+            />
+          )}
+        />
+      ) : (
+        // Standard controlled component mode
+        <AutocompleteInner {...props} />
+      )}
     </ErrorBoundary>
   );
 };
