@@ -51,7 +51,7 @@ export interface FieldProps<TFieldValues extends FieldValues = FieldValues> {
   /** Field name for form handling */
   name?: FieldPath<TFieldValues>;
 
-  /** React Hook Form control (optional) */
+  /** React Hook Form control (optional - can be inherited from FieldGroup) */
   control?: Control<TFieldValues>;
 
   /** React Hook Form validation rules (optional) */
@@ -119,7 +119,7 @@ export interface FieldRenderProps<TFieldValues extends FieldValues = FieldValues
   formState?: UseFormStateReturn<TFieldValues>;
 }
 
-// Component props (unchanged)
+// Component props
 export interface LabelProps {
   children: ReactNode;
   required?: boolean;
@@ -146,22 +146,42 @@ export interface ErrorProps {
   style?: CSSProperties;
 }
 
-export interface FieldGroupProps {
+// Enhanced FieldGroupProps with RHF control propagation
+export interface FieldGroupProps<TFieldValues extends FieldValues = FieldValues> {
   id?: string;
   children: ReactNode;
+  
+  /** Label width for all child fields */
   labelWidth?: LabelWidthType;
+  
+  /** CSS class name */
   className?: string;
+  
+  /** Inline styles */
   style?: CSSProperties;
+  
+  /** Spacing between fields */
   spacing?: SpacingType;
+  
+  /** Layout direction for all child fields */
   layout?: LayoutType;
+  
+  /** Disabled state for all child fields */
   disabled?: boolean;
+  
+  /** React Hook Form control - propagates to child fields that don't have their own control */
+  control?: Control<TFieldValues>;
 }
 
-export interface FieldGroupContextType {
+// Enhanced FieldGroupContextType with control propagation
+export interface FieldGroupContextType<TFieldValues extends FieldValues = FieldValues> {
   labelWidth: LabelWidthType;
   spacing: SpacingType;
   layout: LayoutType;
   disabled?: boolean;
+  
+  /** Control object that child fields can inherit */
+  control?: Control<TFieldValues>;
 }
 
 // Enhanced Focus Controller types with parent expansion
