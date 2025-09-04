@@ -250,4 +250,261 @@ export interface FieldDebugInfo {
   }>;
 }
 
-// Form submission
+// Form submission with enhanced error handling
+export interface FormSubmissionResult {
+  isValid: boolean;
+  errors: { [fieldId: string]: string };
+  firstErrorFocused: boolean;
+}
+
+export interface FormSubmissionOptions {
+  expandParentOnError?: boolean;
+  focusFirstError?: boolean;
+  scrollToError?: boolean;
+  highlightErrors?: boolean;
+}
+
+// Enhanced hooks return types
+export interface UseFieldFocusReturn {
+  // Enhanced focus management with parent expansion
+  focusField: (id: string, expandParent?: boolean) => Promise<boolean>;
+  scrollToField: (id: string, expandParent?: boolean) => Promise<boolean>;
+  focusNextField: (currentId: string, expandParent?: boolean) => Promise<boolean>;
+  focusPreviousField: (currentId: string, expandParent?: boolean) => Promise<boolean>;
+  focusFirstField: (expandParent?: boolean) => Promise<boolean>;
+  focusLastField: (expandParent?: boolean) => Promise<boolean>;
+  
+  // Enhanced validation with smart error focusing
+  validateAllFields: (container?: HTMLElement) => ValidationResult;
+  validateRHFFields: () => Promise<ValidationResult>;
+  getFieldErrors: (container?: HTMLElement) => { [fieldId: string]: string };
+  focusFirstInvalidField: (container?: HTMLElement, expandParent?: boolean) => Promise<boolean>;
+  
+  // Smart form validation and error handling
+  validateAndFocus: (container?: HTMLElement) => Promise<FormSubmissionResult>;
+  handleFormErrors: (
+    errors: { [fieldName: string]: string },
+    fieldNameToIdMap?: { [fieldName: string]: string }
+  ) => Promise<boolean>;
+  
+  // RHF integration
+  triggerRHFValidation: (fieldName?: string) => Promise<boolean>;
+  getRHFErrors: () => { [fieldName: string]: string };
+  
+  // Advanced navigation
+  handleTabNavigation: (
+    currentFieldId: string,
+    direction: 'forward' | 'backward',
+    expandParent?: boolean
+  ) => Promise<boolean>;
+  focusFieldInGroup: (
+    groupId: string,
+    fieldIndex: number,
+    expandParent?: boolean
+  ) => Promise<boolean>;
+  
+  // Batch operations with parent expansion
+  focusFieldsInSequence: (
+    fieldIds: string[], 
+    delay?: number,
+    expandParent?: boolean
+  ) => Promise<boolean[]>;
+  scrollToFieldsInSequence: (
+    fieldIds: string[], 
+    delay?: number,
+    expandParent?: boolean
+  ) => Promise<boolean[]>;
+  
+  // Utility methods
+  getAllFields: () => string[];
+  isFieldRegistered: (fieldId: string) => boolean;
+  getRegisteredFieldCount: () => number;
+  
+  // Enhanced statistics with parent context
+  getValidationStats: (container?: HTMLElement) => ValidationStats;
+  
+  // Debug helpers
+  getDebugInfo: () => FieldDebugInfo;
+}
+
+export interface UseFormSubmissionReturn extends UseFieldFocusReturn {
+  handleSubmissionErrors: (
+    onValid: (data: any) => void | Promise<void>,
+    onInvalid?: (errors: any) => void
+  ) => (e?: React.BaseSyntheticEvent) => Promise<void>;
+}
+
+export interface UseCardFieldFocusReturn extends UseFieldFocusReturn {
+  focusFieldInCard: (fieldId: string) => Promise<boolean>;
+  getCardFields: () => string[];
+  validateCardFields: () => ValidationResult;
+}
+
+// Lazy field hook types
+export interface UseLazyFieldOptions {
+  lazy: boolean;
+  threshold?: number;
+  rootMargin?: string;
+  onLoad?: () => void;
+}
+
+export interface UseLazyFieldReturn {
+  isVisible: boolean;
+  isManuallyLoaded: boolean;
+  manualLoad: () => void;
+  fieldRef: RefObject<HTMLDivElement>;
+}
+
+// Responsive layout hook types
+export interface UseResponsiveLayoutOptions {
+  layout: LayoutType;
+  breakpoint?: number;
+}
+
+export interface UseResponsiveLayoutReturn {
+  currentLayout: 'horizontal' | 'vertical';
+  isMobile: boolean;
+}
+
+// Parent detection hook types
+export interface UseParentDetectionReturn {
+  detectParent: (fieldRef: RefObject<HTMLElement>) => ParentInfo | null;
+  expandParentCard: (cardId: string) => Promise<boolean>;
+  expandParentAccordion: (accordionId: string, cardId: string) => Promise<boolean>;
+  isParentExpanded: (fieldRef: RefObject<HTMLElement>) => boolean;
+  getParentInfo: (fieldRef: RefObject<HTMLElement>) => ParentInfo | null;
+}
+
+export interface UseFieldParentContextReturn {
+  hasParent: boolean;
+  parentType?: 'card' | 'accordion';
+  parentId?: string;
+  isParentExpanded: boolean;
+  parentElement?: HTMLElement;
+  isInAccordion: boolean;
+  accordionId?: string;
+}
+
+// Error handling types for better form UX
+export interface FieldErrorHandlingOptions {
+  scrollToError?: boolean;
+  expandParent?: boolean;
+  highlightDuration?: number;
+  focusDelay?: number;
+  animateExpansion?: boolean;
+}
+
+export interface FormValidationConfig {
+  validateOnChange?: boolean;
+  validateOnBlur?: boolean;
+  validateOnSubmit?: boolean;
+  expandParentOnError?: boolean;
+  focusFirstError?: boolean;
+  debounceValidation?: number;
+}
+
+// Advanced field configuration
+export interface FieldConfiguration {
+  id: string;
+  name?: string;
+  priority?: number; // For focus order
+  group?: string; // Group ID for related fields
+  dependencies?: string[]; // Other field IDs this field depends on
+  parentExpansion?: {
+    enabled: boolean;
+    delay?: number;
+    highlight?: boolean;
+  };
+  validation?: {
+    immediate?: boolean;
+    debounce?: number;
+    dependencies?: string[];
+  };
+}
+
+// Field registry for advanced management
+export interface FieldRegistry {
+  register: (config: FieldConfiguration) => void;
+  unregister: (fieldId: string) => void;
+  getConfiguration: (fieldId: string) => FieldConfiguration | null;
+  getFieldsByGroup: (groupId: string) => FieldConfiguration[];
+  getFieldDependencies: (fieldId: string) => FieldConfiguration[];
+  validateDependencies: (fieldId: string) => Promise<boolean>;
+}
+
+// Events and callbacks
+export interface FieldEventHandlers {
+  onFocus?: (fieldId: string, parentInfo?: ParentInfo) => void;
+  onBlur?: (fieldId: string) => void;
+  onParentExpansion?: (parentId: string, parentType: 'card' | 'accordion') => void;
+  onValidationChange?: (fieldId: string, isValid: boolean, error?: string) => void;
+  onNavigate?: (fromFieldId: string, toFieldId: string, direction: 'forward' | 'backward') => void;
+}
+
+// Integration with external libraries
+export interface ExternalIntegration {
+  zustand?: {
+    store?: any;
+    selector?: (state: any) => any;
+    actions?: { [key: string]: (...args: any[]) => void };
+  };
+  reactHookForm?: {
+    control?: Control<any>;
+    formState?: UseFormStateReturn<any>;
+    trigger?: (name?: string | string[]) => Promise<boolean>;
+  };
+  cardController?: {
+    expandCard?: (id: string, highlight?: boolean) => Promise<boolean>;
+    collapseCard?: (id: string, highlight?: boolean) => Promise<boolean>;
+    isCardExpanded?: (id: string) => boolean;
+  };
+}
+
+// Performance optimization types
+export interface FieldPerformanceOptions {
+  debounceValidation?: number;
+  throttleFocus?: number;
+  virtualizeFields?: boolean;
+  lazyValidation?: boolean;
+  batchUpdates?: boolean;
+  memoizeRendering?: boolean;
+}
+
+// Accessibility enhancements
+export interface FieldAccessibilityOptions {
+  announceErrors?: boolean;
+  announceExpansion?: boolean;
+  skipLinks?: boolean;
+  customAriaLabels?: { [key: string]: string };
+  highContrast?: boolean;
+  reducedMotion?: boolean;
+}
+
+// Complete field system configuration
+export interface FieldSystemConfig {
+  performance?: FieldPerformanceOptions;
+  accessibility?: FieldAccessibilityOptions;
+  validation?: FormValidationConfig;
+  errorHandling?: FieldErrorHandlingOptions;
+  integration?: ExternalIntegration;
+  events?: FieldEventHandlers;
+  debug?: boolean;
+}
+
+// Export utility types
+export type FieldElement = HTMLDivElement | HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+export type FocusableElement = HTMLElement & { focus(): void };
+export type ValidationSource = 'direct' | 'nested' | 'data-attribute' | 'rhf' | 'default';
+export type ParentType = 'card' | 'accordion';
+export type NavigationDirection = 'forward' | 'backward' | 'up' | 'down' | 'first' | 'last';
+
+// Re-export common types for convenience
+export type { 
+  Control, 
+  FieldPath, 
+  FieldValues, 
+  RegisterOptions, 
+  FieldError,
+  UseFormStateReturn,
+  ControllerRenderProps 
+} from 'react-hook-form';
