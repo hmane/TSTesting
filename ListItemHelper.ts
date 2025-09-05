@@ -31,6 +31,14 @@ export type FieldMapping = {
 };
 
 /**
+ * Result type for safe extraction
+ */
+export interface SafeExtractionResult<T> {
+  data: Partial<T>;
+  errors: Record<string, Error>;
+}
+
+/**
  * Out-of-the-box SharePoint fields that are commonly used
  */
 export const OOBFields = {
@@ -46,144 +54,122 @@ export const OOBFields = {
 } as const;
 
 /**
- * Updater class for building SharePoint list item updates
+ * Type-safe updater class for building SharePoint list item updates
  */
-class ListItemUpdater {
+class ListItemUpdater<T = any> {
   private updates: IListItemFormUpdateValue[] = [];
   private logger: Logger;
-  private schema: Record<string, FieldSchema>;
+  private schema: T extends any ? Record<string, FieldSchema> : { [K in keyof T]: FieldSchema };
 
-  constructor(schema: Record<string, FieldSchema>) {
+  constructor(schema: T extends any ? Record<string, FieldSchema> : { [K in keyof T]: FieldSchema }) {
     this.schema = schema;
     this.logger = Logger.subscribe("ListItemUpdater");
     this.logger.write("ListItemUpdater initialized", LogLevel.Verbose);
   }
 
   /**
-   * Set field value with optional comparison
+   * Set field value with optional comparison (type-safe when T is provided)
    * @param fieldKey - Key from the schema
-   * @param value - New value to set
+   * @param value - New value to set (type-safe based on T[K])
    * @param originalValue - Optional original value for comparison. If provided, will only update if different
    */
-  public setField(fieldKey: string, value: any, originalValue?: any): ListItemUpdater {
+  public setField<K extends keyof T>(
+    fieldKey: K, 
+    value: T[K], 
+    originalValue?: T[K]
+  ): ListItemUpdater<T>;
+  public setField(
+    fieldKey: string, 
+    value: any, 
+    originalValue?: any
+  ): ListItemUpdater<T>;
+  public setField(fieldKey: any, value: any, originalValue?: any): ListItemUpdater<T> {
     // Validate field exists and is not readonly
-    this.validateField(fieldKey);
+    this.validateField(fieldKey as string);
 
-    const fieldSchema = this.schema[fieldKey];
+    const fieldSchema = this.schema[fieldKey as string];
 
     // If originalValue is provided (even if undefined), perform comparison
     if (arguments.length === 3) {
       if (isEqual(value, originalValue)) {
-        this.logger.write(`Field '${fieldKey}' unchanged, skipping update`, LogLevel.Verbose);
+        this.logger.write(`Field '${String(fieldKey)}' unchanged, skipping update`, LogLevel.Verbose);
         return this;
       }
-      this.logger.write(`Field '${fieldKey}' changed from '${this.getValueForLogging(originalValue)}' to '${this.getValueForLogging(value)}'`, LogLevel.Verbose);
+      this.logger.write(`Field '${String(fieldKey)}' changed from '${this.getValueForLogging(originalValue)}' to '${this.getValueForLogging(value)}'`, LogLevel.Verbose);
     }
 
     // Convert value based on field type and add update
     const formattedValue = this.formatValueByType(value, fieldSchema.type);
-    this.addUpdate(fieldKey, formattedValue);
+    this.addUpdate(fieldKey as string, formattedValue);
     
     return this;
   }
 
   /**
-   * Get the final updates array without validation
+   * Get updates for validate methods (addValidateUpdateItemUsingPath, validateUpdateListItem)
+   * @returns Array of IListItemFormUpdateValue for PnP.js validate methods
    */
-  public getUpdates(): IListItemFormUpdateValue[] {
-    this.logger.write(`Generated ${this.updates.length} field updates`, LogLevel.Verbose);
+  public getUpdatesForValidate(): IListItemFormUpdateValue[] {
+    this.logger.write(`Generated ${this.updates.length} field updates for validate methods`, LogLevel.Verbose);
     return [...this.updates];
   }
 
   /**
-   * Validate required fields and get the final updates array
+   * Validate required fields and get updates for validate methods
+   * @returns Array of IListItemFormUpdateValue for PnP.js validate methods
    */
-  public validateAndGetUpdates(): IListItemFormUpdateValue[] {
+  public validateAndGetUpdatesForValidate(): IListItemFormUpdateValue[] {
     this.validateRequiredFields();
-    this.logger.write(`Generated ${this.updates.length} field updates after validation`, LogLevel.Verbose);
+    this.logger.write(`Generated ${this.updates.length} field updates for validate methods after validation`, LogLevel.Verbose);
     return [...this.updates];
+  }
+
+  /**
+   * Get updates for PnP.js methods (item.update(), items.add())
+   * Handles complex field types like User and Taxonomy properly
+   * @returns Key-value object for PnP.js update methods
+   */
+  public getUpdates(): { [key: string]: any } {
+    const updates: { [key: string]: any } = {};
+    
+    for (const update of this.updates) {
+      const fieldKey = this.getFieldKeyByInternalName(update.FieldName);
+      const fieldSchema = fieldKey ? this.schema[fieldKey] : undefined;
+      
+      if (fieldSchema) {
+        // Handle special field types that need different formatting for direct updates
+        this.addDirectUpdateValue(updates, update.FieldName, update.FieldValue, fieldSchema.type);
+      } else {
+        // Fallback: use the formatted value as-is
+        updates[update.FieldName] = update.FieldValue;
+        this.logger.write(`Could not find field schema for '${update.FieldName}', using formatted value`, LogLevel.Warning);
+      }
+    }
+    
+    this.logger.write(`Generated ${Object.keys(updates).length} field updates`, LogLevel.Verbose);
+    return updates;
+  }
+
+  /**
+   * Validate required fields and get updates for PnP.js methods
+   * @returns Key-value object for PnP.js update methods
+   */
+  public validateAndGetUpdates(): { [key: string]: any } {
+    this.validateRequiredFields();
+    this.logger.write(`Generated updates after validation`, LogLevel.Verbose);
+    return this.getUpdates();
   }
 
   /**
    * Clear all updates and start fresh
    */
-  public clear(): ListItemUpdater {
+  public clear(): ListItemUpdater<T> {
     this.updates = [];
     this.logger.write("Cleared all updates", LogLevel.Verbose);
     return this;
   }
 
   // Private helper methods
-
-  private getFieldKeyByInternalName(internalName: string): string | undefined {
-    return Object.keys(this.schema).find(key => this.schema[key].internalName === internalName);
-  }
-
-  private convertFormattedValueToDirectValue(formattedValue: string, fieldType: SPFieldType): any {
-    // Convert the formatted string value back to appropriate type for direct PnP.js updates
-    if (formattedValue === "") {
-      return undefined; // Clear the field
-    }
-
-    try {
-      switch (fieldType) {
-        case SPFieldType.Text:
-        case SPFieldType.Note:
-        case SPFieldType.Choice:
-          return formattedValue;
-
-        case SPFieldType.Number:
-        case SPFieldType.Currency:
-        case SPFieldType.Counter:
-          return parseFloat(formattedValue);
-
-        case SPFieldType.Boolean:
-          return formattedValue === "1";
-
-        case SPFieldType.DateTime:
-          return new Date(formattedValue);
-
-        case SPFieldType.User:
-          // For direct updates, PnP.js expects just the user ID
-          return parseInt(formattedValue);
-
-        case SPFieldType.UserMulti:
-          // For multi-user, return array of IDs
-          if (formattedValue.includes(";#")) {
-            return formattedValue.split(";#").map(id => parseInt(id));
-          }
-          return [parseInt(formattedValue)];
-
-        case SPFieldType.Lookup:
-          return parseInt(formattedValue);
-
-        case SPFieldType.LookupMulti:
-          // For multi-lookup, return array of IDs
-          if (formattedValue.includes(";#")) {
-            return formattedValue.split(";#").map(id => parseInt(id));
-          }
-          return [parseInt(formattedValue)];
-
-        case SPFieldType.MultiChoice:
-          // For multi-choice, return array of strings
-          if (formattedValue.includes(";#")) {
-            return formattedValue.split(";#");
-          }
-          return [formattedValue];
-
-        case SPFieldType.TaxonomyFieldType:
-          // For taxonomy, PnP.js expects the formatted value as-is for direct updates
-          return formattedValue;
-
-        default:
-          this.logger.write(`Unknown field type '${SPFieldType[fieldType]}' for direct conversion, returning formatted value`, LogLevel.Warning);
-          return formattedValue;
-      }
-    } catch (error) {
-      this.logger.write(`Error converting formatted value '${formattedValue}' for field type '${SPFieldType[fieldType]}': ${error}`, LogLevel.Warning);
-      return formattedValue; // Return as-is if conversion fails
-    }
-  }
 
   private validateField(fieldKey: string): void {
     const field = this.schema[fieldKey];
@@ -229,6 +215,143 @@ class ListItemUpdater {
     } catch (error) {
       this.logger.write(`Error adding update for field '${fieldKey}': ${error}`, LogLevel.Error);
       throw error;
+    }
+  }
+
+  private getFieldKeyByInternalName(internalName: string): string | undefined {
+    return Object.keys(this.schema).find(key => this.schema[key].internalName === internalName);
+  }
+
+  private addDirectUpdateValue(updates: { [key: string]: any }, internalName: string, formattedValue: string, fieldType: SPFieldType): void {
+    if (formattedValue === "") {
+      // Handle empty values appropriately for each field type
+      switch (fieldType) {
+        case SPFieldType.Text:
+        case SPFieldType.Note:
+        case SPFieldType.Choice:
+          updates[internalName] = "";
+          break;
+          
+        case SPFieldType.MultiChoice:
+          updates[internalName] = { results: [] };
+          break;
+          
+        case SPFieldType.UserMulti:
+          updates[`${internalName}Id`] = { results: [] };
+          break;
+          
+        case SPFieldType.LookupMulti:
+          updates[`${internalName}Id`] = { results: [] };
+          break;
+          
+        case SPFieldType.User:
+          updates[`${internalName}Id`] = undefined;
+          break;
+          
+        case SPFieldType.Lookup:
+          updates[`${internalName}Id`] = undefined;
+          break;
+          
+        case SPFieldType.TaxonomyFieldType:
+          // Clear both the main field and hidden field
+          updates[internalName] = undefined;
+          updates[`${internalName}_0`] = undefined;
+          break;
+          
+        default:
+          updates[internalName] = undefined;
+      }
+      return;
+    }
+
+    try {
+      switch (fieldType) {
+        case SPFieldType.Text:
+        case SPFieldType.Note:
+        case SPFieldType.Choice:
+          updates[internalName] = formattedValue;
+          break;
+
+        case SPFieldType.Number:
+        case SPFieldType.Currency:
+        case SPFieldType.Counter:
+          updates[internalName] = parseFloat(formattedValue);
+          break;
+
+        case SPFieldType.Boolean:
+          updates[internalName] = formattedValue === "1";
+          break;
+
+        case SPFieldType.DateTime:
+          updates[internalName] = new Date(formattedValue);
+          break;
+
+        case SPFieldType.User:
+          // For single user, PnP.js expects FieldNameId
+          updates[`${internalName}Id`] = parseInt(formattedValue);
+          break;
+
+        case SPFieldType.UserMulti:
+          // For multi-user, PnP.js expects FieldNameId with results array
+          if (formattedValue.includes(";#")) {
+            const userIds = formattedValue.split(";#").map(id => parseInt(id));
+            updates[`${internalName}Id`] = { results: userIds };
+          } else {
+            updates[`${internalName}Id`] = { results: [parseInt(formattedValue)] };
+          }
+          break;
+
+        case SPFieldType.Lookup:
+          // For single lookup, PnP.js expects FieldNameId
+          updates[`${internalName}Id`] = parseInt(formattedValue);
+          break;
+
+        case SPFieldType.LookupMulti:
+          // For multi-lookup, PnP.js expects FieldNameId with results array
+          if (formattedValue.includes(";#")) {
+            const lookupIds = formattedValue.split(";#").map(id => parseInt(id));
+            updates[`${internalName}Id`] = { results: lookupIds };
+          } else {
+            updates[`${internalName}Id`] = { results: [parseInt(formattedValue)] };
+          }
+          break;
+
+        case SPFieldType.MultiChoice:
+          // For multi-choice, PnP.js expects results array
+          if (formattedValue.includes(";#")) {
+            updates[internalName] = { results: formattedValue.split(";#") };
+          } else {
+            updates[internalName] = { results: [formattedValue] };
+          }
+          break;
+
+        case SPFieldType.TaxonomyFieldType:
+          // For taxonomy, we need to handle both the main field and hidden field
+          // Format: "Label|TermID"
+          if (formattedValue.includes("|")) {
+            const [label, termId] = formattedValue.split("|");
+            
+            // Set the main taxonomy field
+            updates[internalName] = {
+              Label: label,
+              TermGuid: termId,
+              WssId: -1 // Let SharePoint assign the WssId
+            };
+            
+            // Set the hidden taxonomy field (typically FieldName_0)
+            updates[`${internalName}_0`] = `${label}|${termId}`;
+          } else {
+            updates[internalName] = formattedValue;
+          }
+          break;
+
+        default:
+          this.logger.write(`Unknown field type '${SPFieldType[fieldType]}' for direct update, using formatted value`, LogLevel.Warning);
+          updates[internalName] = formattedValue;
+      }
+    } catch (error) {
+      this.logger.write(`Error converting formatted value '${formattedValue}' for field type '${SPFieldType[fieldType]}': ${error}`, LogLevel.Warning);
+      updates[internalName] = formattedValue; // Return as-is if conversion fails
     }
   }
 
@@ -320,15 +443,23 @@ export class ListItemHelper {
   private static logger = Logger.subscribe("ListItemHelper");
 
   /**
-   * Create a new updater instance for building list item updates
+   * Create a new type-safe updater instance for building list item updates
+   * @param schema - Schema definition for the list fields
+   * @returns Type-safe ListItemUpdater instance
    */
-  public static createUpdater(schema: Record<string, FieldSchema>): ListItemUpdater {
+  public static createUpdater<T = any>(
+    schema: T extends any ? Record<string, FieldSchema> : { [K in keyof T]: FieldSchema }
+  ): ListItemUpdater<T> {
     ListItemHelper.logger.write("Created new ListItemUpdater instance", LogLevel.Verbose);
-    return new ListItemUpdater(schema);
+    return new ListItemUpdater<T>(schema);
   }
 
   /**
    * Extract values from a SharePoint list item using field mapping
+   * Throws error if any field conversion fails
+   * @param item - SharePoint list item
+   * @param fieldMapping - Mapping of property names to field schemas
+   * @returns Extracted object of type T
    */
   public static extract<T = any>(item: any, fieldMapping: FieldMapping): T {
     ListItemHelper.logger.write("Starting list item extraction", LogLevel.Verbose);
@@ -363,14 +494,97 @@ export class ListItemHelper {
   }
 
   /**
+   * Safely extract values from a SharePoint list item using field mapping
+   * Continues processing even if individual fields fail conversion
+   * @param item - SharePoint list item
+   * @param fieldMapping - Mapping of property names to field schemas
+   * @returns Object containing successfully extracted data and any conversion errors
+   */
+  public static safeExtract<T = any>(item: any, fieldMapping: FieldMapping): SafeExtractionResult<T> {
+    ListItemHelper.logger.write("Starting safe list item extraction", LogLevel.Verbose);
+    
+    const data: Partial<T> = {};
+    const errors: Record<string, Error> = {};
+
+    if (!item) {
+      const error = new Error("Item is null or undefined");
+      ListItemHelper.logger.write(error.message, LogLevel.Error);
+      
+      // Add error for all fields
+      for (const propertyName of Object.keys(fieldMapping)) {
+        errors[propertyName] = error;
+      }
+      
+      return { data, errors };
+    }
+
+    for (const [propertyName, fieldSchema] of Object.entries(fieldMapping)) {
+      try {
+        const fieldValue = item[fieldSchema.internalName];
+        const convertedValue = ListItemHelper.convertFieldValue(fieldValue, fieldSchema.type);
+        
+        (data as any)[propertyName] = convertedValue;
+        
+        ListItemHelper.logger.write(
+          `Successfully extracted field '${propertyName}' (${fieldSchema.internalName}) = ${JSON.stringify(convertedValue)}`,
+          LogLevel.Verbose
+        );
+      } catch (error) {
+        const conversionError = error instanceof Error ? error : new Error(String(error));
+        errors[propertyName] = conversionError;
+        
+        ListItemHelper.logger.write(
+          `Failed to extract field '${propertyName}' (${fieldSchema.internalName}): ${conversionError.message}`,
+          LogLevel.Warning
+        );
+      }
+    }
+
+    const successCount = Object.keys(data).length;
+    const errorCount = Object.keys(errors).length;
+    
+    ListItemHelper.logger.write(
+      `Safe extraction completed: ${successCount} successful, ${errorCount} failed`,
+      errorCount > 0 ? LogLevel.Warning : LogLevel.Verbose
+    );
+
+    return { data, errors };
+  }
+
+  /**
    * Convert SharePoint field value to appropriate TypeScript type based on field type
-   * Handles null/undefined/empty values gracefully
+   * Handles null/undefined/empty values gracefully with appropriate empty values
    */
   private static convertFieldValue(value: any, fieldType: SPFieldType): any {
     // Handle null, undefined, empty string, or empty object
     if (value === null || value === undefined || value === "" || 
         (typeof value === 'object' && value !== null && Object.keys(value).length === 0)) {
-      return undefined; // Prefer undefined over null
+      
+      // Return appropriate empty value based on field type
+      switch (fieldType) {
+        case SPFieldType.Text:
+        case SPFieldType.Note:
+        case SPFieldType.Choice:
+          return ""; // Empty string for text fields
+          
+        case SPFieldType.MultiChoice:
+        case SPFieldType.UserMulti:
+        case SPFieldType.LookupMulti:
+          return []; // Empty array for multi-value fields
+          
+        case SPFieldType.Number:
+        case SPFieldType.Currency:
+        case SPFieldType.Counter:
+        case SPFieldType.Boolean:
+        case SPFieldType.DateTime:
+        case SPFieldType.User:
+        case SPFieldType.Lookup:
+        case SPFieldType.TaxonomyFieldType:
+          return undefined; // Undefined for single-value fields that can't be "empty"
+          
+        default:
+          return undefined;
+      }
     }
 
     try {
@@ -422,7 +636,7 @@ export class ListItemHelper {
 
         case SPFieldType.UserMulti:
           if (Array.isArray(value) && value.length > 0) {
-            return value
+            const users = value
               .map(user => {
                 if (typeof user === 'object' && user !== null && (user.id !== undefined || user.ID !== undefined)) {
                   return {
@@ -435,6 +649,7 @@ export class ListItemHelper {
                 return undefined;
               })
               .filter(user => user !== undefined);
+            return users.length > 0 ? users : [];
           }
           return [];
 
@@ -453,7 +668,7 @@ export class ListItemHelper {
 
         case SPFieldType.LookupMulti:
           if (Array.isArray(value) && value.length > 0) {
-            return value
+            const lookupIds = value
               .map(lookup => {
                 if (typeof lookup === 'object' && lookup !== null) {
                   const lookupId = lookup.ID || lookup.id;
@@ -467,6 +682,7 @@ export class ListItemHelper {
                 return undefined;
               })
               .filter(id => id !== undefined);
+            return lookupIds.length > 0 ? lookupIds : [];
           }
           return [];
 
