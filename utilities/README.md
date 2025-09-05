@@ -189,24 +189,25 @@ async function listSiteGroups(sp: SPFI): Promise<string[]> {
 
 ## 🔍 Advanced Usage
 
-### Comprehensive Permission Information
+### Advanced Permission Checking
 
 ```typescript
-// Get detailed permission information for current user
-const userPermissions = await permissionHelper.getCurrentUserPermissions();
-console.log("User ID:", userPermissions.userId);
-console.log("Groups:", userPermissions.groups);
-console.log("Permission Levels:", userPermissions.permissionLevels);
+// Check specific PnPjs PermissionKind
+import { PermissionKind } from "@pnp/sp/security";
+const canDelete = await permissionHelper.userHasSpecificPermission("Tasks", PermissionKind.DeleteListItems);
 
-// Get list-specific permissions
-const listPermissions = await permissionHelper.getCurrentUserPermissions("Tasks");
-console.log("User permissions on Tasks list:", listPermissions);
+// Check multiple permissions at once for better performance
+const permissions = await permissionHelper.checkMultiplePermissions("Tasks", [
+  SPPermissionLevel.Read,
+  SPPermissionLevel.Edit,
+  SPPermissionLevel.FullControl
+]);
+// Returns: { "Read": true, "Edit": false, "FullControl": false }
 
-// Get item-level permission details
-const itemPermissions = await permissionHelper.getItemPermissions("Documents", 123);
-console.log("Item has unique permissions:", itemPermissions.hasUniquePermissions);
-console.log("User permissions:", itemPermissions.userPermissions);
-console.log("Group permissions:", itemPermissions.groupPermissions);
+// Get comprehensive user permissions (now returns real parsed data)
+const userPerms = await permissionHelper.getCurrentUserPermissions("Tasks");
+console.log("Permission Levels:", userPerms.permissionLevels); // ["Read", "Contribute", "Edit"]
+console.log("Groups:", userPerms.groups); // ["Members", "Contributors"]
 ```
 
 ### Error Handling
