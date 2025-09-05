@@ -234,9 +234,12 @@ export const useConflictDetection = ({
     
     // Actions
     checkForConflicts,
+    hasChangedSinceLastCheck,
     updateSnapshot,
     initialize,
     dispose,
+    pausePolling,
+    resumePolling,
     
     // Utilities
     getDetector,
