@@ -245,6 +245,22 @@ export class ConflictDetector {
   }
 
   /**
+   * Convert SharePoint item to ConflictInfo format
+   */
+  private convertItemToConflictInfo(item: SharePointListItem): ConflictInfo {
+    return {
+      hasConflict: false,
+      originalVersion: item.__metadata.etag,
+      currentVersion: item.__metadata.etag,
+      lastModifiedBy: item.Editor?.Title || 'Unknown',
+      lastModified: new Date(item.Modified),
+      originalModified: new Date(item.Modified),
+      itemId: this.itemId,
+      listId: this.listId
+    };
+  }
+
+  /**
    * Get current options
    */
   public getOptions(): ConflictDetectionOptions {
