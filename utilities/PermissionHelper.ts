@@ -481,9 +481,98 @@ export class PermissionHelper {
   }
 
   /**
-   * Clear permission cache
+   * Check if current user has specific permission kind on a list
+   * @param listName - Title of the SharePoint list
+   * @param permissionKind - Specific PermissionKind to check
+   * @returns Promise<IPermissionResult>
    */
-  public clearCache(): void {
+  public async userHasSpecificPermission(
+    listName: string, 
+    permissionKind: PermissionKind
+  ): Promise<IPermissionResult> {
+    try {
+      this.logger.write(`Checking if user has specific permission '${PermissionKind[permissionKind]}' on list '${listName}'`, LogLevel.Verbose);
+      
+      const cacheKey = `specific_permission_${listName}_${PermissionKind[permissionKind]}`;
+      const cached = this.getCachedData(cacheKey);
+      if (cached) {
+        this.logger.write("Returning cached specific permission result", LogLevel.Verbose);
+        return cached;
+      }
+
+      const list = this.sp.web.lists.getByTitle(listName);
+      const hasPermission = await list.currentUserHasPermissions(permissionKind);
+      
+      const result: IPermissionResult = {
+        hasPermission,
+        permissionLevel: PermissionKind[permissionKind]
+      };
+
+      this.setCachedData(cacheKey, result);
+      this.logger.write(`User ${hasPermission ? 'has' : 'does not have'} specific permission '${PermissionKind[permissionKind]}' on list '${listName}'`, LogLevel.Verbose);
+      
+      return result;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.write(`Error checking specific permission: ${errorMessage}`, LogLevel.Error);
+      
+      return {
+        hasPermission: false,
+        error: errorMessage
+      };
+    }
+  }
+
+  /**
+   * Check multiple permission levels at once
+   * @param listName - Title of the SharePoint list
+   * @param permissionLevels - Array of permission levels to check
+   * @returns Promise<{ [key: string]: boolean }>
+   */
+  public async checkMultiplePermissions(
+    listName: string,
+    permissionLevels: SPPermissionLevel[]
+  ): Promise<{ [key: string]: boolean }> {
+    try {
+      this.logger.write(`Checking multiple permissions on list '${listName}': ${permissionLevels.join(', ')}`, LogLevel.Verbose);
+      
+      const results: { [key: string]: boolean } = {};
+      const list = this.sp.web.lists.getByTitle(listName);
+      
+      // Check all permissions in parallel for better performance
+      const permissionChecks = permissionLevels.map(async (level) => {
+        try {
+          const permissionKind = this.mapPermissionLevel(level);
+          const hasPermission = await list.currentUserHasPermissions(permissionKind);
+          return { level, hasPermission };
+        } catch (error) {
+          this.logger.write(`Error checking permission '${level}': ${error}`, LogLevel.Warning);
+          return { level, hasPermission: false };
+        }
+      });
+      
+      const permissionResults = await Promise.all(permissionChecks);
+      
+      // Build results object
+      permissionResults.forEach(({ level, hasPermission }) => {
+        results[level] = hasPermission;
+      });
+      
+      this.logger.write(`Multiple permission check completed for list '${listName}'`, LogLevel.Verbose);
+      return results;
+      
+    } catch (error) {
+      this.logger.write(`Error in multiple permission check: ${error}`, LogLevel.Error);
+      
+      // Return false for all requested permissions on error
+      const errorResults: { [key: string]: boolean } = {};
+      permissionLevels.forEach(level => {
+        errorResults[level] = false;
+      });
+      
+      return errorResults;
+    }
+  }
     this.cache.clear();
     this.currentUserCache = undefined;
     this.logger.write("Permission cache cleared", LogLevel.Verbose);
