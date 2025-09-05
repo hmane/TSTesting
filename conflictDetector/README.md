@@ -487,3 +487,11 @@ MIT License - Feel free to use in your SPFx projects.
 - Fluent UI v8 components
 - TypeScript support
 - Comprehensive documentation
+
+### v1.1.0 (Enhanced Features)
+- ✨ **Soft change detection** with `hasChangedSinceLastCheck()`
+- 🎛️ **Granular polling controls** - pause/resume/isActive
+- ⚡ **Optimistic updates** - use save response data to avoid extra API calls
+- 🔋 **Performance optimizations** - smart polling with Page Visibility API integration
+- 📚 **Enhanced documentation** with advanced usage examples
+- 🛠️ **Better developer experience** with more control and flexibility
