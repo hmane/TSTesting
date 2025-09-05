@@ -1,0 +1,7 @@
+{
+  "key": "ctrl+shift+g",
+  "command": "editor.action.insertSnippet",
+  "args": {
+    "snippet": "${RANDOM_HEX:8}-${RANDOM_HEX:4}-${RANDOM_HEX:4}-${RANDOM_HEX:4}-${RANDOM_HEX:12}"
+  }
+}
