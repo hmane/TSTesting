@@ -1,5 +1,122 @@
-// ==================== Fixed Card Header Styles ====================
+// ==================== Enhanced Card Component Styles ====================
 :global {
+  // Core Card Variables
+  :root {
+    --spfx-card-border-radius: 8px;
+    --spfx-card-transition-duration: 300ms;
+    --spfx-card-transition-easing: cubic-bezier(0.4, 0, 0.2, 1);
+    --spfx-card-shadow-color: rgba(0, 0, 0, 0.1);
+
+    // SharePoint Theme Variables
+    --spfx-card-theme-primary: var(--themePrimary, #0078d4);
+    --spfx-card-theme-white: var(--white, #ffffff);
+    --spfx-card-neutral-primary: var(--neutralPrimary, #323130);
+    --spfx-card-neutral-secondary: var(--neutralSecondary, #605e5c);
+    --spfx-card-neutral-tertiary: var(--neutralTertiary, #a19f9d);
+    --spfx-card-neutral-light: var(--neutralLight, #edebe9);
+    --spfx-card-neutral-lighter: var(--neutralLighter, #f8f9fa);
+
+    // Variant Colors
+    --spfx-card-success: var(--green, #107c10);
+    --spfx-card-success-light: var(--greenLight, #bad80a);
+    --spfx-card-error: var(--red, #d13438);
+    --spfx-card-error-light: var(--redLight, #f3d6d7);
+    --spfx-card-warning: var(--yellow, #ffb900);
+    --spfx-card-warning-light: var(--yellowLight, #fff4ce);
+    --spfx-card-info: var(--themePrimary, #0078d4);
+    --spfx-card-info-light: var(--themeLight, #c7e0f4);
+  }
+
+  // ==================== Base Card Styles ====================
+  .spfx-card {
+    display: flex;
+    flex-direction: column;
+    background: var(--spfx-card-theme-white);
+    border: 1px solid var(--spfx-card-neutral-light);
+    border-radius: var(--spfx-card-border-radius);
+    box-shadow: 0 1px 3px var(--spfx-card-shadow-color);
+    overflow: hidden;
+    transition: box-shadow var(--spfx-card-transition-duration) var(--spfx-card-transition-easing);
+    position: relative;
+
+    // Hover effect
+    &:hover {
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+      transform: translateY(-1px);
+    }
+
+    // Size variants
+    &.spfx-card-compact {
+      .spfx-card-header-fixed {
+        padding: 8px 12px;
+        min-height: 32px;
+        font-size: 13px;
+      }
+      .spfx-card-body {
+        padding: 8px 12px;
+      }
+      .spfx-card-footer {
+        padding: 6px 12px;
+      }
+    }
+
+    &.spfx-card-regular {
+      .spfx-card-header-fixed {
+        padding: 12px 16px;
+        min-height: 48px;
+        font-size: 16px;
+      }
+      .spfx-card-body {
+        padding: 16px;
+      }
+      .spfx-card-footer {
+        padding: 12px 16px;
+      }
+    }
+
+    &.spfx-card-large {
+      .spfx-card-header-fixed {
+        padding: 20px 24px;
+        min-height: 64px;
+        font-size: 18px;
+      }
+      .spfx-card-body {
+        padding: 20px 24px;
+      }
+      .spfx-card-footer {
+        padding: 16px 24px;
+      }
+    }
+
+    &.spfx-card-full-width {
+      width: 100%;
+      .spfx-card-header-fixed {
+        padding: 16px 20px;
+        min-height: 56px;
+      }
+      .spfx-card-body {
+        padding: 16px 20px;
+      }
+      .spfx-card-footer {
+        padding: 12px 20px;
+      }
+    }
+
+    // Disabled state
+    &.disabled {
+      opacity: 0.6;
+      pointer-events: none;
+      box-shadow: none;
+    }
+
+    // Loading state
+    &.loading {
+      pointer-events: none;
+      opacity: 0.8;
+    }
+  }
+
+  // ==================== Enhanced Header Styles with Variants ====================
   .spfx-card-header-fixed {
     display: flex;
     align-items: center;
@@ -7,21 +124,21 @@
     border-bottom: 1px solid var(--spfx-card-neutral-light);
     position: relative;
     background: var(--spfx-card-neutral-lighter);
-    // Remove all animations and transitions that cause issues
-    transition: none;
+    color: var(--spfx-card-neutral-primary);
+    font-weight: 600;
+    line-height: 1.4;
+    transition: background-color var(--spfx-card-transition-duration) ease;
 
-    // Header content (left side)
+    // Header content
     .spfx-header-content {
       flex: 1;
-      min-width: 0; // Allow shrinking
+      min-width: 0;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      font-weight: 600;
-      line-height: 1.4;
     }
 
-    // Header buttons container (right side)
+    // Header buttons
     .spfx-header-buttons {
       display: flex;
       align-items: center;
@@ -30,23 +147,69 @@
       margin-left: 12px;
     }
 
-    // Clickable header behavior
+    // Clickable behavior
     &.clickable {
       cursor: pointer;
       user-select: none;
 
       &:hover {
-        background-color: rgba(0, 0, 0, 0.02);
-      }
-
-      // Remove the problematic active state
-      &:active {
-        transform: none;
+        background-color: rgba(0, 0, 0, 0.05);
       }
 
       &:focus {
-        outline: 1px solid var(--spfx-card-theme-primary);
-        outline-offset: -1px;
+        outline: 2px solid var(--spfx-card-theme-primary);
+        outline-offset: -2px;
+      }
+    }
+
+    // ==================== FIXED VARIANT STYLES ====================
+    &.success {
+      background: linear-gradient(135deg, var(--spfx-card-success) 0%, #0e6e0e 100%);
+      color: var(--spfx-card-theme-white);
+      border-bottom-color: rgba(255, 255, 255, 0.2);
+
+      &.clickable:hover {
+        background: linear-gradient(135deg, #0e6e0e 0%, var(--spfx-card-success) 100%);
+      }
+    }
+
+    &.error {
+      background: linear-gradient(135deg, var(--spfx-card-error) 0%, #a11d20 100%);
+      color: var(--spfx-card-theme-white);
+      border-bottom-color: rgba(255, 255, 255, 0.2);
+
+      &.clickable:hover {
+        background: linear-gradient(135deg, #a11d20 0%, var(--spfx-card-error) 100%);
+      }
+    }
+
+    &.warning {
+      background: linear-gradient(135deg, var(--spfx-card-warning) 0%, #cc9900 100%);
+      color: var(--spfx-card-neutral-primary);
+      border-bottom-color: rgba(0, 0, 0, 0.1);
+
+      &.clickable:hover {
+        background: linear-gradient(135deg, #cc9900 0%, var(--spfx-card-warning) 100%);
+      }
+    }
+
+    &.info {
+      background: linear-gradient(135deg, var(--spfx-card-info) 0%, #106ebe 100%);
+      color: var(--spfx-card-theme-white);
+      border-bottom-color: rgba(255, 255, 255, 0.2);
+
+      &.clickable:hover {
+        background: linear-gradient(135deg, #106ebe 0%, var(--spfx-card-info) 100%);
+      }
+    }
+
+    &.default {
+      background: var(--spfx-card-neutral-lighter);
+      color: var(--spfx-card-neutral-primary);
+      border-bottom-color: var(--spfx-card-neutral-light);
+
+      &.clickable:hover {
+        background: var(--spfx-card-neutral-light);
       }
     }
 
@@ -54,137 +217,34 @@
     &.size-compact {
       padding: 6px 12px;
       min-height: 32px;
-
-      .spfx-header-content {
-        font-size: 13px;
-        font-weight: 500;
-      }
-
-      .spfx-header-buttons {
-        gap: 2px;
-        margin-left: 8px;
-      }
+      font-size: 13px;
+      font-weight: 500;
     }
 
     &.size-regular {
       padding: 12px 16px;
       min-height: 48px;
-
-      .spfx-header-content {
-        font-size: 16px;
-        font-weight: 600;
-      }
+      font-size: 16px;
+      font-weight: 600;
     }
 
     &.size-large {
       padding: 20px 24px;
       min-height: 64px;
-
-      .spfx-header-content {
-        font-size: 18px;
-        font-weight: 600;
-      }
-
-      .spfx-header-buttons {
-        gap: 6px;
-        margin-left: 16px;
-      }
-    }
-
-    // Loading state
-    &.loading {
-      pointer-events: none;
-      opacity: 0.8;
-
-      .spfx-header-buttons {
-        opacity: 0.5;
-      }
+      font-size: 18px;
+      font-weight: 600;
     }
   }
 
-  // ==================== Header Variant Colors ====================
-  .spfx-card-header-fixed {
-    &.success {
-      background: var(--spfx-card-success);
-      color: var(--spfx-card-theme-white);
-      border-bottom-color: rgba(255, 255, 255, 0.2);
-    }
-
-    &.error {
-      background: var(--spfx-card-error);
-      color: var(--spfx-card-theme-white);
-      border-bottom-color: rgba(255, 255, 255, 0.2);
-    }
-
-    &.warning {
-      background: var(--spfx-card-warning);
-      color: var(--spfx-card-neutral-primary);
-      border-bottom-color: rgba(0, 0, 0, 0.1);
-    }
-
-    &.info {
-      background: var(--spfx-card-info);
-      color: var(--spfx-card-theme-white);
-      border-bottom-color: rgba(255, 255, 255, 0.2);
-    }
-
-    &.default {
-      background: var(--spfx-card-neutral-lighter);
-      color: var(--spfx-card-neutral-primary);
-      border-bottom-color: var(--spfx-card-neutral-light);
-    }
-  }
-
-  // ==================== Fixed Card Styles - Remove Blue Border ====================
-  .spfx-card {
-    // Remove all problematic animations and transitions
-    transition: box-shadow 0.2s ease;
-
-    // Normal state
-    border: 1px solid var(--spfx-card-neutral-light);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-
-    // Hover state
-    &:hover {
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-      border-color: var(--spfx-card-neutral-tertiary);
-      transform: none; // Remove transform
-    }
-
-    // REMOVE ALL PROBLEMATIC FOCUS AND HIGHLIGHT STATES
-    &:focus,
-    &:focus-within,
-    &.highlight {
-      outline: none;
-      border-color: var(--spfx-card-neutral-light); // Keep normal border
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); // Keep normal shadow
-    }
-
-    // Disabled state
-    &.disabled {
-      opacity: 0.6;
-      pointer-events: none;
-    }
-
-    // Loading state
-    &.loading {
-      opacity: 0.8;
-    }
-
-    // Remove maximize placeholder styles that cause issues
-    &.maximized-placeholder {
-      display: none; // Hide completely to avoid duplicate restore buttons
-    }
-  }
-
-  // ==================== Fixed Content Animation ====================
+  // ==================== Content Styles with Proper Padding ====================
   .spfx-card-content {
     overflow: hidden;
-    // Much simpler, smoother animation
-    transition: max-height 0.25s ease-out, opacity 0.15s ease-out;
+    transition: max-height var(--spfx-card-transition-duration) ease-out,
+                opacity 200ms ease-out;
+    background: var(--spfx-card-theme-white);
 
     &.collapsed {
-      max-height: 0;
+      max-height: 0 !important;
       opacity: 0;
     }
 
@@ -193,32 +253,83 @@
       opacity: 1;
     }
 
-    // Remove complex animations
-    &.no-animation {
-      transition: none;
+    // Content body with proper padding
+    .spfx-card-body {
+      padding: 16px; // Default padding
+
+      // Padding variants
+      &.padding-none {
+        padding: 0;
+      }
+
+      &.padding-compact {
+        padding: 8px;
+      }
+
+      &.padding-comfortable {
+        padding: 16px;
+      }
+
+      &.padding-spacious {
+        padding: 24px;
+      }
+
+      &.padding-loose {
+        padding: 32px;
+      }
+
+      &.padding-custom {
+        // Custom padding will be applied via style attribute
+      }
     }
   }
 
-  // ==================== Header Button Styles ====================
-  .spfx-header-action-btn,
-  .spfx-header-maximize-btn,
-  .spfx-header-expand-btn {
-    // Remove all transform animations that cause issues
-    &:hover {
-      transform: none !important;
+  // ==================== Footer Styles - Only Show When Expanded ====================
+  .spfx-card-footer {
+    border-top: 1px solid var(--spfx-card-neutral-light);
+    background: var(--spfx-card-neutral-lighter);
+    padding: 12px 16px;
+    font-size: 14px;
+    color: var(--spfx-card-neutral-secondary);
+    margin-top: auto; // Push to bottom
+
+    // Default text alignment
+    &.text-left {
+      text-align: left;
     }
 
-    &:active {
-      transform: none !important;
+    &.text-center {
+      text-align: center;
     }
 
-    &:focus {
-      outline: 1px solid rgba(255, 255, 255, 0.5);
-      outline-offset: 1px;
+    &.text-right {
+      text-align: right;
+    }
+
+    // Remove border if specified
+    &.no-border {
+      border-top: none;
+    }
+
+    // Size-specific padding
+    .spfx-card-compact & {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+
+    .spfx-card-large & {
+      padding: 16px 24px;
+      font-size: 16px;
     }
   }
 
-  // ==================== Maximize Modal Fix ====================
+  // ==================== CRITICAL FIX: Hide Footer When Collapsed ====================
+  .spfx-card-content.collapsed + .spfx-card-footer,
+  .spfx-card .spfx-card-content.collapsed ~ .spfx-card-footer {
+    display: none !important;
+  }
+
+  // ==================== Enhanced Maximized View ====================
   .spfx-card-maximized-backdrop {
     position: fixed;
     top: 0;
@@ -226,11 +337,13 @@
     right: 0;
     bottom: 0;
     z-index: 1030;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.6);
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 0;
+    backdrop-filter: blur(4px);
+    animation: fadeIn 300ms ease-out;
   }
 
   .spfx-card-maximized-content {
@@ -244,133 +357,235 @@
     overflow: hidden;
     position: relative;
 
-    // Ensure only one restore button
-    .spfx-header-maximize-btn {
-      display: block;
-    }
-
-    // Hide any duplicate buttons
-    .spfx-card-actions .spfx-header-maximize-btn:not(:first-of-type) {
-      display: none;
-    }
-  }
-
-  .spfx-card-maximized-body {
-    flex: 1;
-    overflow: auto;
-  }
-
-  // ==================== Remove Old Action Button Styles ====================
-  // Hide old separate action buttons if they still exist
-  .spfx-card-actions:not(.spfx-header-buttons) {
-    display: none;
-  }
-
-  // ==================== Accordion Fixes ====================
-  .spfx-accordion {
+    // Ensure header shows properly
     .spfx-card-header-fixed {
+      flex-shrink: 0;
+      border-bottom: 1px solid var(--spfx-card-neutral-light);
+    }
+
+    // Maximized content should expand
+    .spfx-card-content {
+      flex: 1;
+      overflow: auto;
+      max-height: none !important; // Override collapsed state
+      opacity: 1 !important; // Override collapsed state
+
+      .spfx-card-body {
+        height: 100%;
+        min-height: calc(100vh - 200px); // Account for header/footer
+        display: flex;
+        flex-direction: column;
+      }
+    }
+
+    // Footer at bottom in maximized view
+    .spfx-card-footer {
+      flex-shrink: 0;
+      margin-top: auto;
+      display: block !important; // Override collapsed state hiding
+    }
+
+    // Close button positioning
+    .spfx-card-close-btn {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      z-index: 1031;
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid var(--spfx-card-neutral-light);
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      backdrop-filter: blur(8px);
+      cursor: pointer;
+      transition: all 200ms ease;
+
       &:hover {
-        z-index: 2;
-        position: relative;
+        background: var(--spfx-card-theme-white);
+        transform: scale(1.05);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
       }
-    }
 
-    &.spfx-accordion-connected {
-      .spfx-accordion-card {
-        &:not(:first-child) {
-          margin-top: -1px;
-        }
-
-        &:first-child .spfx-card-header-fixed {
-          border-top-left-radius: var(--spfx-card-border-radius);
-          border-top-right-radius: var(--spfx-card-border-radius);
-        }
-
-        &:last-child .spfx-card-header-fixed {
-          border-bottom-left-radius: var(--spfx-card-border-radius);
-          border-bottom-right-radius: var(--spfx-card-border-radius);
-        }
+      &:active {
+        transform: scale(0.95);
       }
     }
   }
 
-  // ==================== Mobile Responsive ====================
-  @media (max-width: 768px) {
-    .spfx-card-header-fixed {
-      &.size-compact {
-        padding: 4px 8px;
-        min-height: 28px;
+  // ==================== Header Button Styles ====================
+  .spfx-header-action-btn,
+  .spfx-header-maximize-btn,
+  .spfx-header-expand-btn {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.1);
+    color: inherit;
+    border-radius: 4px;
+    margin-left: 4px;
+    transition: all 200ms ease;
+    cursor: pointer;
 
-        .spfx-header-content {
-          font-size: 12px;
-        }
+    &:hover {
+      background: rgba(255, 255, 255, 0.2);
+      border-color: rgba(255, 255, 255, 0.3);
+      transform: translateY(-1px);
+    }
+
+    &:active {
+      transform: translateY(0);
+    }
+
+    &:focus {
+      outline: 1px solid rgba(255, 255, 255, 0.5);
+      outline-offset: 1px;
+    }
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    // Icon styles
+    i {
+      font-size: 16px;
+      transition: transform 200ms ease;
+    }
+
+    // Special styling for expand button icon rotation
+    &.spfx-header-expand-btn i {
+      transform: rotate(0deg);
+    }
+
+    &.spfx-header-expand-btn.expanded i {
+      transform: rotate(180deg);
+    }
+  }
+
+  // Compact size adjustments
+  .spfx-card-compact {
+    .spfx-header-action-btn,
+    .spfx-header-maximize-btn,
+    .spfx-header-expand-btn {
+      width: 24px;
+      height: 24px;
+      min-width: 24px;
+
+      i {
+        font-size: 12px;
       }
+    }
+  }
 
-      &.size-regular {
-        padding: 8px 12px;
-        min-height: 40px;
+  // Large size adjustments
+  .spfx-card-large {
+    .spfx-header-action-btn,
+    .spfx-header-maximize-btn,
+    .spfx-header-expand-btn {
+      width: 36px;
+      height: 36px;
+      min-width: 36px;
 
-        .spfx-header-content {
+      i {
+        font-size: 18px;
+      }
+    }
+  }
+
+  // ==================== Responsive Design ====================
+  @media (max-width: 768px) {
+    .spfx-card {
+      margin: 0 8px;
+
+      &.spfx-card-regular {
+        .spfx-card-header-fixed {
+          padding: 10px 12px;
           font-size: 14px;
         }
-      }
-
-      &.size-large {
-        padding: 12px 16px;
-        min-height: 52px;
-
-        .spfx-header-content {
-          font-size: 16px;
+        .spfx-card-body {
+          padding: 12px;
+        }
+        .spfx-card-footer {
+          padding: 8px 12px;
         }
       }
+    }
 
+    .spfx-card-header-fixed {
       .spfx-header-buttons {
         gap: 2px;
-        margin-left: 6px;
+        margin-left: 8px;
+      }
+    }
+
+    .spfx-card-maximized-content {
+      .spfx-card-close-btn {
+        top: 12px;
+        right: 12px;
+        width: 36px;
+        height: 36px;
       }
     }
   }
 
   // ==================== High Contrast Mode ====================
   @media (forced-colors: active) {
+    .spfx-card {
+      border: 2px solid ButtonBorder;
+      background: ButtonFace;
+      box-shadow: none;
+    }
+
     .spfx-card-header-fixed {
       border-bottom: 1px solid ButtonBorder;
       background: ButtonFace;
       color: ButtonText;
 
-      &.clickable:hover {
+      &.success,
+      &.error,
+      &.warning,
+      &.info {
         background: Highlight;
         color: HighlightText;
       }
 
-      .spfx-header-action-btn,
-      .spfx-header-expand-btn,
-      .spfx-header-maximize-btn {
-        border: 1px solid ButtonBorder;
-        background: ButtonFace;
-        color: ButtonText;
-
-        &:hover {
-          background: Highlight;
-          color: HighlightText;
-        }
+      &.clickable:hover {
+        background: Highlight;
+        color: HighlightText;
       }
     }
 
-    .spfx-card {
-      border: 2px solid ButtonBorder;
+    .spfx-header-action-btn,
+    .spfx-header-expand-btn,
+    .spfx-header-maximize-btn {
+      border: 1px solid ButtonBorder;
       background: ButtonFace;
-      box-shadow: none;
+      color: ButtonText;
 
       &:hover {
-        border-color: Highlight;
-        box-shadow: none;
+        background: Highlight;
+        color: HighlightText;
       }
+    }
+
+    .spfx-card-footer {
+      border-top: 1px solid ButtonBorder;
+      background: ButtonFace;
+      color: ButtonText;
     }
   }
 
-  // ==================== Reduce Motion ====================
+  // ==================== Reduced Motion ====================
   @media (prefers-reduced-motion: reduce) {
+    .spfx-card,
+    .spfx-card *,
     .spfx-card-header-fixed,
     .spfx-card-content,
     .spfx-header-action-btn,
@@ -378,29 +593,121 @@
     .spfx-header-maximize-btn {
       transition: none !important;
       animation: none !important;
+      transform: none !important;
     }
 
-    .spfx-card {
-      transition: none !important;
-      transform: none !important;
+    .spfx-card:hover {
+      transform: none;
     }
   }
 
   // ==================== Print Styles ====================
   @media print {
+    .spfx-card {
+      break-inside: avoid;
+      box-shadow: none;
+      border: 1px solid #000;
+    }
+
     .spfx-card-header-fixed {
       background: white !important;
       color: black !important;
-      border-bottom: 1px solid #000 !important;
+      border-bottom: 1px solid #000;
     }
 
     .spfx-header-buttons {
-      display: none !important;
+      display: none;
     }
 
-    .spfx-card {
-      box-shadow: none !important;
-      border: 1px solid #000 !important;
+    .spfx-card-content {
+      max-height: none !important;
+      opacity: 1 !important;
+    }
+
+    .spfx-card-footer {
+      display: block !important;
+      border-top: 1px solid #000;
+      background: white !important;
+      color: black !important;
+    }
+  }
+
+  // ==================== Animation Keyframes ====================
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes slideDown {
+    from {
+      max-height: 0;
+      opacity: 0;
+    }
+    to {
+      max-height: 500px;
+      opacity: 1;
+    }
+  }
+
+  @keyframes slideUp {
+    from {
+      max-height: 500px;
+      opacity: 1;
+    }
+    to {
+      max-height: 0;
+      opacity: 0;
+    }
+  }
+
+  // ==================== Focus Management ====================
+  .spfx-card {
+    &:focus-within {
+      .spfx-card-header-fixed {
+        outline: 2px solid var(--spfx-card-theme-primary);
+        outline-offset: -2px;
+      }
+    }
+  }
+
+  // ==================== Loading States ====================
+  .spfx-card.loading {
+    .spfx-card-header-fixed {
+      position: relative;
+      overflow: hidden;
+
+      &::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(255, 255, 255, 0.2),
+          transparent
+        );
+        animation: shimmer 1.5s infinite;
+      }
+    }
+
+    .spfx-card-body {
+      opacity: 0.6;
+    }
+  }
+
+  @keyframes shimmer {
+    0% {
+      left: -100%;
+    }
+    100% {
+      left: 100%;
     }
   }
 }

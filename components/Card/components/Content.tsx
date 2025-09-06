@@ -3,8 +3,8 @@ import { memo, ReactNode, useCallback, useContext, useEffect, useMemo, useRef } 
 import { ContentPadding, ContentProps } from '../Card.types';
 import { PADDING_CONFIG } from '../utils/constants';
 import { CardLoading, ContentLoadingPlaceholder } from './LoadingStates';
-
 import { CardContext } from './Card';
+
 /**
  * Error Boundary for Content component
  */
@@ -90,7 +90,7 @@ const getPaddingValue = (padding: ContentPadding): string => {
 };
 
 /**
- * Card Content component with lazy loading and error boundary support
+ * Enhanced Card Content component with proper state handling
  */
 export const Content = memo<ContentProps>(
   ({
@@ -112,6 +112,7 @@ export const Content = memo<ContentProps>(
 
     const {
       isExpanded,
+      isMaximized,
       allowExpand,
       id,
       lazyLoad,
@@ -122,42 +123,62 @@ export const Content = memo<ContentProps>(
       size,
     } = cardContext;
 
+    // Calculate effective padding based on card size
+    const effectivePadding = useMemo(() => {
+      if (typeof padding === 'object' || typeof padding === 'string') {
+        return padding;
+      }
+
+      // Adjust default padding based on card size
+      switch (size) {
+        case 'compact':
+          return 'compact';
+        case 'large':
+          return 'spacious';
+        default:
+          return 'comfortable';
+      }
+    }, [padding, size]);
+
     // Memoized padding styles
     const paddingStyle = useMemo(
       () => ({
-        padding: getPaddingValue(padding),
+        padding: getPaddingValue(effectivePadding),
       }),
-      [padding]
+      [effectivePadding]
     );
 
-    // Memoized content classes
+    // Memoized content classes with proper state handling
     const contentClasses = useMemo(
       () =>
         [
           'spfx-card-content',
           isExpanded ? 'expanded' : 'collapsed',
           loading ? 'loading' : '',
+          isMaximized ? 'maximized' : '',
           `size-${size}`,
           className,
         ]
           .filter(Boolean)
           .join(' '),
-      [isExpanded, loading, size, className]
+      [isExpanded, loading, isMaximized, size, className]
     );
 
     // Memoized body classes
     const bodyClasses = useMemo(
       () =>
-        ['spfx-card-body', typeof padding === 'string' ? `padding-${padding}` : 'padding-custom']
+        [
+          'spfx-card-body',
+          typeof effectivePadding === 'string' ? `padding-${effectivePadding}` : 'padding-custom',
+        ]
           .filter(Boolean)
           .join(' '),
-      [padding]
+      [effectivePadding]
     );
 
     // Handle lazy loading content notification
     useEffect(() => {
       if (lazyLoad && isExpanded && !hasContentLoaded) {
-        // Notify that content should be loaded
         onContentLoad();
       }
     }, [lazyLoad, isExpanded, hasContentLoaded, onContentLoad]);
@@ -209,27 +230,57 @@ export const Content = memo<ContentProps>(
       [id]
     );
 
-    // Content wrapper component
+    // Content wrapper component with enhanced styles
     const ContentWrapper = useCallback(
       ({ children: contentChildren }: { children: ReactNode }) => (
         <div
           ref={contentRef}
           className={contentClasses}
-          style={style}
+          style={{
+            ...style,
+            // Ensure proper height calculations for maximized view
+            ...(isMaximized && {
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              minHeight: 0,
+            }),
+          }}
           id={`card-content-${id}`}
-          aria-hidden={!isExpanded && allowExpand}
+          aria-hidden={!isExpanded && allowExpand && !isMaximized}
           role={allowExpand ? 'region' : undefined}
           aria-labelledby={allowExpand ? `card-header-${id}` : undefined}
         >
           <div
             className={bodyClasses}
-            style={typeof padding === 'object' ? paddingStyle : undefined}
+            style={{
+              ...(typeof effectivePadding === 'object' ? paddingStyle : undefined),
+              // Enhanced maximized view styling
+              ...(isMaximized && {
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                height: '100%',
+                overflowY: 'auto',
+                padding: getPaddingValue(effectivePadding),
+              }),
+            }}
           >
             {contentChildren}
           </div>
         </div>
       ),
-      [contentClasses, style, id, isExpanded, allowExpand, bodyClasses, padding, paddingStyle]
+      [
+        contentClasses,
+        style,
+        isMaximized,
+        id,
+        isExpanded,
+        allowExpand,
+        bodyClasses,
+        effectivePadding,
+        paddingStyle,
+      ]
     );
 
     // Render with or without error boundary
@@ -245,243 +296,98 @@ export const Content = memo<ContentProps>(
   }
 );
 
-Content.displayName = 'CardContent';
+Content.displayName = 'EnhancedCardContent';
 
 /**
- * Scrollable content variant
+ * Enhanced Footer component that respects card states
  */
-export const ScrollableContent = memo<
-  ContentProps & {
-    maxHeight?: number | string;
-    showScrollbar?: boolean;
-  }
->(
+export const Footer = memo<{
+  children: ReactNode;
+  className?: string;
+  style?: React.CSSProperties;
+  backgroundColor?: string;
+  borderTop?: boolean;
+  padding?: ContentPadding;
+  textAlign?: 'left' | 'center' | 'right';
+}>(
   ({
     children,
     className = '',
     style,
+    backgroundColor,
+    borderTop = true,
     padding = 'comfortable',
-    loadingPlaceholder,
-    errorBoundary = true,
-    maxHeight = 300,
-    showScrollbar = true,
+    textAlign = 'left',
   }) => {
-    const scrollStyle = useMemo(
-      () => ({
-        maxHeight: typeof maxHeight === 'number' ? `${maxHeight}px` : maxHeight,
-        overflowY: 'auto' as const,
-        overflowX: 'hidden' as const,
-        // Use CSS variables for scrollbar control
-        ['--scrollbar-width' as string]: showScrollbar ? '6px' : '0px',
-        ['--scrollbar-display' as string]: showScrollbar ? 'block' : 'none',
-        ['--scrollbar-track-bg' as string]: showScrollbar
-          ? 'var(--neutralLighter, #f8f9fa)'
-          : 'transparent',
-        ['--scrollbar-thumb-bg' as string]: showScrollbar
-          ? 'var(--neutralTertiary, #a19f9d)'
-          : 'transparent',
-        ...style,
-      }),
-      [maxHeight, showScrollbar, style]
+    const cardContext = useContext(CardContext);
+
+    if (!cardContext) {
+      console.warn('[SpfxCard] Footer must be used within a Card component');
+      return null;
+    }
+
+    const { isExpanded, isMaximized, size } = cardContext;
+
+    // Calculate effective padding based on card size
+    const effectivePadding = useMemo(() => {
+      if (typeof padding === 'object' || typeof padding === 'string') {
+        return padding;
+      }
+
+      switch (size) {
+        case 'compact':
+          return 'compact';
+        case 'large':
+          return 'spacious';
+        default:
+          return 'comfortable';
+      }
+    }, [padding, size]);
+
+    // Memoized footer classes
+    const footerClasses = useMemo(
+      () =>
+        [
+          'spfx-card-footer',
+          typeof effectivePadding === 'string' ? `padding-${effectivePadding}` : 'padding-custom',
+          `text-${textAlign}`,
+          !borderTop ? 'no-border' : '',
+          isMaximized ? 'maximized' : '',
+          className,
+        ]
+          .filter(Boolean)
+          .join(' '),
+      [effectivePadding, textAlign, borderTop, isMaximized, className]
     );
 
+    // Memoized footer styles
+    const footerStyle = useMemo(
+      () => ({
+        ...(backgroundColor && { backgroundColor }),
+        ...(typeof effectivePadding === 'object' && { padding: getPaddingValue(effectivePadding) }),
+        // Enhanced maximized view styling
+        ...(isMaximized && {
+          marginTop: 'auto',
+          flexShrink: 0,
+        }),
+        ...style,
+      }),
+      [backgroundColor, effectivePadding, isMaximized, style]
+    );
+
+    // Don't render footer when card is collapsed (unless maximized)
+    if (!isExpanded && !isMaximized) {
+      return null;
+    }
+
     return (
-      <Content
-        className={`spfx-scrollable-content ${className}`}
-        style={scrollStyle}
-        padding={padding}
-        loadingPlaceholder={loadingPlaceholder}
-        errorBoundary={errorBoundary}
-      >
+      <div className={footerClasses} style={footerStyle}>
         {children}
-      </Content>
+      </div>
     );
   }
 );
 
-ScrollableContent.displayName = 'ScrollableCardContent';
+Footer.displayName = 'EnhancedCardFooter';
 
-/**
- * Tabbed content variant
- */
-export const TabbedContent = memo<{
-  tabs: Array<{
-    id: string;
-    label: string;
-    content: ReactNode;
-    disabled?: boolean;
-  }>;
-  activeTab?: string;
-  onTabChange?: (tabId: string) => void;
-  className?: string;
-  style?: React.CSSProperties;
-  padding?: ContentPadding;
-}>(({ tabs, activeTab, onTabChange, className = '', style, padding = 'comfortable' }) => {
-  const [currentTab, setCurrentTab] = React.useState(activeTab || tabs[0]?.id);
-
-  const handleTabChange = useCallback(
-    (tabId: string) => {
-      if (currentTab !== tabId) {
-        setCurrentTab(tabId);
-        onTabChange?.(tabId);
-      }
-    },
-    [currentTab, onTabChange]
-  );
-
-  const handleKeyDown = useCallback(
-    (event: React.KeyboardEvent, tabId: string) => {
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        handleTabChange(tabId);
-      }
-    },
-    [handleTabChange]
-  );
-
-  const activeTabContent = useMemo(() => {
-    return tabs.find(tab => tab.id === currentTab)?.content;
-  }, [tabs, currentTab]);
-
-  if (tabs.length === 0) {
-    return null;
-  }
-
-  return (
-    <div className={`spfx-tabbed-content ${className}`} style={style}>
-      {/* Tab Headers */}
-      <div
-        className='spfx-tab-headers'
-        style={{
-          display: 'flex',
-          borderBottom: '1px solid var(--neutralLight, #edebe9)',
-          marginBottom: '16px',
-        }}
-        role='tablist'
-      >
-        {tabs.map(tab => (
-          <button
-            key={tab.id}
-            className={`spfx-tab-header ${currentTab === tab.id ? 'active' : ''}`}
-            onClick={() => handleTabChange(tab.id)}
-            onKeyDown={e => handleKeyDown(e, tab.id)}
-            disabled={tab.disabled}
-            role='tab'
-            aria-selected={currentTab === tab.id}
-            aria-controls={`tabpanel-${tab.id}`}
-            tabIndex={currentTab === tab.id ? 0 : -1}
-            style={{
-              padding: '8px 16px',
-              border: 'none',
-              backgroundColor: 'transparent',
-              borderBottom:
-                currentTab === tab.id
-                  ? '2px solid var(--themePrimary, #0078d4)'
-                  : '2px solid transparent',
-              color:
-                currentTab === tab.id
-                  ? 'var(--themePrimary, #0078d4)'
-                  : 'var(--neutralPrimary, #323130)',
-              cursor: tab.disabled ? 'not-allowed' : 'pointer',
-              opacity: tab.disabled ? 0.5 : 1,
-              fontWeight: currentTab === tab.id ? 600 : 400,
-              transition: 'all 0.2s ease',
-            }}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Tab Content */}
-      <div
-        role='tabpanel'
-        id={`tabpanel-${currentTab}`}
-        aria-labelledby={`tab-${currentTab}`}
-        style={{ padding: getPaddingValue(padding) }}
-      >
-        {activeTabContent}
-      </div>
-    </div>
-  );
-});
-
-TabbedContent.displayName = 'TabbedCardContent';
-
-/**
- * Collapsible sections within content
- */
-export const CollapsibleSection = memo<{
-  title: string;
-  children: ReactNode;
-  defaultExpanded?: boolean;
-  className?: string;
-  style?: React.CSSProperties;
-}>(({ title, children, defaultExpanded = false, className = '', style }) => {
-  const [isExpanded, setIsExpanded] = React.useState(defaultExpanded);
-  const contentRef = useRef<HTMLDivElement>(null);
-
-  const handleToggle = useCallback(() => {
-    setIsExpanded(!isExpanded);
-  }, [isExpanded]);
-
-  const handleKeyDown = useCallback(
-    (event: React.KeyboardEvent) => {
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        handleToggle();
-      }
-    },
-    [handleToggle]
-  );
-
-  return (
-    <div className={`spfx-collapsible-section ${className}`} style={style}>
-      <button
-        className='spfx-collapsible-header'
-        onClick={handleToggle}
-        onKeyDown={handleKeyDown}
-        aria-expanded={isExpanded}
-        aria-controls={`section-content-${title.replace(/\s+/g, '-')}`}
-        style={{
-          width: '100%',
-          padding: '12px 0',
-          border: 'none',
-          backgroundColor: 'transparent',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          cursor: 'pointer',
-          fontSize: '14px',
-          fontWeight: 600,
-          color: 'var(--neutralPrimary, #323130)',
-        }}
-      >
-        <span>{title}</span>
-        <i
-          className='ms-Icon ms-Icon--ChevronDown'
-          style={{
-            transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-            transition: 'transform 0.3s ease',
-            fontSize: '12px',
-          }}
-        />
-      </button>
-      <div
-        ref={contentRef}
-        id={`section-content-${title.replace(/\s+/g, '-')}`}
-        className={`spfx-collapsible-content ${isExpanded ? 'expanded' : 'collapsed'}`}
-        style={{
-          maxHeight: isExpanded ? '1000px' : '0',
-          overflow: 'hidden',
-          transition: 'max-height 0.3s ease, opacity 0.3s ease',
-          opacity: isExpanded ? 1 : 0,
-        }}
-      >
-        <div style={{ padding: '8px 0 16px 0' }}>{children}</div>
-      </div>
-    </div>
-  );
-});
-
-CollapsibleSection.displayName = 'CollapsibleSection';
+export default Content;

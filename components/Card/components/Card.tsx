@@ -23,7 +23,7 @@ import { initializeCardAnimations } from '../utils/animations';
 import { DEFAULT_ICONS, SIZE_CONFIG } from '../utils/constants';
 import { MaximizedView } from './MaximizedView';
 
-// Create Card Context - ONLY CREATE ONCE HERE
+// Create Card Context
 export const CardContext = React.createContext<CardContextType | undefined>(undefined);
 
 // Custom hook to use Card context
@@ -36,17 +36,509 @@ export const useCardContext = (): CardContextType => {
 };
 
 /**
- * Performance utilities
+ * Enhanced Card Component with proper state management
  */
-const useDebounce = (callback: () => void, delay: number): (() => void) => {
-  const timeoutRef = useRef<number | undefined>();
-  return useCallback(() => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
+export const Card: React.FC<CardProps> = memo(
+  ({
+    id,
+    size = 'regular',
+    defaultExpanded = false,
+    allowExpand = true,
+    allowMaximize = false,
+    maximizeIcon = DEFAULT_ICONS.MAXIMIZE,
+    restoreIcon = DEFAULT_ICONS.RESTORE,
+    variant = 'default',
+    headerSize = 'regular',
+    customHeaderColor,
+    loading = false,
+    loadingType = 'none',
+    loadingMessage = 'Loading...',
+    lazyLoad = false,
+    persist = false,
+    persistKey,
+    highlightOnProgrammaticChange = true,
+    highlightDuration = 600,
+    highlightColor,
+    animation = {},
+    onExpand,
+    onCollapse,
+    onMaximize,
+    onRestore,
+    onDataLoaded,
+    onContentLoad,
+    onCardEvent,
+    className = '',
+    style,
+    elevation = 2,
+    disabled = false,
+    theme,
+    accessibility = {},
+    performance = {},
+    children,
+  }) => {
+    // State management
+    const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+    const [hasContentLoaded, setHasContentLoaded] = useState(!lazyLoad || defaultExpanded);
+    const [hasDataLoaded, setHasDataLoaded] = useState(false);
+    const [isHighlighted, setIsHighlighted] = useState(false);
+
+    // Refs
+    const cardRef = useRef<HTMLDivElement>(null);
+    const highlightTimeoutRef = useRef<number | undefined>();
+    const previousLoadingRef = useRef(loading);
+
+    // Maximize hook
+    const {
+      isMaximized,
+      isAnimating: isMaximizeAnimating,
+      maximize,
+      restore,
+    } = useMaximize(
+      id,
+      allowMaximize,
+      animation,
+      () => {
+        const eventData: CardEventData = {
+          cardId: id,
+          isExpanded: true, // Force expanded when maximized
+          isMaximized: true,
+          timestamp: Date.now(),
+          source: 'user',
+        };
+        onMaximize?.(eventData);
+        onCardEvent?.('maximize', eventData);
+      },
+      () => {
+        const eventData: CardEventData = {
+          cardId: id,
+          isExpanded,
+          isMaximized: false,
+          timestamp: Date.now(),
+          source: 'user',
+        };
+        onRestore?.(eventData);
+        onCardEvent?.('restore', eventData);
+      }
+    );
+
+    // Persistence hook
+    const { saveCardState, loadCardState } = usePersistence(id, persist, persistKey);
+
+    // Initialize animations on mount
+    useEffect(() => {
+      initializeCardAnimations();
+    }, []);
+
+    // Highlight function
+    const highlightCard = useCallback(() => {
+      if (!highlightOnProgrammaticChange) return;
+
+      setIsHighlighted(true);
+
+      if (highlightTimeoutRef.current) {
+        clearTimeout(highlightTimeoutRef.current);
+      }
+
+      highlightTimeoutRef.current = setTimeout(() => {
+        setIsHighlighted(false);
+      }, highlightDuration);
+    }, [highlightOnProgrammaticChange, highlightDuration]);
+
+    // Expand/Collapse functions
+    const expandFn = useCallback(
+      (source: 'user' | 'programmatic' = 'programmatic') => {
+        if (!isExpanded && allowExpand && !disabled) {
+          setIsExpanded(true);
+          if (lazyLoad && !hasContentLoaded) {
+            setHasContentLoaded(true);
+          }
+
+          const eventData: CardEventData = {
+            cardId: id,
+            isExpanded: true,
+            isMaximized,
+            timestamp: Date.now(),
+            source,
+          };
+
+          if (persist) {
+            saveCardState({
+              id,
+              isExpanded: true,
+              isMaximized,
+              hasContentLoaded: hasContentLoaded || lazyLoad,
+              lastUpdated: Date.now(),
+            });
+          }
+
+          onExpand?.(eventData);
+          onCardEvent?.('expand', eventData);
+        }
+      },
+      [
+        isExpanded,
+        allowExpand,
+        disabled,
+        lazyLoad,
+        hasContentLoaded,
+        id,
+        isMaximized,
+        persist,
+        saveCardState,
+        onExpand,
+        onCardEvent,
+      ]
+    );
+
+    const collapseFn = useCallback(
+      (source: 'user' | 'programmatic' = 'programmatic') => {
+        if (isExpanded && allowExpand && !disabled && !isMaximized) {
+          // Don't collapse when maximized
+          setIsExpanded(false);
+
+          const eventData: CardEventData = {
+            cardId: id,
+            isExpanded: false,
+            isMaximized,
+            timestamp: Date.now(),
+            source,
+          };
+
+          if (persist) {
+            saveCardState({
+              id,
+              isExpanded: false,
+              isMaximized,
+              hasContentLoaded,
+              lastUpdated: Date.now(),
+            });
+          }
+
+          onCollapse?.(eventData);
+          onCardEvent?.('collapse', eventData);
+        }
+      },
+      [
+        isExpanded,
+        allowExpand,
+        disabled,
+        isMaximized,
+        id,
+        hasContentLoaded,
+        persist,
+        saveCardState,
+        onCollapse,
+        onCardEvent,
+      ]
+    );
+
+    const toggleFn = useCallback(
+      (source: 'user' | 'programmatic' = 'programmatic') => {
+        if (isMaximized) return; // Don't toggle when maximized
+
+        if (isExpanded) {
+          collapseFn(source);
+        } else {
+          expandFn(source);
+        }
+      },
+      [isExpanded, isMaximized, expandFn, collapseFn]
+    );
+
+    // Handle expand/collapse
+    const handleToggleExpand = useCallback(
+      (source: 'user' | 'programmatic' = 'user') => {
+        if (!allowExpand || disabled || isMaximized) return; // Don't toggle when maximized
+        toggleFn(source);
+      },
+      [allowExpand, disabled, isMaximized, toggleFn]
+    );
+
+    // Maximize functions
+    const maximizeFn = useCallback(
+      (source: 'user' | 'programmatic' = 'programmatic') => {
+        if (allowMaximize && !isMaximized && !isMaximizeAnimating) {
+          // Force expand when maximizing
+          if (!isExpanded) {
+            setIsExpanded(true);
+            if (lazyLoad && !hasContentLoaded) {
+              setHasContentLoaded(true);
+            }
+          }
+          void maximize();
+        }
+      },
+      [
+        allowMaximize,
+        isMaximized,
+        isMaximizeAnimating,
+        maximize,
+        isExpanded,
+        lazyLoad,
+        hasContentLoaded,
+      ]
+    );
+
+    const restoreFn = useCallback(
+      (source: 'user' | 'programmatic' = 'programmatic') => {
+        if (allowMaximize && isMaximized && !isMaximizeAnimating) {
+          void restore();
+        }
+      },
+      [allowMaximize, isMaximized, isMaximizeAnimating, restore]
+    );
+
+    // Handle maximize/restore
+    const handleToggleMaximize = useCallback(
+      (source: 'user' | 'programmatic' = 'user') => {
+        if (!allowMaximize || disabled) return;
+
+        if (isMaximized) {
+          restoreFn(source);
+        } else {
+          maximizeFn(source);
+        }
+      },
+      [allowMaximize, disabled, isMaximized, maximizeFn, restoreFn]
+    );
+
+    // Handle action click
+    const handleActionClick = useCallback(
+      (action: CardAction, event: React.MouseEvent) => {
+        event.stopPropagation();
+        if (!action.disabled && !disabled) {
+          action.onClick(id);
+        }
+      },
+      [disabled, id]
+    );
+
+    // Handle content load callback
+    const handleContentLoad = useCallback(() => {
+      if (!hasContentLoaded) {
+        setHasContentLoaded(true);
+      }
+      const eventData: CardEventData = {
+        cardId: id,
+        isExpanded,
+        isMaximized,
+        timestamp: Date.now(),
+        source: 'user',
+      };
+      onContentLoad?.(eventData);
+      onCardEvent?.('contentLoad', eventData);
+    }, [id, isExpanded, isMaximized, hasContentLoaded, onContentLoad, onCardEvent]);
+
+    // Register card with controller
+    useEffect(() => {
+      const registration: CardRegistration = {
+        id,
+        isExpanded,
+        isMaximized,
+        hasContentLoaded,
+        toggleFn,
+        expandFn,
+        collapseFn,
+        maximizeFn: allowMaximize ? maximizeFn : undefined,
+        restoreFn: allowMaximize ? restoreFn : undefined,
+        highlightFn: highlightCard,
+      };
+
+      cardController.registerCard(registration);
+
+      return () => {
+        cardController.unregisterCard(id);
+        if (highlightTimeoutRef.current) {
+          clearTimeout(highlightTimeoutRef.current);
+        }
+      };
+    }, [
+      id,
+      isExpanded,
+      isMaximized,
+      hasContentLoaded,
+      toggleFn,
+      expandFn,
+      collapseFn,
+      maximizeFn,
+      restoreFn,
+      highlightCard,
+      allowMaximize,
+    ]);
+
+    // Load persisted state on mount
+    useEffect(() => {
+      if (persist) {
+        const savedState = loadCardState();
+        if (savedState) {
+          setIsExpanded(savedState.isExpanded);
+          setHasContentLoaded(savedState.hasContentLoaded);
+        }
+      }
+    }, [persist, loadCardState]);
+
+    // Handle loading state changes
+    useEffect(() => {
+      if (previousLoadingRef.current && !loading && !hasDataLoaded) {
+        setHasDataLoaded(true);
+        const eventData: CardEventData = {
+          cardId: id,
+          isExpanded,
+          isMaximized,
+          timestamp: Date.now(),
+          source: 'user',
+        };
+        onDataLoaded?.(eventData);
+        onCardEvent?.('contentLoad', eventData);
+      }
+      previousLoadingRef.current = loading;
+    }, [loading, hasDataLoaded, onDataLoaded, onCardEvent, id, isExpanded, isMaximized]);
+
+    // Handle content loading for lazy loading
+    useEffect(() => {
+      if (lazyLoad && isExpanded && !hasContentLoaded) {
+        setHasContentLoaded(true);
+        const eventData: CardEventData = {
+          cardId: id,
+          isExpanded,
+          isMaximized,
+          timestamp: Date.now(),
+          source: 'user',
+        };
+        onContentLoad?.(eventData);
+        onCardEvent?.('contentLoad', eventData);
+      }
+    }, [lazyLoad, isExpanded, hasContentLoaded, onContentLoad, onCardEvent, id, isMaximized]);
+
+    // Determine effective expanded state (always expanded when maximized)
+    const effectiveIsExpanded = isMaximized || isExpanded;
+
+    // Memoized styles and classes
+    const cardStyle = useMemo(() => {
+      const sizeConfig = SIZE_CONFIG[size];
+
+      return {
+        ...sizeConfig,
+        ...(theme?.backgroundColor && { backgroundColor: theme.backgroundColor }),
+        ...(theme?.borderColor && { borderColor: theme.borderColor }),
+        ...(theme?.textColor && { color: theme.textColor }),
+        ...(highlightColor &&
+          isHighlighted && {
+            borderColor: highlightColor,
+            boxShadow: `0 0 0 2px ${highlightColor}33`,
+          }),
+        ...style,
+      };
+    }, [size, theme, highlightColor, isHighlighted, style]);
+
+    const cardClasses = useMemo(
+      () =>
+        [
+          'spfx-card',
+          `spfx-card-${size}`,
+          `spfx-card-${variant}`,
+          `elevation-${elevation}`,
+          disabled ? 'disabled' : '',
+          isHighlighted ? 'highlight' : '',
+          isMaximized ? 'maximized' : '',
+          loading ? 'loading' : '',
+          className,
+        ]
+          .filter(Boolean)
+          .join(' '),
+      [size, variant, elevation, disabled, isHighlighted, isMaximized, loading, className]
+    );
+
+    // Memoized context value
+    const contextValue = useMemo(
+      (): CardContextType => ({
+        id,
+        isExpanded: effectiveIsExpanded,
+        isMaximized,
+        allowExpand,
+        allowMaximize,
+        disabled,
+        loading,
+        loadingType,
+        variant,
+        size,
+        customHeaderColor,
+        lazyLoad,
+        hasContentLoaded,
+        headerSize,
+        accessibility,
+        onToggleExpand: () => handleToggleExpand('user'),
+        onToggleMaximize: () => handleToggleMaximize('user'),
+        onActionClick: handleActionClick,
+        onContentLoad: handleContentLoad,
+      }),
+      [
+        id,
+        effectiveIsExpanded,
+        isMaximized,
+        allowExpand,
+        allowMaximize,
+        disabled,
+        loading,
+        loadingType,
+        variant,
+        size,
+        customHeaderColor,
+        lazyLoad,
+        hasContentLoaded,
+        headerSize,
+        accessibility,
+        handleToggleExpand,
+        handleToggleMaximize,
+        handleActionClick,
+        handleContentLoad,
+      ]
+    );
+
+    // Card props with data attributes
+    const cardProps = useMemo(
+      () => ({
+        className: cardClasses,
+        style: cardStyle,
+        ref: cardRef,
+        'data-card-id': id,
+        'data-card-expanded': effectiveIsExpanded,
+        'data-card-maximized': isMaximized,
+        ...(accessibility.region && {
+          role: 'region',
+          'aria-labelledby': accessibility.labelledBy || `card-header-${id}`,
+          'aria-describedby': accessibility.describedBy,
+        }),
+      }),
+      [cardClasses, cardStyle, id, effectiveIsExpanded, isMaximized, accessibility]
+    );
+
+    const cardContent = (
+      <CardContext.Provider value={contextValue}>
+        <div {...cardProps}>{children}</div>
+      </CardContext.Provider>
+    );
+
+    // If maximized, render in maximized view
+    if (isMaximized) {
+      return (
+        <MaximizedView
+          cardId={id}
+          onRestore={() => handleToggleMaximize('user')}
+          restoreIcon={restoreIcon}
+          closeOnEscape={true}
+          closeOnBackdropClick={true}
+        >
+          {cardContent}
+        </MaximizedView>
+      );
     }
-    timeoutRef.current = setTimeout(callback, delay);
-  }, [callback, delay]);
-};
+
+    return cardContent;
+  }
+);
+
+Card.displayName = 'EnhancedSpfxCard';
 
 /**
  * Error boundary specifically for cards
@@ -133,545 +625,6 @@ class CardErrorBoundary extends React.Component<
 }
 
 /**
- * Main Card Component
- */
-export const Card: React.FC<CardProps> = memo(
-  ({
-    id,
-    size = 'regular',
-    defaultExpanded = false,
-    allowExpand = true,
-    allowMaximize = false,
-    maximizeIcon = DEFAULT_ICONS.MAXIMIZE,
-    restoreIcon = DEFAULT_ICONS.RESTORE,
-    variant = 'default',
-    headerSize = 'regular',
-    customHeaderColor,
-    loading = false,
-    loadingType = 'none',
-    loadingMessage = 'Loading...',
-    lazyLoad = false,
-    persist = false,
-    persistKey,
-    highlightOnProgrammaticChange = true,
-    highlightDuration = 600,
-    highlightColor,
-    animation = {},
-    onExpand,
-    onCollapse,
-    onMaximize,
-    onRestore,
-    onDataLoaded,
-    onContentLoad,
-    onCardEvent,
-    className = '',
-    style,
-    elevation = 2,
-    disabled = false,
-    theme,
-    accessibility = {},
-    performance = {},
-    children,
-  }) => {
-    // State management
-    const [isExpanded, setIsExpanded] = useState(defaultExpanded);
-    const [hasContentLoaded, setHasContentLoaded] = useState(!lazyLoad || defaultExpanded);
-    const [hasDataLoaded, setHasDataLoaded] = useState(false);
-    const [isHighlighted, setIsHighlighted] = useState(false);
-
-    // Refs
-    const cardRef = useRef<HTMLDivElement>(null);
-    const highlightTimeoutRef = useRef<number | undefined>();
-    const previousLoadingRef = useRef(loading);
-    const renderCountRef = useRef(0);
-
-    // Maximize hook
-    const {
-      isMaximized,
-      isAnimating: isMaximizeAnimating,
-      maximize,
-      restore,
-    } = useMaximize(
-      id,
-      allowMaximize,
-      animation,
-      () => {
-        const eventData: CardEventData = {
-          cardId: id,
-          isExpanded,
-          isMaximized: true,
-          timestamp: Date.now(),
-          source: 'user',
-        };
-        onMaximize?.(eventData);
-        onCardEvent?.('maximize', eventData);
-      },
-      () => {
-        const eventData: CardEventData = {
-          cardId: id,
-          isExpanded,
-          isMaximized: false,
-          timestamp: Date.now(),
-          source: 'user',
-        };
-        onRestore?.(eventData);
-        onCardEvent?.('restore', eventData);
-      }
-    );
-
-    // Persistence hook
-    const { saveCardState, loadCardState } = usePersistence(id, persist, persistKey);
-
-    // Performance tracking
-    useEffect(() => {
-      renderCountRef.current += 1;
-      if (process.env.NODE_ENV === 'development') {
-        console.debug(`[SpfxCard] Card ${id} rendered ${renderCountRef.current} times`);
-      }
-    });
-
-    // Initialize animations on mount
-    useEffect(() => {
-      initializeCardAnimations();
-    }, []);
-
-    // Highlight function
-    const highlightCard = useCallback(() => {
-      if (!highlightOnProgrammaticChange) return;
-
-      setIsHighlighted(true);
-
-      if (highlightTimeoutRef.current) {
-        clearTimeout(highlightTimeoutRef.current);
-      }
-
-      highlightTimeoutRef.current = setTimeout(() => {
-        setIsHighlighted(false);
-      }, highlightDuration);
-    }, [highlightOnProgrammaticChange, highlightDuration]);
-
-    // Scroll to card function
-    const scrollToCard = useCallback(
-      (options: { smooth?: boolean; block?: ScrollLogicalPosition; offset?: number } = {}) => {
-        if (!cardRef.current) return;
-
-        const { smooth = true, offset = 0 } = options;
-
-        const rect = cardRef.current.getBoundingClientRect();
-        const scrollTop = window.pageYOffset + rect.top + offset;
-
-        if (smooth && 'scrollTo' in window) {
-          window.scrollTo({
-            top: scrollTop,
-            behavior: 'smooth',
-          });
-        } else {
-          window.scrollTo(0, scrollTop);
-        }
-      },
-      []
-    );
-
-    // Expand/Collapse functions - defined before they're used
-    const expandFn = useCallback(
-      (source: 'user' | 'programmatic' = 'programmatic') => {
-        if (!isExpanded && allowExpand && !disabled) {
-          setIsExpanded(true);
-          if (lazyLoad && !hasContentLoaded) {
-            setHasContentLoaded(true);
-          }
-
-          const eventData: CardEventData = {
-            cardId: id,
-            isExpanded: true,
-            isMaximized,
-            timestamp: Date.now(),
-            source,
-          };
-
-          // Save state if persistence enabled
-          if (persist) {
-            saveCardState({
-              id,
-              isExpanded: true,
-              isMaximized,
-              hasContentLoaded: hasContentLoaded || lazyLoad,
-              lastUpdated: Date.now(),
-            });
-          }
-
-          onExpand?.(eventData);
-          onCardEvent?.('expand', eventData);
-        }
-      },
-      [
-        isExpanded,
-        allowExpand,
-        disabled,
-        lazyLoad,
-        hasContentLoaded,
-        id,
-        isMaximized,
-        persist,
-        saveCardState,
-        onExpand,
-        onCardEvent,
-      ]
-    );
-
-    const collapseFn = useCallback(
-      (source: 'user' | 'programmatic' = 'programmatic') => {
-        if (isExpanded && allowExpand && !disabled) {
-          setIsExpanded(false);
-
-          const eventData: CardEventData = {
-            cardId: id,
-            isExpanded: false,
-            isMaximized,
-            timestamp: Date.now(),
-            source,
-          };
-
-          // Save state if persistence enabled
-          if (persist) {
-            saveCardState({
-              id,
-              isExpanded: false,
-              isMaximized,
-              hasContentLoaded,
-              lastUpdated: Date.now(),
-            });
-          }
-
-          onCollapse?.(eventData);
-          onCardEvent?.('collapse', eventData);
-        }
-      },
-      [
-        isExpanded,
-        allowExpand,
-        disabled,
-        id,
-        isMaximized,
-        hasContentLoaded,
-        persist,
-        saveCardState,
-        onCollapse,
-        onCardEvent,
-      ]
-    );
-
-    const toggleFn = useCallback(
-      (source: 'user' | 'programmatic' = 'programmatic') => {
-        if (isExpanded) {
-          collapseFn(source);
-        } else {
-          expandFn(source);
-        }
-      },
-      [isExpanded, expandFn, collapseFn]
-    );
-
-    // Maximize functions
-    const maximizeFn = useCallback(
-      (source: 'user' | 'programmatic' = 'programmatic') => {
-        if (allowMaximize && !isMaximized && !isMaximizeAnimating) {
-          void maximize();
-        }
-      },
-      [allowMaximize, isMaximized, isMaximizeAnimating, maximize]
-    );
-
-    const restoreFn = useCallback(
-      (source: 'user' | 'programmatic' = 'programmatic') => {
-        if (allowMaximize && isMaximized && !isMaximizeAnimating) {
-          void restore();
-        }
-      },
-      [allowMaximize, isMaximized, isMaximizeAnimating, restore]
-    );
-
-    // Handle expand/collapse - defined before debounced toggle
-    const handleToggleExpand = useCallback(
-      (source: 'user' | 'programmatic' = 'user') => {
-        if (!allowExpand || disabled) return;
-        toggleFn(source);
-      },
-      [allowExpand, disabled, toggleFn]
-    );
-
-    // Debounced toggle function
-    const debouncedToggle = useDebounce(() => {
-      handleToggleExpand('user');
-    }, performance.debounceToggle || 0);
-
-    // Handle maximize/restore
-    const handleToggleMaximize = useCallback(
-      (source: 'user' | 'programmatic' = 'user') => {
-        if (!allowMaximize || disabled) return;
-
-        if (isMaximized) {
-          restoreFn(source);
-        } else {
-          maximizeFn(source);
-        }
-      },
-      [allowMaximize, disabled, isMaximized, maximizeFn, restoreFn]
-    );
-
-    // Handle action click
-    const handleActionClick = useCallback(
-      (action: CardAction, event: React.MouseEvent) => {
-        event.stopPropagation();
-        if (!action.disabled && !disabled) {
-          action.onClick(id);
-        }
-      },
-      [disabled, id]
-    );
-
-    // Handle content load callback
-    const handleContentLoad = useCallback(() => {
-      if (!hasContentLoaded) {
-        setHasContentLoaded(true);
-      }
-      const eventData: CardEventData = {
-        cardId: id,
-        isExpanded,
-        isMaximized,
-        timestamp: Date.now(),
-        source: 'user',
-      };
-      onContentLoad?.(eventData);
-      onCardEvent?.('contentLoad', eventData);
-    }, [id, isExpanded, isMaximized, hasContentLoaded, onContentLoad, onCardEvent]);
-
-    // Register card with controller
-    useEffect(() => {
-      const registration: CardRegistration = {
-        id,
-        isExpanded,
-        isMaximized,
-        hasContentLoaded,
-        toggleFn,
-        expandFn,
-        collapseFn,
-        maximizeFn: allowMaximize ? maximizeFn : undefined,
-        restoreFn: allowMaximize ? restoreFn : undefined,
-        scrollToFn: scrollToCard,
-        highlightFn: highlightCard,
-      };
-
-      cardController.registerCard(registration);
-
-      return () => {
-        cardController.unregisterCard(id);
-        if (highlightTimeoutRef.current) {
-          clearTimeout(highlightTimeoutRef.current);
-        }
-      };
-    }, [
-      id,
-      isExpanded,
-      isMaximized,
-      hasContentLoaded,
-      toggleFn,
-      expandFn,
-      collapseFn,
-      maximizeFn,
-      restoreFn,
-      scrollToCard,
-      highlightCard,
-      allowMaximize,
-    ]);
-
-    // Load persisted state on mount
-    useEffect(() => {
-      if (persist) {
-        const savedState = loadCardState();
-        if (savedState) {
-          setIsExpanded(savedState.isExpanded);
-          setHasContentLoaded(savedState.hasContentLoaded);
-          // Note: maximize state is handled by useMaximize hook
-        }
-      }
-    }, [persist, loadCardState]);
-
-    // Handle loading state changes
-    useEffect(() => {
-      if (previousLoadingRef.current && !loading && !hasDataLoaded) {
-        setHasDataLoaded(true);
-        const eventData: CardEventData = {
-          cardId: id,
-          isExpanded,
-          isMaximized,
-          timestamp: Date.now(),
-          source: 'user',
-        };
-        onDataLoaded?.(eventData);
-        onCardEvent?.('contentLoad', eventData);
-      }
-      previousLoadingRef.current = loading;
-    }, [loading, hasDataLoaded, onDataLoaded, onCardEvent, id, isExpanded, isMaximized]);
-
-    // Handle content loading for lazy loading
-    useEffect(() => {
-      if (lazyLoad && isExpanded && !hasContentLoaded) {
-        setHasContentLoaded(true);
-        const eventData: CardEventData = {
-          cardId: id,
-          isExpanded,
-          isMaximized,
-          timestamp: Date.now(),
-          source: 'user',
-        };
-        onContentLoad?.(eventData);
-        onCardEvent?.('contentLoad', eventData);
-      }
-    }, [lazyLoad, isExpanded, hasContentLoaded, onContentLoad, onCardEvent, id, isMaximized]);
-
-    // Memoized styles and classes
-    const cardStyle = useMemo(() => {
-      const sizeConfig = SIZE_CONFIG[size];
-
-      return {
-        ...sizeConfig,
-        ...(theme?.backgroundColor && { backgroundColor: theme.backgroundColor }),
-        ...(theme?.borderColor && { borderColor: theme.borderColor }),
-        ...(theme?.textColor && { color: theme.textColor }),
-        ...(highlightColor &&
-          isHighlighted && {
-            borderColor: highlightColor,
-            boxShadow: `0 0 0 2px ${highlightColor}33`,
-          }),
-        ...style,
-      };
-    }, [size, theme, highlightColor, isHighlighted, style]);
-
-    const cardClasses = useMemo(
-      () =>
-        [
-          'spfx-card',
-          `spfx-card-${size}`,
-          `spfx-card-${variant}`,
-          `elevation-${elevation}`,
-          disabled ? 'disabled' : '',
-          isHighlighted ? 'highlight' : '',
-          isMaximized ? 'maximized' : '',
-          loading ? 'loading' : '',
-          className,
-        ]
-          .filter(Boolean)
-          .join(' '),
-      [size, variant, elevation, disabled, isHighlighted, isMaximized, loading, className]
-    );
-
-    // Memoized context value
-    const contextValue = useMemo(
-      (): CardContextType => ({
-        id,
-        isExpanded,
-        isMaximized,
-        allowExpand,
-        allowMaximize,
-        disabled,
-        loading,
-        loadingType,
-        variant,
-        size,
-        customHeaderColor,
-        lazyLoad,
-        hasContentLoaded,
-        headerSize,
-        onToggleExpand: performance.debounceToggle
-          ? debouncedToggle
-          : () => handleToggleExpand('user'),
-        onToggleMaximize: () => handleToggleMaximize('user'),
-        onActionClick: handleActionClick,
-        onContentLoad: handleContentLoad,
-      }),
-      [
-        id,
-        isExpanded,
-        isMaximized,
-        allowExpand,
-        allowMaximize,
-        disabled,
-        loading,
-        loadingType,
-        variant,
-        size,
-        customHeaderColor,
-        lazyLoad,
-        hasContentLoaded,
-        headerSize,
-        performance.debounceToggle,
-        debouncedToggle,
-        handleToggleExpand,
-        handleToggleMaximize,
-        handleActionClick,
-        handleContentLoad,
-      ]
-    );
-
-    // Card props with data attributes for querying
-    const cardProps = useMemo(
-      () => ({
-        className: cardClasses,
-        style: cardStyle,
-        ref: cardRef,
-        'data-card-id': id,
-        'data-card-expanded': isExpanded,
-        'data-card-maximized': isMaximized,
-        ...(accessibility.region && {
-          role: 'region',
-          'aria-labelledby': accessibility.labelledBy || `card-header-${id}`,
-          'aria-describedby': accessibility.describedBy,
-        }),
-      }),
-      [cardClasses, cardStyle, id, isExpanded, isMaximized, accessibility]
-    );
-
-    const cardContent = (
-      <CardContext.Provider value={contextValue}>
-        <div {...cardProps}>{children}</div>
-      </CardContext.Provider>
-    );
-
-    // If maximized, render in maximized view
-    if (isMaximized) {
-      return (
-        <>
-          {/* Original card placeholder */}
-          <div
-            className={`${cardClasses} maximized-placeholder`}
-            style={{
-              ...cardStyle,
-              opacity: 0.5,
-              pointerEvents: 'none',
-            }}
-            data-card-id={`${id}-placeholder`}
-          />
-
-          {/* Maximized view */}
-          <MaximizedView
-            cardId={id}
-            onRestore={() => handleToggleMaximize('user')}
-            restoreIcon={restoreIcon}
-          >
-            {cardContent}
-          </MaximizedView>
-        </>
-      );
-    }
-
-    return cardContent;
-  }
-);
-
-Card.displayName = 'SpfxCard';
-
-/**
  * Card with built-in error boundary
  */
 export const SafeCard: React.FC<
@@ -748,3 +701,5 @@ export abstract class CardControllerComponent extends React.Component {
     this.unsubscribers = [];
   }
 }
+
+export default Card;
