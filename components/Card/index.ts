@@ -1,6 +1,13 @@
 // ==================== Import All Dependencies ====================
 import { Card, SafeCard, CardContext, useCardContext } from './components/Card';
-import { Header, SimpleHeader, IconHeader, BadgeHeader, SubtitleHeader } from './components/Header';
+import {
+  Header,
+  SimpleHeader,
+  IconHeader,
+  BadgeHeader,
+  SubtitleHeader,
+  type EnhancedHeaderProps,
+} from './components/Header';
 import {
   Content,
   ScrollableContent,
@@ -15,11 +22,7 @@ import {
   ExpandableFooter,
   MultiColumnFooter,
 } from './components/Footer';
-import {
-  ActionButtons,
-  StandaloneActionButtons,
-  CompactActionButtons,
-} from './components/ActionButtons';
+import { ActionButtons } from './components/ActionButtons';
 import { MaximizedView, CustomMaximizedView } from './components/MaximizedView';
 
 // Accordion Components
@@ -138,14 +141,18 @@ import type {
 } from './Card.types';
 
 import { CardControllerComponent, withCardController } from './components/Card';
+import * as React from 'react';
 
 // ==================== Re-Export All Components ====================
 // Core Card Components
 export { Card, SafeCard, CardContext, useCardContext };
-export { Header, SimpleHeader, IconHeader, BadgeHeader, SubtitleHeader };
+
+// Header Components - Updated with all variants
+export { Header, SimpleHeader, IconHeader, BadgeHeader, SubtitleHeader, type EnhancedHeaderProps };
+
 export { Content, ScrollableContent, TabbedContent, CollapsibleSection };
 export { Footer, ActionFooter, StatusFooter, ProgressFooter, ExpandableFooter, MultiColumnFooter };
-export { ActionButtons, StandaloneActionButtons, CompactActionButtons };
+export { ActionButtons };
 export { MaximizedView, CustomMaximizedView };
 
 // Accordion Components
@@ -267,7 +274,7 @@ export type {
 export { CardControllerComponent, withCardController };
 
 // ==================== Constants for External Use ====================
-export const CARD_VERSION = '1.0.0';
+export const CARD_VERSION = '1.0.1'; // Updated version
 
 export const CARD_DEFAULTS = {
   size: 'regular' as const,
@@ -484,9 +491,114 @@ export const getVersionInfo = () => ({
     'Performance optimizations',
     'Animation system',
     'Error boundaries',
+    'Integrated header actions', // NEW
+    'Improved header sizing', // NEW
+    'Smooth animations', // NEW
   ],
   browser: checkBrowserSupport(),
 });
+
+// ==================== Header Helper Functions (Simplified) ====================
+
+/**
+ * Simple helper to create header props with actions
+ */
+export const createHeaderProps = (
+  actions: CardAction[],
+  options?: {
+    variant?: string;
+    size?: 'compact' | 'regular' | 'large';
+    hideExpandButton?: boolean;
+    hideMaximizeButton?: boolean;
+  }
+) => {
+  const { variant, size, hideExpandButton, hideMaximizeButton } = options || {};
+
+  return {
+    variant,
+    size,
+    actions,
+    hideExpandButton,
+    hideMaximizeButton,
+  };
+};
+
+/**
+ * Simple helper to create icon header props
+ */
+export const createIconHeaderProps = (
+  icon: string,
+  options?: {
+    iconColor?: string;
+    variant?: string;
+    size?: 'compact' | 'regular' | 'large';
+    actions?: CardAction[];
+  }
+) => {
+  const { iconColor, variant, size, actions } = options || {};
+
+  return {
+    icon,
+    iconColor,
+    variant,
+    size,
+    actions,
+  };
+};
+
+/**
+ * Simple helper to create badge header props
+ */
+export const createBadgeHeaderProps = (
+  badge: { text: string; color?: string; backgroundColor?: string },
+  options?: {
+    variant?: string;
+    size?: 'compact' | 'regular' | 'large';
+    actions?: CardAction[];
+  }
+) => {
+  const { variant, size, actions } = options || {};
+
+  return {
+    badge,
+    variant,
+    size,
+    actions,
+  };
+};
+
+// ==================== Migration Helpers ====================
+
+/**
+ * Helper to migrate old ActionButtons usage to new Header props
+ */
+export const migrateActionButtonsToHeader = (
+  headerElement: React.ReactElement,
+  actionButtonsElement?: React.ReactElement
+): React.ReactElement => {
+  if (!actionButtonsElement) {
+    return headerElement;
+  }
+
+  // Extract actions from ActionButtons props
+  const actions = actionButtonsElement.props.actions || [];
+  const hideExpandButton = actionButtonsElement.props.hideExpandButton;
+  const hideMaximizeButton = actionButtonsElement.props.hideMaximizeButton;
+
+  // Clone header with actions
+  return React.cloneElement(headerElement, {
+    ...headerElement.props,
+    actions,
+    hideExpandButton,
+    hideMaximizeButton,
+  });
+};
+
+/**
+ * Backwards compatibility wrapper for old ActionButtons usage
+ * @deprecated Use actions prop on Header instead
+ */
+export const LegacyActionButtons = ActionButtons;
 
 // ==================== React DevTools Support ====================
 if (typeof window !== 'undefined' && (window as any).__REACT_DEVTOOLS_GLOBAL_HOOK__) {
@@ -496,6 +608,13 @@ if (typeof window !== 'undefined' && (window as any).__REACT_DEVTOOLS_GLOBAL_HOO
       root._debugInfo = {
         cardSystemVersion: CARD_VERSION,
         registeredCards: cardController.getRegisteredCardIds().length,
+        improvements: [
+          'Integrated header actions',
+          'Improved header sizing',
+          'Removed blue border on expand',
+          'Smooth animations',
+          'Better overflow handling',
+        ],
         ...checkBrowserSupport(),
       };
     }
@@ -504,10 +623,18 @@ if (typeof window !== 'undefined' && (window as any).__REACT_DEVTOOLS_GLOBAL_HOO
 
 // ==================== Default Export ====================
 const SpfxCard = {
-  // Components
+  // Core Components
   Card,
   SafeCard,
+
+  // Header Components (all variants)
   Header,
+  SimpleHeader,
+  IconHeader,
+  BadgeHeader,
+  SubtitleHeader,
+
+  // Other Components
   Content,
   Footer,
   ActionButtons,
@@ -531,6 +658,12 @@ const SpfxCard = {
   getPerformanceMetrics,
   getVersionInfo,
   reportCardError,
+
+  // Header Helpers
+  createHeaderProps,
+  createIconHeaderProps,
+  createBadgeHeaderProps,
+  migrateActionButtonsToHeader,
 
   // Constants
   VERSION: CARD_VERSION,

@@ -1,52 +1,14 @@
-import { DefaultButton, IconButton, PrimaryButton } from '@fluentui/react/lib/Button';
+import { IconButton } from '@fluentui/react/lib/Button';
 import { TooltipHost } from '@fluentui/react/lib/Tooltip';
 import { getId } from '@fluentui/react/lib/Utilities';
 import * as React from 'react';
 import { memo, useCallback, useContext, useMemo } from 'react';
 import { ActionButtonsProps, CardAction } from '../Card.types';
 import { DEFAULT_ICONS } from '../utils/constants';
-
 import { CardContext } from './Card';
-/**
- * Helper functions for button styling - defined before use
- */
-const getButtonBackgroundColor = (variant?: string): string => {
-  switch (variant) {
-    case 'primary':
-      return 'var(--themePrimary, #0078d4)';
-    case 'danger':
-      return 'var(--red, #d13438)';
-    case 'secondary':
-    default:
-      return 'rgba(255, 255, 255, 0.15)';
-  }
-};
-
-const getButtonTextColor = (variant?: string): string => {
-  switch (variant) {
-    case 'primary':
-    case 'danger':
-      return 'var(--white, #ffffff)';
-    case 'secondary':
-    default:
-      return 'inherit';
-  }
-};
-
-const getButtonHoverColor = (variant?: string): string => {
-  switch (variant) {
-    case 'primary':
-      return 'var(--themeDark, #106ebe)';
-    case 'danger':
-      return 'var(--redDark, #b52c31)';
-    case 'secondary':
-    default:
-      return 'rgba(255, 255, 255, 0.25)';
-  }
-};
 
 /**
- * Action Buttons component for card headers
+ * Updated Action Buttons component for header integration
  */
 export const ActionButtons = memo<ActionButtonsProps>(
   ({
@@ -77,13 +39,27 @@ export const ActionButtons = memo<ActionButtonsProps>(
       onActionClick,
       disabled,
       accessibility = {},
+      size,
     } = cardContext;
+
+    // Button size based on card size
+    const buttonConfig = useMemo(() => {
+      switch (size) {
+        case 'compact':
+          return { size: 24, iconSize: 12, padding: '4px' };
+        case 'large':
+          return { size: 36, iconSize: 18, padding: '8px' };
+        default:
+          return { size: 32, iconSize: 16, padding: '6px' };
+      }
+    }, [size]);
 
     // Memoized class names
     const actionsClasses = useMemo(
       () =>
         [
           'spfx-card-actions',
+          'spfx-header-integrated-actions', // New class for header integration
           `position-${position}`,
           stackOnMobile ? 'stack-mobile' : '',
           className,
@@ -129,55 +105,51 @@ export const ActionButtons = memo<ActionButtonsProps>(
     // Render individual action button
     const renderActionButton = useCallback(
       (action: CardAction) => {
-        const buttonId = getId('card-action-button');
+        const buttonId = getId('header-action-button');
         const isDisabled = action.disabled || disabled;
 
-        // Determine button component based on variant
-        const ButtonComponent = action.variant === 'primary' ? PrimaryButton : DefaultButton;
-
-        // Button styles
+        // Improved button styles for header integration
         const buttonStyles = useMemo(
           () => ({
             root: {
               minWidth: 'auto',
-              padding: '6px 12px',
-              height: '32px',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              backgroundColor: getButtonBackgroundColor(action.variant),
-              color: getButtonTextColor(action.variant),
+              width: `${buttonConfig.size}px`,
+              height: `${buttonConfig.size}px`,
+              padding: buttonConfig.padding,
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              color: 'inherit',
+              borderRadius: '4px',
             },
             rootHovered: {
-              backgroundColor: getButtonHoverColor(action.variant),
-              transform: 'translateY(-1px)',
+              backgroundColor: 'rgba(255, 255, 255, 0.2)',
+              transform: 'none', // Remove transform for cleaner look
+              borderColor: 'rgba(255, 255, 255, 0.25)',
             },
             rootPressed: {
-              transform: 'translateY(0)',
+              backgroundColor: 'rgba(255, 255, 255, 0.15)',
+              transform: 'none',
             },
             rootDisabled: {
-              opacity: 0.5,
-              backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              opacity: 0.4,
+              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+            },
+            icon: {
+              fontSize: `${buttonConfig.iconSize}px`,
+              color: 'inherit',
             },
           }),
-          [action.variant]
+          [action.variant, buttonConfig]
         );
 
-        // Check if we're on mobile
-        const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
-
-        // Determine which icon to show
-        const iconName = isMobile && action.mobileIcon ? action.mobileIcon : action.icon;
-
         const buttonContent = (
-          <ButtonComponent
+          <IconButton
             key={action.id}
             id={buttonId}
-            className={`spfx-card-action-btn ${action.variant || 'secondary'} ${
-              action.hideOnMobile ? 'desktop-only' : ''
-            }`}
+            className={`spfx-header-action-btn ${action.variant || 'secondary'}`}
             onClick={handleActionClick(action)}
             disabled={isDisabled}
-            text={action.label}
-            iconProps={iconName ? { iconName } : undefined}
+            iconProps={action.icon ? { iconName: action.icon } : undefined}
             ariaLabel={action.ariaLabel || action.label}
             styles={buttonStyles}
             allowDisabledFocus={false}
@@ -188,7 +160,7 @@ export const ActionButtons = memo<ActionButtonsProps>(
         if (showTooltips && action.tooltip && !isDisabled) {
           if (typeof action.tooltip === 'string') {
             return (
-              <TooltipHost key={action.id} content={action.tooltip} id={getId('card-tooltip')}>
+              <TooltipHost key={action.id} content={action.tooltip} id={getId('header-tooltip')}>
                 {buttonContent}
               </TooltipHost>
             );
@@ -203,68 +175,8 @@ export const ActionButtons = memo<ActionButtonsProps>(
 
         return buttonContent;
       },
-      [disabled, handleActionClick, showTooltips]
+      [disabled, handleActionClick, showTooltips, buttonConfig]
     );
-
-    // Expand/Collapse button
-    const expandButton = useMemo(() => {
-      if (!allowExpand || hideExpandButton) return null;
-
-      const expandIcon = isExpanded ? DEFAULT_ICONS.COLLAPSE : DEFAULT_ICONS.EXPAND;
-      const expandLabel = isExpanded
-        ? accessibility.collapseButtonLabel || 'Collapse card'
-        : accessibility.expandButtonLabel || 'Expand card';
-
-      const button = (
-        <IconButton
-          className='spfx-card-expand-btn'
-          iconProps={{ iconName: expandIcon }}
-          title={expandLabel}
-          ariaLabel={expandLabel}
-          onClick={handleExpandClick}
-          disabled={disabled}
-          styles={{
-            root: {
-              backgroundColor: 'rgba(255, 255, 255, 0.15)',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              borderRadius: '50%',
-              width: '32px',
-              height: '32px',
-              color: 'inherit',
-            },
-            rootHovered: {
-              backgroundColor: 'rgba(255, 255, 255, 0.25)',
-              transform: 'scale(1.05)',
-            },
-            rootPressed: {
-              transform: 'scale(0.95)',
-            },
-            icon: {
-              transition: 'transform 0.3s ease',
-              transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-            },
-          }}
-        />
-      );
-
-      if (showTooltips) {
-        return (
-          <TooltipHost key='expand-button' content={expandLabel} id={getId('card-expand-tooltip')}>
-            {button}
-          </TooltipHost>
-        );
-      }
-
-      return button;
-    }, [
-      allowExpand,
-      hideExpandButton,
-      isExpanded,
-      accessibility,
-      handleExpandClick,
-      disabled,
-      showTooltips,
-    ]);
 
     // Maximize/Restore button
     const maximizeButton = useMemo(() => {
@@ -277,7 +189,7 @@ export const ActionButtons = memo<ActionButtonsProps>(
 
       const button = (
         <IconButton
-          className='spfx-card-maximize-btn'
+          className='spfx-header-maximize-btn'
           iconProps={{ iconName: maximizeIcon }}
           title={maximizeLabel}
           ariaLabel={maximizeLabel}
@@ -285,19 +197,24 @@ export const ActionButtons = memo<ActionButtonsProps>(
           disabled={disabled}
           styles={{
             root: {
-              backgroundColor: 'rgba(255, 255, 255, 0.15)',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              borderRadius: '4px',
-              width: '32px',
-              height: '32px',
+              width: `${buttonConfig.size}px`,
+              height: `${buttonConfig.size}px`,
+              padding: buttonConfig.padding,
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              backgroundColor: 'rgba(255, 255, 255, 0.1)',
               color: 'inherit',
+              borderRadius: '4px',
             },
             rootHovered: {
-              backgroundColor: 'rgba(255, 255, 255, 0.25)',
-              transform: 'scale(1.05)',
+              backgroundColor: 'rgba(255, 255, 255, 0.2)',
+              borderColor: 'rgba(255, 255, 255, 0.25)',
             },
             rootPressed: {
-              transform: 'scale(0.95)',
+              backgroundColor: 'rgba(255, 255, 255, 0.15)',
+            },
+            icon: {
+              fontSize: `${buttonConfig.iconSize}px`,
+              color: 'inherit',
             },
           }}
         />
@@ -308,7 +225,7 @@ export const ActionButtons = memo<ActionButtonsProps>(
           <TooltipHost
             key='maximize-button'
             content={maximizeLabel}
-            id={getId('card-maximize-tooltip')}
+            id={getId('header-maximize-tooltip')}
           >
             {button}
           </TooltipHost>
@@ -324,6 +241,75 @@ export const ActionButtons = memo<ActionButtonsProps>(
       handleMaximizeClick,
       disabled,
       showTooltips,
+      buttonConfig,
+    ]);
+
+    // Expand/Collapse button
+    const expandButton = useMemo(() => {
+      if (!allowExpand || hideExpandButton) return null;
+
+      const expandIcon = isExpanded ? DEFAULT_ICONS.COLLAPSE : DEFAULT_ICONS.EXPAND;
+      const expandLabel = isExpanded
+        ? accessibility.collapseButtonLabel || 'Collapse card'
+        : accessibility.expandButtonLabel || 'Expand card';
+
+      const button = (
+        <IconButton
+          className='spfx-header-expand-btn'
+          iconProps={{ iconName: expandIcon }}
+          title={expandLabel}
+          ariaLabel={expandLabel}
+          onClick={handleExpandClick}
+          disabled={disabled}
+          styles={{
+            root: {
+              width: `${buttonConfig.size}px`,
+              height: `${buttonConfig.size}px`,
+              padding: buttonConfig.padding,
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              color: 'inherit',
+              borderRadius: '4px',
+            },
+            rootHovered: {
+              backgroundColor: 'rgba(255, 255, 255, 0.2)',
+              borderColor: 'rgba(255, 255, 255, 0.25)',
+            },
+            rootPressed: {
+              backgroundColor: 'rgba(255, 255, 255, 0.15)',
+            },
+            icon: {
+              fontSize: `${buttonConfig.iconSize}px`,
+              color: 'inherit',
+              transition: 'transform 0.2s ease', // Smooth rotation
+              transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+            },
+          }}
+        />
+      );
+
+      if (showTooltips) {
+        return (
+          <TooltipHost
+            key='expand-button'
+            content={expandLabel}
+            id={getId('header-expand-tooltip')}
+          >
+            {button}
+          </TooltipHost>
+        );
+      }
+
+      return button;
+    }, [
+      allowExpand,
+      hideExpandButton,
+      isExpanded,
+      accessibility,
+      handleExpandClick,
+      disabled,
+      showTooltips,
+      buttonConfig,
     ]);
 
     // Don't render if no actions and no expand/maximize buttons
@@ -339,166 +325,13 @@ export const ActionButtons = memo<ActionButtonsProps>(
         {/* Maximize button */}
         {maximizeButton}
 
-        {/* Expand/Collapse button */}
+        {/* Expand/Collapse button (last, most important) */}
         {expandButton}
       </div>
     );
   }
 );
 
-ActionButtons.displayName = 'CardActionButtons';
+ActionButtons.displayName = 'HeaderActionButtons';
 
-/**
- * Standalone action buttons component (without card context)
- */
-export const StandaloneActionButtons: React.FC<{
-  actions: CardAction[];
-  onActionClick: (action: CardAction, event: React.MouseEvent<HTMLButtonElement>) => void;
-  className?: string;
-  style?: React.CSSProperties;
-  showTooltips?: boolean;
-  disabled?: boolean;
-}> = memo(
-  ({ actions, onActionClick, className = '', style, showTooltips = true, disabled = false }) => {
-    const handleActionClick = useCallback(
-      (action: CardAction) => (event: React.MouseEvent<HTMLButtonElement>) => {
-        event.stopPropagation();
-        if (!action.disabled && !disabled) {
-          onActionClick(action, event);
-        }
-      },
-      [disabled, onActionClick]
-    );
-
-    const renderActionButton = useCallback(
-      (action: CardAction) => {
-        const buttonId = getId('standalone-action-button');
-        const isDisabled = action.disabled || disabled;
-
-        const ButtonComponent = action.variant === 'primary' ? PrimaryButton : DefaultButton;
-
-        const buttonStyles = {
-          root: {
-            minWidth: 'auto',
-            padding: '6px 12px',
-            height: '32px',
-            marginLeft: '8px',
-          },
-        };
-
-        const buttonContent = (
-          <ButtonComponent
-            key={action.id}
-            id={buttonId}
-            onClick={handleActionClick(action)}
-            disabled={isDisabled}
-            text={action.label}
-            iconProps={action.icon ? { iconName: action.icon } : undefined}
-            ariaLabel={action.ariaLabel || action.label}
-            styles={buttonStyles}
-          />
-        );
-
-        if (showTooltips && action.tooltip && !isDisabled) {
-          if (typeof action.tooltip === 'string') {
-            return (
-              <TooltipHost
-                key={action.id}
-                content={action.tooltip}
-                id={getId('standalone-tooltip')}
-              >
-                {buttonContent}
-              </TooltipHost>
-            );
-          } else {
-            return (
-              <TooltipHost key={action.id} {...action.tooltip}>
-                {buttonContent}
-              </TooltipHost>
-            );
-          }
-        }
-
-        return buttonContent;
-      },
-      [disabled, handleActionClick, showTooltips]
-    );
-
-    if (actions.length === 0) {
-      return null;
-    }
-
-    return (
-      <div className={`spfx-standalone-actions ${className}`} style={style}>
-        {actions.map(renderActionButton)}
-      </div>
-    );
-  }
-);
-
-StandaloneActionButtons.displayName = 'StandaloneActionButtons';
-
-/**
- * Compact action buttons for mobile/small spaces
- */
-export const CompactActionButtons: React.FC<{
-  actions: CardAction[];
-  maxVisible?: number;
-  onActionClick: (action: CardAction, event: React.MouseEvent<HTMLButtonElement>) => void;
-  className?: string;
-  style?: React.CSSProperties;
-  disabled?: boolean;
-}> = memo(({ actions, maxVisible = 2, onActionClick, className = '', style, disabled = false }) => {
-  const visibleActions = actions.slice(0, maxVisible);
-  const overflowActions = actions.slice(maxVisible);
-
-  const handleActionClick = useCallback(
-    (action: CardAction) => (event: React.MouseEvent<HTMLButtonElement>) => {
-      event.stopPropagation();
-      if (!action.disabled && !disabled) {
-        onActionClick(action, event);
-      }
-    },
-    [disabled, onActionClick]
-  );
-
-  return (
-    <div className={`spfx-compact-actions ${className}`} style={style}>
-      {visibleActions.map(action => (
-        <IconButton
-          key={action.id}
-          iconProps={{ iconName: action.icon }}
-          title={action.label}
-          ariaLabel={action.ariaLabel || action.label}
-          onClick={handleActionClick(action)}
-          disabled={action.disabled || disabled}
-          styles={{
-            root: {
-              width: '24px',
-              height: '24px',
-              marginLeft: '4px',
-            },
-          }}
-        />
-      ))}
-
-      {overflowActions.length > 0 && (
-        <IconButton
-          iconProps={{ iconName: 'More' }}
-          title={`${overflowActions.length} more actions`}
-          ariaLabel={`${overflowActions.length} more actions`}
-          styles={{
-            root: {
-              width: '24px',
-              height: '24px',
-              marginLeft: '4px',
-            },
-          }}
-          // TODO: Implement overflow menu
-        />
-      )}
-    </div>
-  );
-});
-
-CompactActionButtons.displayName = 'CompactActionButtons';
+export default ActionButtons;
