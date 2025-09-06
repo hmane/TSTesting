@@ -255,7 +255,7 @@ export const Card: React.FC<CardProps> = memo(
       (options: { smooth?: boolean; block?: ScrollLogicalPosition; offset?: number } = {}) => {
         if (!cardRef.current) return;
 
-        const { smooth = true, block = 'center', offset = 0 } = options;
+        const { smooth = true, offset = 0 } = options;
 
         const rect = cardRef.current.getBoundingClientRect();
         const scrollTop = window.pageYOffset + rect.top + offset;

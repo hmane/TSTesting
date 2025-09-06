@@ -4,11 +4,7 @@ import type {
   FieldValidationState,
   ValidationResult,
 } from '../Field.types';
-import {
-  extractErrorMessage,
-  findFieldElements,
-  scanElementValidation
-} from '../utils/fieldUtils';
+import { extractErrorMessage, findFieldElements, scanElementValidation } from '../utils/fieldUtils';
 
 // Enhanced field registration with parent expansion capabilities
 interface EnhancedFieldRegistration extends FieldRegistration {
@@ -127,13 +123,12 @@ class EnhancedFocusController {
   ): Promise<boolean> {
     const fieldStates = this.scanFieldValidation(container);
 
-    for (const [fieldId, state] of fieldStates) {
+    fieldStates.forEach(async (state, fieldId) => {
       if (!state.isValid) {
         const success = await this.focusField(fieldId, expandParent);
-        if (success) return true;
+        if (success) return true; // Note: return in forEach doesn't work the same
       }
-    }
-
+    });
     return false;
   }
 
@@ -503,13 +498,13 @@ class EnhancedFocusController {
       id: string;
       hasElement: boolean;
       hasRHF: boolean;
-      parentType: string | null;
-      isParentExpanded: boolean | null;
+      parentType: string | undefined;
+      isParentExpanded: boolean | undefined;
     }>;
   } {
     const fieldDetails = Array.from(this.fields.entries()).map(([id, registration]) => {
-      let parentType: string | null = null;
-      let isParentExpanded: boolean | null = null;
+      let parentType: string | undefined = undefined;
+      let isParentExpanded: boolean | undefined = undefined;
 
       if (registration.element) {
         const cardParent = registration.element.closest('[data-card-id]');

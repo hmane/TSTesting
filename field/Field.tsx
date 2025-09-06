@@ -1,6 +1,22 @@
 import * as React from 'react';
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef } from 'react';
-import { Controller, FieldValues, useFormContext } from 'react-hook-form';
+import {
+  createContext,
+  ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+} from 'react';
+import {
+  Control,
+  Controller,
+  ControllerRenderProps,
+  FieldPath,
+  FieldValues,
+  useFormContext,
+  UseFormStateReturn,
+} from 'react-hook-form';
 import styles from './Field.module.scss';
 import type {
   FieldContextType,
@@ -8,7 +24,7 @@ import type {
   FieldRenderProps,
   ValidationState,
 } from './Field.types';
-import { useFieldGroupContext } from './components/FieldGroup'; // Import FieldGroup context
+import { useFieldGroupContext } from './components/FieldGroup';
 import { focusController } from './controller/FocusController';
 import { useLazyField } from './hooks/useLazyField';
 import { useParentDetection } from './hooks/useParentDetection';
@@ -22,10 +38,10 @@ import {
   scrollToElement,
 } from './utils/fieldUtils';
 
-// Field Context
+// Field Context with proper typing
 const FieldContext = createContext<FieldContextType | null>(null);
 
-export const useFieldContext = () => {
+export const useFieldContext = (): FieldContextType => {
   const context = useContext(FieldContext);
   if (!context) {
     throw new Error('Field child components must be used within a Field component');
@@ -63,9 +79,10 @@ export const Field = <TFieldValues extends FieldValues = FieldValues>({
   onFieldChange,
   expandParent = true,
   children,
-}: FieldProps<TFieldValues>) => {
-  const fieldRef = useRef<HTMLDivElement>(null);
-  const fieldId = id || name || generateFieldId();
+}: FieldProps<TFieldValues>): JSX.Element => {
+  // Use a mutable ref object that we can actually write to
+  const fieldRef = useRef<HTMLDivElement | null>(null);
+  const fieldId = useMemo(() => id || name || generateFieldId(), [id, name]);
 
   // Get FieldGroup context for control and other inherited properties
   const fieldGroupContext = useFieldGroupContext();
@@ -73,11 +90,18 @@ export const Field = <TFieldValues extends FieldValues = FieldValues>({
   // Try to get form context (optional)
   const formContext = useFormContext<TFieldValues>();
 
-  // Control resolution priority:
+  // Control resolution priority with proper typing
   // 1. Explicit control prop
-  // 2. FieldGroup context control
+  // 2. FieldGroup context control (cast to proper type)
   // 3. FormProvider context control
-  const activeControl = control || fieldGroupContext?.control || formContext?.control;
+  const activeControl = useMemo(() => {
+    if (control) return control;
+    if (fieldGroupContext?.control) {
+      // Type assertion since we know this control should work with our field values
+      return fieldGroupContext.control as Control<TFieldValues>;
+    }
+    return formContext?.control;
+  }, [control, fieldGroupContext?.control, formContext?.control]);
 
   // Inherit layout from FieldGroup if not explicitly set
   const effectiveLayout = layout || fieldGroupContext?.layout || 'horizontal';
@@ -91,55 +115,52 @@ export const Field = <TFieldValues extends FieldValues = FieldValues>({
   // Responsive layout hook
   const { currentLayout } = useResponsiveLayout({ layout: effectiveLayout });
 
-  // Lazy loading hook
-  const {
-    isVisible,
-    manualLoad,
-    fieldRef: lazyRef,
-  } = useLazyField({
+  // Lazy loading hook - handle the ref properly
+  const lazyHookResult = useLazyField({
     lazy,
     onLoad,
   });
 
+  const { isVisible } = lazyHookResult;
+
   // Parent detection hook
   const { detectParent, expandParentCard, expandParentAccordion } = useParentDetection();
 
-  // Merge refs for lazy loading
-  const mergedRef = useCallback(
-    (node: HTMLDivElement | null) => {
-      (fieldRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
-      (lazyRef as any).current = node;
-    },
-    [lazyRef]
-  );
+  // Create a ref callback that properly handles our field ref only
+  // Let the lazy hook manage its own ref internally
+  const mergedRef = useCallback((node: HTMLDivElement | null) => {
+    // Only update our field ref - let lazy hook manage its own ref
+    fieldRef.current = node;
+  }, []);
 
   // Enhanced focus function with parent expansion
   const focusFieldWithExpansion = useCallback(async (): Promise<boolean> => {
-    if (!fieldRef.current) return false;
+    const currentElement = fieldRef.current;
+    if (!currentElement) return false;
 
     try {
       // Detect parent containers
       const parentInfo = detectParent(fieldRef);
 
-      if (expandParent && parentInfo) {
-        if (parentInfo.type === 'card' && !parentInfo.isExpanded) {
+      if (expandParent && parentInfo && !parentInfo.isExpanded) {
+        if (parentInfo.type === 'card') {
           // Expand parent card first
           const expanded = await expandParentCard(parentInfo.id);
           if (expanded) {
             // Wait a bit for animation to start
             await new Promise(resolve => setTimeout(resolve, 100));
           }
-        } else if (parentInfo.type === 'accordion' && !parentInfo.isExpanded) {
+        } else if (parentInfo.type === 'accordion' && parentInfo.accordionId) {
           // Expand parent accordion card
-          const expanded = await expandParentAccordion(parentInfo.accordionId!, parentInfo.id);
+          const expanded = await expandParentAccordion(parentInfo.accordionId, parentInfo.id);
           if (expanded) {
             await new Promise(resolve => setTimeout(resolve, 100));
           }
         }
       }
 
-      // Focus the field
-      const success = focusFirstElement(fieldRef.current);
+      // Focus the field - use current element reference
+      const success = focusFirstElement(currentElement);
       if (success) {
         onFocus?.();
       }
@@ -147,7 +168,7 @@ export const Field = <TFieldValues extends FieldValues = FieldValues>({
     } catch (error) {
       console.warn(`Failed to focus field ${fieldId} with parent expansion:`, error);
       // Fallback to simple focus
-      const success = focusFirstElement(fieldRef.current);
+      const success = currentElement ? focusFirstElement(currentElement) : false;
       if (success) {
         onFocus?.();
       }
@@ -157,8 +178,9 @@ export const Field = <TFieldValues extends FieldValues = FieldValues>({
 
   // Regular focus function (without expansion)
   const focusField = useCallback((): boolean => {
-    if (fieldRef.current) {
-      const success = focusFirstElement(fieldRef.current);
+    const currentElement = fieldRef.current;
+    if (currentElement) {
+      const success = focusFirstElement(currentElement);
       if (success) {
         onFocus?.();
       }
@@ -169,8 +191,9 @@ export const Field = <TFieldValues extends FieldValues = FieldValues>({
 
   // Scroll function for controller
   const scrollToField = useCallback((): boolean => {
-    if (fieldRef.current) {
-      return scrollToElement(fieldRef.current, {
+    const currentElement = fieldRef.current;
+    if (currentElement) {
+      return scrollToElement(currentElement, {
         behavior: 'smooth',
         block: 'center',
         inline: 'nearest',
@@ -181,24 +204,25 @@ export const Field = <TFieldValues extends FieldValues = FieldValues>({
 
   // Enhanced scroll with expansion
   const scrollToFieldWithExpansion = useCallback(async (): Promise<boolean> => {
-    if (!fieldRef.current) return false;
+    const currentElement = fieldRef.current;
+    if (!currentElement) return false;
 
     try {
       // Detect and expand parent if needed
       const parentInfo = detectParent(fieldRef);
 
-      if (expandParent && parentInfo) {
-        if (parentInfo.type === 'card' && !parentInfo.isExpanded) {
+      if (expandParent && parentInfo && !parentInfo.isExpanded) {
+        if (parentInfo.type === 'card') {
           await expandParentCard(parentInfo.id);
           await new Promise(resolve => setTimeout(resolve, 100));
-        } else if (parentInfo.type === 'accordion' && !parentInfo.isExpanded) {
-          await expandParentAccordion(parentInfo.accordionId!, parentInfo.id);
+        } else if (parentInfo.type === 'accordion' && parentInfo.accordionId) {
+          await expandParentAccordion(parentInfo.accordionId, parentInfo.id);
           await new Promise(resolve => setTimeout(resolve, 100));
         }
       }
 
-      // Scroll to field
-      return scrollToElement(fieldRef.current, {
+      // Scroll to field - use current element reference
+      return scrollToElement(currentElement, {
         behavior: 'smooth',
         block: 'center',
         inline: 'nearest',
@@ -213,11 +237,15 @@ export const Field = <TFieldValues extends FieldValues = FieldValues>({
   const rhfValidationFn = useCallback(async (): Promise<boolean> => {
     if (activeControl && name) {
       try {
-        // Cast activeControl to any to access the trigger method
-        const result = await (activeControl as any).trigger(name as any);
-        return result;
+        // Check if the control has a trigger method
+        const controlAny = activeControl as any;
+        if (controlAny && typeof controlAny.trigger === 'function') {
+          const result = await controlAny.trigger(name);
+          return Boolean(result);
+        }
+        return true;
       } catch (error) {
-        console.warn(`RHF validation failed for field ${name}:`, error);
+        console.warn(`RHF validation failed for field ${String(name)}:`, error);
         return false;
       }
     }
@@ -226,12 +254,14 @@ export const Field = <TFieldValues extends FieldValues = FieldValues>({
 
   // Register with focus controller (enhanced with parent expansion)
   useEffect(() => {
+    const currentElement = fieldRef.current;
+
     focusController.registerField(fieldId, {
-      element: fieldRef.current || undefined,
-      focusFn: focusFieldWithExpansion, // Use enhanced focus function
-      scrollFn: scrollToFieldWithExpansion, // Use enhanced scroll function
-      simpleFocusFn: focusField, // Also register simple focus for backward compatibility
-      simpleScrollFn: scrollToField, // Also register simple scroll
+      element: currentElement || undefined,
+      focusFn: focusFieldWithExpansion,
+      scrollFn: scrollToFieldWithExpansion,
+      simpleFocusFn: focusField,
+      simpleScrollFn: scrollToField,
       rhfValidationFn: name ? rhfValidationFn : undefined,
     });
 
@@ -253,15 +283,17 @@ export const Field = <TFieldValues extends FieldValues = FieldValues>({
     if (autoFocus && isVisible) {
       const timer = setTimeout(() => {
         focusFieldWithExpansion()
-          .then(() => console.log(`Auto-focused field ${fieldId}`))
-          .catch(() => {
-            /*ignore*/
+          .then(() => {
+            // Success - field focused
+          })
+          .catch(error => {
+            console.warn(`Auto-focus failed for field ${fieldId}:`, error);
           });
       }, 100);
 
       return () => clearTimeout(timer);
     }
-  }, [autoFocus, isVisible, focusFieldWithExpansion]);
+  }, [autoFocus, isVisible, focusFieldWithExpansion, fieldId]);
 
   // Detect if field has label
   const hasLabel = useMemo(() => hasLabelComponent(children), [children]);
@@ -305,13 +337,13 @@ export const Field = <TFieldValues extends FieldValues = FieldValues>({
 
           // Context value for child components
           const fieldContext: FieldContextType = {
-            fieldName: name,
+            fieldName: String(name),
             fieldId,
             validationState,
             disabled: effectiveDisabled,
             layout: currentLayout as 'horizontal' | 'vertical',
             rhfField: {
-              name,
+              name: String(name),
               control: activeControl,
               fieldError: fieldState.error,
               fieldState: {
@@ -329,17 +361,17 @@ export const Field = <TFieldValues extends FieldValues = FieldValues>({
               field.onChange(value);
               onFieldChange?.(value);
             },
-            [field.onChange, onFieldChange]
+            [field, onFieldChange]
           );
 
-          // Render props for children
+          // Render props for children with proper typing
           const renderProps: FieldRenderProps<TFieldValues> = {
             field: {
               ...field,
               onChange: handleFieldChange,
-            },
+            } as ControllerRenderProps<TFieldValues, FieldPath<TFieldValues>>,
             fieldState,
-            formState,
+            formState: formState as UseFormStateReturn<TFieldValues>,
           };
 
           // Render loading state for lazy fields
@@ -366,7 +398,7 @@ export const Field = <TFieldValues extends FieldValues = FieldValues>({
                 data-field-id={fieldId}
                 data-is-valid={validationState.isValid}
                 data-validation-message={validationState.error || ''}
-                data-rhf-field={name}
+                data-rhf-field={String(name)}
                 data-expand-parent={expandParent}
                 data-field-group-inherited={fieldGroupContext ? 'true' : 'false'}
               >
@@ -395,7 +427,7 @@ export const Field = <TFieldValues extends FieldValues = FieldValues>({
   };
 
   const fieldContext: FieldContextType = {
-    fieldName: name || fieldId,
+    fieldName: name ? String(name) : fieldId,
     fieldId,
     validationState,
     disabled: effectiveDisabled,
@@ -417,6 +449,13 @@ export const Field = <TFieldValues extends FieldValues = FieldValues>({
     );
   }
 
+  // Non-RHF render props
+  const nonRhfRenderProps: FieldRenderProps<TFieldValues> = {
+    field: undefined,
+    fieldState: undefined,
+    formState: undefined,
+  };
+
   return (
     <FieldContext.Provider value={fieldContext}>
       <div
@@ -431,10 +470,7 @@ export const Field = <TFieldValues extends FieldValues = FieldValues>({
       >
         <div className={styles.fieldContent}>
           {typeof children === 'function'
-            ? (children as (props: FieldRenderProps<TFieldValues>) => ReactNode)({
-                fieldState: undefined,
-                formState: undefined,
-              })
+            ? (children as (props: FieldRenderProps<TFieldValues>) => ReactNode)(nonRhfRenderProps)
             : children}
         </div>
       </div>

@@ -135,7 +135,9 @@ export const useParentDetection = () => {
 
       // Alternative: Try to find and import the controller dynamically
       try {
-        const { cardController } = await import('../../Card/services/CardController');
+        const { cardController } = await import(
+          '../../Card/services/CardController' /* webpackChunkName: "card-controller" */
+        );
         return cardController.expandCard(cardId, true);
       } catch (importError) {
         console.warn('Card controller not available for import:', importError);
@@ -163,7 +165,9 @@ export const useParentDetection = () => {
 
         // Try dynamic import
         try {
-          const { cardController } = await import('../../Card/services/CardController');
+          const { cardController } = await import(
+            '../../Card/services/CardController' /* webpackChunkName: "card-controller" */
+          );
           return cardController.expandCard(cardId, true);
         } catch (importError) {
           console.warn('Card controller not available for accordion expansion:', importError);

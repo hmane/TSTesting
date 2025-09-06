@@ -1,6 +1,11 @@
-import React, { createContext, useContext, useRef, useEffect, ReactNode } from 'react';
+import * as React from 'react';
+import { createContext, ReactNode, useContext, useEffect, useRef } from 'react';
 import { ConflictDetector } from './ConflictDetector';
-import { ConflictDetectionOptions, ConflictDetectionState, DEFAULT_CONFLICT_OPTIONS } from './types';
+import {
+  ConflictDetectionOptions,
+  ConflictDetectionState,
+  DEFAULT_CONFLICT_OPTIONS,
+} from './types';
 
 interface ConflictContextValue {
   detector: ConflictDetector | null;
@@ -24,7 +29,7 @@ export const ConflictDetectionProvider: React.FC<ConflictProviderProps> = ({
   itemId,
   options = {},
   children,
-  onStateChange
+  onStateChange,
 }) => {
   const detectorRef = useRef<ConflictDetector | null>(null);
   const stateRef = useRef<ConflictDetectionState>({
@@ -32,12 +37,12 @@ export const ConflictDetectionProvider: React.FC<ConflictProviderProps> = ({
     hasConflict: false,
     conflictInfo: null,
     lastChecked: null,
-    error: null
+    error: null,
   });
 
   const mergedOptions: ConflictDetectionOptions = {
     ...DEFAULT_CONFLICT_OPTIONS,
-    ...options
+    ...options,
   };
 
   // Initialize detector
@@ -56,14 +61,14 @@ export const ConflictDetectionProvider: React.FC<ConflictProviderProps> = ({
 
       try {
         const result = await detectorRef.current.initialize();
-        
+
         if (result.success) {
           updateState({
             isChecking: false,
             hasConflict: false,
             conflictInfo: result.conflictInfo,
             lastChecked: new Date(),
-            error: null
+            error: null,
           });
         } else {
           updateState({
@@ -71,7 +76,7 @@ export const ConflictDetectionProvider: React.FC<ConflictProviderProps> = ({
             hasConflict: false,
             conflictInfo: null,
             lastChecked: new Date(),
-            error: result.error || 'Failed to initialize conflict detection'
+            error: result.error || 'Failed to initialize conflict detection',
           });
         }
       } catch (error) {
@@ -81,7 +86,7 @@ export const ConflictDetectionProvider: React.FC<ConflictProviderProps> = ({
           hasConflict: false,
           conflictInfo: null,
           lastChecked: new Date(),
-          error: `Initialization failed: ${error.message}`
+          error: `Initialization failed: ${error.message}`,
         });
       }
     };
@@ -121,26 +126,26 @@ export const ConflictDetectionProvider: React.FC<ConflictProviderProps> = ({
 
     try {
       const result = await detectorRef.current.checkForConflicts();
-      
+
       if (result.success && result.conflictInfo) {
         updateState({
           isChecking: false,
           hasConflict: result.conflictInfo.hasConflict,
           conflictInfo: result.conflictInfo,
           lastChecked: new Date(),
-          error: null
+          error: null,
         });
       } else {
         updateState({
           isChecking: false,
-          error: result.error || 'Failed to check for conflicts'
+          error: result.error || 'Failed to check for conflicts',
         });
       }
     } catch (error) {
       console.error('ConflictDetectionProvider: Failed to check conflicts', error);
       updateState({
         isChecking: false,
-        error: `Conflict check failed: ${error.message}`
+        error: `Conflict check failed: ${error.message}`,
       });
     }
   };
@@ -153,23 +158,23 @@ export const ConflictDetectionProvider: React.FC<ConflictProviderProps> = ({
 
     try {
       const result = await detectorRef.current.updateSnapshot();
-      
+
       if (result.success && result.conflictInfo) {
         updateState({
           hasConflict: false,
           conflictInfo: result.conflictInfo,
           lastChecked: new Date(),
-          error: null
+          error: null,
         });
       } else {
         updateState({
-          error: result.error || 'Failed to update snapshot'
+          error: result.error || 'Failed to update snapshot',
         });
       }
     } catch (error) {
       console.error('ConflictDetectionProvider: Failed to update snapshot', error);
       updateState({
-        error: `Snapshot update failed: ${error.message}`
+        error: `Snapshot update failed: ${error.message}`,
       });
     }
   };
@@ -182,14 +187,10 @@ export const ConflictDetectionProvider: React.FC<ConflictProviderProps> = ({
     detector: detectorRef.current,
     checkForConflicts,
     updateSnapshot,
-    getState
+    getState,
   };
 
-  return (
-    <ConflictContext.Provider value={contextValue}>
-      {children}
-    </ConflictContext.Provider>
-  );
+  return <ConflictContext.Provider value={contextValue}>{children}</ConflictContext.Provider>;
 };
 
 // Custom hook to use the conflict context

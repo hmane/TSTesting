@@ -1,11 +1,11 @@
 // components/ErrorBoundary.tsx
-import * as React from 'react';
-import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
+import { DefaultButton } from '@fluentui/react/lib/Button';
 import { Icon } from '@fluentui/react/lib/Icon';
+import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
 import { Stack } from '@fluentui/react/lib/Stack';
 import { Text } from '@fluentui/react/lib/Text';
-import { DefaultButton } from '@fluentui/react/lib/Button';
-import { AutocompleteError, AutocompleteErrorType } from '../types/AutocompleteTypes';
+import * as React from 'react';
+import { AutocompleteError, AutocompleteErrorType } from '../AutocompleteTypes';
 import './ErrorBoundary.scss';
 
 interface ErrorBoundaryProps {
@@ -27,7 +27,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
   constructor(props: ErrorBoundaryProps) {
     super(props);
-    
+
     this.state = {
       hasError: false,
       errorId: this.generateErrorId(),
@@ -44,7 +44,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
   public componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
     const { onError, componentName = 'Autocomplete' } = this.props;
-    
+
     // Log error details for debugging
     console.error(`${componentName} Error:`, {
       error,
@@ -87,7 +87,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
           return error.message;
       }
     }
-    
+
     return 'An unexpected error occurred while loading the autocomplete component.';
   }
 
@@ -104,13 +104,17 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
           return MessageBarType.error;
       }
     }
-    
+
     return MessageBarType.error;
   }
 
   public render(): React.ReactNode {
     const { hasError, error } = this.state;
-    const { children, fallbackComponent: FallbackComponent, componentName = 'Autocomplete' } = this.props;
+    const {
+      children,
+      fallbackComponent: FallbackComponent,
+      componentName = 'Autocomplete',
+    } = this.props;
 
     if (!hasError) {
       return children;
@@ -125,51 +129,47 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
     const messageBarType = error ? this.getErrorType(error) : MessageBarType.error;
 
     return (
-      <div className="autocomplete-error-boundary">
+      <div className='autocomplete-error-boundary'>
         <MessageBar
           messageBarType={messageBarType}
           isMultiline={true}
           onDismiss={canRetry ? this.handleRetry : undefined}
-          dismissButtonAriaLabel="Retry"
+          dismissButtonAriaLabel='Retry'
         >
           <Stack tokens={{ childrenGap: 8 }}>
-            <Stack horizontal tokens={{ childrenGap: 8 }} verticalAlign="center">
-              <Icon 
-                iconName="ErrorBadge" 
+            <Stack horizontal tokens={{ childrenGap: 8 }} verticalAlign='center'>
+              <Icon
+                iconName='ErrorBadge'
                 styles={{
                   root: {
                     color: 'var(--palette-red)',
                     fontSize: 16,
-                  }
+                  },
                 }}
               />
-              <Text variant="medium" styles={{ root: { fontWeight: 600 } }}>
+              <Text variant='medium' styles={{ root: { fontWeight: 600 } }}>
                 {componentName} Error
               </Text>
             </Stack>
-            
-            <Text variant="small" styles={{ root: { color: 'var(--palette-neutralSecondary)' } }}>
+
+            <Text variant='small' styles={{ root: { color: 'var(--palette-neutralSecondary)' } }}>
               {errorMessage}
             </Text>
 
             {error && process.env.NODE_ENV === 'development' && (
-              <details className="autocomplete-error-details">
+              <details className='autocomplete-error-details'>
                 <summary>Technical Details (Development Mode)</summary>
                 <Stack tokens={{ childrenGap: 4 }} styles={{ root: { marginTop: 8 } }}>
-                  <Text variant="tiny" styles={{ root: { fontFamily: 'monospace' } }}>
+                  <Text variant='tiny' styles={{ root: { fontFamily: 'monospace' } }}>
                     Error ID: {this.state.errorId}
                   </Text>
-                  <Text variant="tiny" styles={{ root: { fontFamily: 'monospace' } }}>
+                  <Text variant='tiny' styles={{ root: { fontFamily: 'monospace' } }}>
                     Type: {error.constructor.name}
                   </Text>
-                  <Text variant="tiny" styles={{ root: { fontFamily: 'monospace' } }}>
+                  <Text variant='tiny' styles={{ root: { fontFamily: 'monospace' } }}>
                     Message: {error.message}
                   </Text>
-                  {error.stack && (
-                    <pre className="autocomplete-error-stack">
-                      {error.stack}
-                    </pre>
-                  )}
+                  {error.stack && <pre className='autocomplete-error-stack'>{error.stack}</pre>}
                 </Stack>
               </details>
             )}
@@ -183,7 +183,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
                   styles={{
                     root: {
                       minWidth: 'auto',
-                    }
+                    },
                   }}
                 />
               </Stack>

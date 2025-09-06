@@ -1,6 +1,5 @@
 // styles/Autocomplete.scss
-@import '~@fluentui/react/lib/common/common';
-@import '~devextreme/dist/css/dx.common.css';
+@import '~@fluentui/react/dist/sass/References.scss';
 
 // SharePoint theme integration variables
 :root {
@@ -13,7 +12,11 @@
   --autocomplete-background: var(--palette-white, #ffffff);
   --autocomplete-background-hover: var(--palette-neutralLighter, #f3f2f1);
   --autocomplete-background-selected: var(--palette-themeLight, #c7e0f4);
-  --autocomplete-shadow: var(--elevation4, 0 1.6px 3.6px 0 rgba(0, 0, 0, 0.132), 0 0.3px 0.9px 0 rgba(0, 0, 0, 0.108));
+  --autocomplete-shadow: var(
+    --elevation4,
+    0 1.6px 3.6px 0 rgba(0, 0, 0, 0.132),
+    0 0.3px 0.9px 0 rgba(0, 0, 0, 0.108)
+  );
   --autocomplete-border-radius: var(--borderRadius, 2px);
 }
 
@@ -22,7 +25,16 @@
   position: relative;
   display: inline-block;
   width: 100%;
-  font-family: var(--fontFamilyBase, 'Segoe UI', 'Segoe UI Web', -apple-system, BlinkMacSystemFont, 'Roboto', 'Helvetica Neue', sans-serif);
+  font-family: var(
+    --fontFamilyBase,
+    'Segoe UI',
+    'Segoe UI Web',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Roboto',
+    'Helvetica Neue',
+    sans-serif
+  );
 
   // Single select specific styling
   &--single {
@@ -31,7 +43,7 @@
         font-size: var(--fontSizeMedium, 14px);
         line-height: 1.4;
         color: var(--autocomplete-text);
-        
+
         &::placeholder {
           color: var(--autocomplete-text-secondary);
           opacity: 0.8;
@@ -62,7 +74,7 @@
         margin: 2px 4px 2px 0;
         transition: all 0.2s cubic-bezier(0.165, 0.84, 0.44, 1);
         max-width: 200px;
-        
+
         &:hover {
           background-color: var(--autocomplete-primary);
           color: var(--autocomplete-background);
@@ -80,7 +92,7 @@
           margin-left: 4px;
           opacity: 0.7;
           transition: opacity 0.2s ease;
-          
+
           &:hover {
             opacity: 1;
           }
@@ -93,7 +105,7 @@
         color: var(--autocomplete-background);
         border: none;
         font-weight: 600;
-        
+
         &:hover {
           background-color: var(--autocomplete-text);
         }
@@ -132,7 +144,7 @@
       &.dx-state-readonly {
         background-color: var(--palette-neutralLighterAlt, #faf9f8);
         border-color: var(--palette-neutralQuaternaryAlt, #e1dfdd);
-        
+
         .dx-texteditor-input {
           color: var(--autocomplete-text-secondary);
         }
@@ -142,7 +154,7 @@
         background-color: var(--palette-neutralLighterAlt, #faf9f8);
         border-color: var(--palette-neutralQuaternaryAlt, #e1dfdd);
         opacity: 0.6;
-        
+
         .dx-texteditor-input {
           color: var(--palette-neutralTertiary, #a19f9d);
         }
@@ -152,14 +164,14 @@
     // Input field styling
     .dx-texteditor-input-container {
       padding: 6px 12px;
-      
+
       .dx-texteditor-input {
         background: transparent;
         border: none;
         outline: none;
         color: var(--autocomplete-text);
         font-family: inherit;
-        
+
         &:focus {
           outline: none;
         }
@@ -173,12 +185,12 @@
         border: none;
         color: var(--autocomplete-text-secondary);
         transition: all 0.2s ease;
-        
+
         &:hover {
           background-color: var(--autocomplete-background-hover);
           color: var(--autocomplete-text);
         }
-        
+
         &:focus {
           outline: 1px solid var(--autocomplete-primary);
           outline-offset: -1px;
@@ -212,7 +224,7 @@
     &::-webkit-scrollbar-thumb {
       background-color: var(--palette-neutralTertiary, #a19f9d);
       border-radius: 4px;
-      
+
       &:hover {
         background-color: var(--palette-neutralSecondary, #605e5c);
       }
@@ -227,7 +239,7 @@
     cursor: pointer;
     transition: all 0.15s ease;
     position: relative;
-    
+
     &:last-child {
       border-bottom: none;
     }
@@ -246,7 +258,7 @@
       background-color: var(--autocomplete-primary);
       color: var(--autocomplete-background);
       font-weight: 500;
-      
+
       &::after {
         content: '\E73E'; // Checkmark icon
         font-family: 'Fabric MDL2 Icons';
@@ -258,7 +270,7 @@
     }
 
     // Recent item indicator
-    &[data-recent="true"] {
+    &[data-recent='true'] {
       &::before {
         content: '\E823'; // Recent icon
         font-family: 'Fabric MDL2 Icons';
@@ -269,7 +281,7 @@
         color: var(--palette-themeTertiary, #6bb700);
         font-size: 12px;
       }
-      
+
       padding-left: 32px;
     }
   }
@@ -285,7 +297,7 @@
   &.is-loading {
     .dx-texteditor-container {
       position: relative;
-      
+
       &::after {
         content: '';
         position: absolute;
@@ -330,7 +342,7 @@
     cursor: pointer;
     font-size: var(--fontSizeSmall, 12px);
     text-decoration: underline;
-    
+
     &:hover {
       color: var(--autocomplete-primary-hover);
     }
@@ -347,7 +359,7 @@
   opacity: 0;
   transition: opacity 0.3s ease;
   pointer-events: none;
-  
+
   .autocomplete-container:focus-within & {
     opacity: 1;
   }
@@ -407,7 +419,7 @@
 
     .dx-list-item {
       color: WindowText !important;
-      
+
       &.dx-state-focused,
       &.dx-state-selected {
         background-color: Highlight !important;
@@ -425,12 +437,12 @@
     }
 
     .dx-list-item {
-      &[data-recent="true"] {
+      &[data-recent='true'] {
         &::before {
           left: auto;
           right: 12px;
         }
-        
+
         padding-left: 12px;
         padding-right: 32px;
       }

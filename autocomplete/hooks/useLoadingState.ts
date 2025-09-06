@@ -1,7 +1,8 @@
 // hooks/useLoadingState.ts
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { DataSource, CustomStore } from 'devextreme/data';
-import { AUTOCOMPLETE_CONSTANTS } from '../types/AutocompleteTypes';
+import CustomStore from 'devextreme/data/custom_store';
+import DataSource from 'devextreme/data/data_source';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { AUTOCOMPLETE_CONSTANTS } from '../AutocompleteTypes';
 
 interface UseLoadingStateOptions {
   dataSource: DataSource | CustomStore | any[];
@@ -32,7 +33,7 @@ export const useLoadingState = (options: UseLoadingStateOptions): LoadingStateRe
     dataSource,
     showSpinner = true,
     minimumLoadingTime = AUTOCOMPLETE_CONSTANTS.LOADING_SPINNER_DELAY,
-    debounceDelay = 100
+    debounceDelay = 100,
   } = options;
 
   const [isLoading, setIsLoading] = useState(false);
@@ -41,14 +42,14 @@ export const useLoadingState = (options: UseLoadingStateOptions): LoadingStateRe
   const [manualLoading, setManualLoading] = useState(false);
 
   const loadingStartTimeRef = useRef<number | null>(null);
-  const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const loadingTimeoutRef = useRef<number | null>(null);
+  const debounceTimeoutRef = useRef<number | null>(null);
   const isLoadingOperationRef = useRef(false);
 
   // Set manual loading state
   const setManualLoadingState = useCallback((loading: boolean) => {
     setManualLoading(loading);
-    
+
     if (loading) {
       handleLoadingStart();
     } else {
@@ -62,18 +63,18 @@ export const useLoadingState = (options: UseLoadingStateOptions): LoadingStateRe
     setIsInitialLoad(true);
     setHasLoadedOnce(false);
     setManualLoading(false);
-    
+
     // Clear any pending timeouts
     if (loadingTimeoutRef.current) {
       clearTimeout(loadingTimeoutRef.current);
       loadingTimeoutRef.current = null;
     }
-    
+
     if (debounceTimeoutRef.current) {
       clearTimeout(debounceTimeoutRef.current);
       debounceTimeoutRef.current = null;
     }
-    
+
     loadingStartTimeRef.current = null;
     isLoadingOperationRef.current = false;
   }, []);
@@ -118,8 +119,8 @@ export const useLoadingState = (options: UseLoadingStateOptions): LoadingStateRe
     }
 
     // Calculate remaining time to meet minimum loading duration
-    const loadingDuration = loadingStartTimeRef.current 
-      ? Date.now() - loadingStartTimeRef.current 
+    const loadingDuration = loadingStartTimeRef.current
+      ? Date.now() - loadingStartTimeRef.current
       : minimumLoadingTime;
 
     const remainingTime = Math.max(0, minimumLoadingTime - loadingDuration);
@@ -167,14 +168,14 @@ export const useLoadingState = (options: UseLoadingStateOptions): LoadingStateRe
     };
 
     // Monitor loading state changes
-    let loadingMonitorInterval: NodeJS.Timeout | null = null;
+    let loadingMonitorInterval: number | null = null;
     let lastLoadingState = false;
 
     const startLoadingMonitor = () => {
       loadingMonitorInterval = setInterval(() => {
         try {
           const currentLoadingState = currentDataSource.isLoading && currentDataSource.isLoading();
-          
+
           if (currentLoadingState !== lastLoadingState) {
             lastLoadingState = currentLoadingState;
             onLoadingChanged(currentLoadingState);
@@ -241,7 +242,7 @@ export const useLoadingState = (options: UseLoadingStateOptions): LoadingStateRe
   const loadingSpinnerProps = {
     visible: showSpinner && (isLoading || manualLoading),
     position: 'right' as const,
-    size: isInitialLoad ? 'medium' as const : 'small' as const
+    size: isInitialLoad ? ('medium' as const) : ('small' as const),
   };
 
   return {
@@ -250,7 +251,7 @@ export const useLoadingState = (options: UseLoadingStateOptions): LoadingStateRe
     hasLoadedOnce,
     loadingSpinnerProps,
     setManualLoading: setManualLoadingState,
-    resetLoadingState
+    resetLoadingState,
   };
 };
 
@@ -304,6 +305,6 @@ export const useManualLoadingState = (
     isLoading,
     startLoading,
     endLoading,
-    setLoading: setIsLoading
+    setLoading: setIsLoading,
   };
 };

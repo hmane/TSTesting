@@ -416,7 +416,7 @@ export class CardControllerService implements ICardController {
    */
   private async scrollToElement(element: HTMLElement, options: ScrollOptions): Promise<void> {
     return new Promise(resolve => {
-      const { block = 'center', inline = 'nearest', smooth = true, offset = 0 } = options;
+      const { block = 'center', smooth = true, offset = 0 } = options;
 
       // Calculate scroll position with offset
       let scrollTop = element.offsetTop;

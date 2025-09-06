@@ -1,7 +1,8 @@
 // types/AutocompleteTypes.ts
-import { dxTextBoxOptions } from 'devextreme/ui/text_box';
+import CustomStore from 'devextreme/data/custom_store';
+import DataSource from 'devextreme/data/data_source';
 import { dxTagBoxOptions } from 'devextreme/ui/tag_box';
-import { DataSource, CustomStore } from 'devextreme/data';
+import { dxTextBoxOptions } from 'devextreme/ui/text_box';
 
 // Base props shared by both modes
 export interface BaseAutocompleteProps {
@@ -9,42 +10,44 @@ export interface BaseAutocompleteProps {
   dataSource: DataSource | CustomStore | any[];
   displayExpr: string | ((item: any) => string);
   valueExpr: string;
-  
+
   // Selection
   maxSelect?: number;
   onValueChanged: (value: any | any[]) => void;
-  
+
   // Search Behavior
   minSearchLength?: number;
   searchTimeout?: number;
-  
+
   // Performance & Caching
   enableRecentCache?: boolean;
   recentCacheKey?: string;
-  
+
   // Loading & UI
   showLoadingSpinner?: boolean;
-  
+
   // Keyboard
   enableKeyboardShortcuts?: boolean;
   keyboardScope?: string;
-  
+
   // Events
   onSelectionLimitReached?: () => void;
   onDataSourceError?: (error: Error) => void;
 }
 
 // Single Select Mode (extends TextBox)
-export interface SingleSelectProps extends BaseAutocompleteProps, 
-  Omit<dxTextBoxOptions, 'value' | 'onValueChanged' | 'dataSource' | 'onValueChange'> {
+export interface SingleSelectProps
+  extends BaseAutocompleteProps,
+    Omit<dxTextBoxOptions, 'value' | 'onValueChanged' | 'dataSource' | 'onValueChange'> {
   maxSelect?: 1;
   value?: any;
   defaultValue?: any;
 }
 
 // Multi Select Mode (extends TagBox)
-export interface MultiSelectProps extends BaseAutocompleteProps,
-  Omit<dxTagBoxOptions, 'value' | 'onValueChanged' | 'dataSource' | 'onValueChange'> {
+export interface MultiSelectProps
+  extends BaseAutocompleteProps,
+    Omit<dxTagBoxOptions, 'value' | 'onValueChanged' | 'dataSource' | 'onValueChange'> {
   maxSelect: number; // > 1
   value?: any[];
   defaultValue?: any[];

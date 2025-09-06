@@ -1,19 +1,21 @@
-import React, { useState } from 'react';
 import {
-  Dialog,
-  DialogType,
-  DialogFooter,
-  PrimaryButton,
   DefaultButton,
-  Stack,
-  Text,
+  Dialog,
+  DialogFooter,
+  DialogType,
   Icon,
-  Separator,
   MessageBar,
   MessageBarType,
-  Spinner
+  PrimaryButton,
+  Separator,
+  Spinner,
+  Stack,
+  Text,
 } from '@fluentui/react';
+import * as React from 'react';
+import { useState } from 'react';
 import { ConflictInfo, ConflictResolutionAction } from './types';
+import { ConflictNotificationBar } from './ConflictNotificationBar';
 
 interface ConflictResolutionDialogProps {
   isOpen: boolean;
@@ -36,9 +38,11 @@ export const ConflictResolutionDialog: React.FC<ConflictResolutionDialogProps> =
   showOverwriteOption = true,
   showRefreshOption = true,
   onResolve,
-  onDismiss
+  onDismiss,
 }) => {
-  const [selectedAction, setSelectedAction] = useState<ConflictResolutionAction['type'] | null>(null);
+  const [selectedAction, setSelectedAction] = useState<ConflictResolutionAction['type'] | null>(
+    null
+  );
 
   if (!conflictInfo?.hasConflict) {
     return null;
@@ -51,13 +55,13 @@ export const ConflictResolutionDialog: React.FC<ConflictResolutionDialogProps> =
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
     });
   };
 
   const handleResolve = (actionType: ConflictResolutionAction['type']) => {
     let message = '';
-    
+
     switch (actionType) {
       case 'refresh':
         message = 'User chose to refresh and reload the current data';
@@ -71,16 +75,16 @@ export const ConflictResolutionDialog: React.FC<ConflictResolutionDialogProps> =
     }
 
     setSelectedAction(actionType);
-    
+
     onResolve({
       type: actionType,
-      message
+      message,
     });
   };
 
   const title = customTitle || 'Conflict Detected';
-  
-  const defaultMessage = `This record has been modified by another user while you were editing it. 
+
+  const defaultMessage = `This record has been modified by another user while you were editing it.
     You can refresh to see the latest changes, or continue to overwrite them with your changes.`;
 
   const message = customMessage || defaultMessage;
@@ -88,8 +92,8 @@ export const ConflictResolutionDialog: React.FC<ConflictResolutionDialogProps> =
   const dialogStyles = {
     main: {
       minWidth: '500px',
-      maxWidth: '600px'
-    }
+      maxWidth: '600px',
+    },
   };
 
   return (
@@ -99,30 +103,28 @@ export const ConflictResolutionDialog: React.FC<ConflictResolutionDialogProps> =
       dialogContentProps={{
         type: DialogType.normal,
         title: title,
-        styles: dialogStyles
+        styles: dialogStyles,
       }}
       modalProps={{
         isBlocking: true,
-        dragOptions: undefined
+        dragOptions: undefined,
       }}
     >
       <Stack tokens={{ childrenGap: 16 }}>
         {/* Warning icon and message */}
-        <Stack horizontal tokens={{ childrenGap: 12 }} verticalAlign="start">
+        <Stack horizontal tokens={{ childrenGap: 12 }} verticalAlign='start'>
           <Icon
-            iconName="Warning"
+            iconName='Warning'
             styles={{
               root: {
                 fontSize: 24,
                 color: '#ff8c00',
-                marginTop: 2
-              }
+                marginTop: 2,
+              },
             }}
           />
           <Stack tokens={{ childrenGap: 8 }} styles={{ root: { flex: 1 } }}>
-            <Text variant="medium">
-              {message}
-            </Text>
+            <Text variant='medium'>{message}</Text>
           </Stack>
         </Stack>
 
@@ -130,37 +132,31 @@ export const ConflictResolutionDialog: React.FC<ConflictResolutionDialogProps> =
 
         {/* Conflict details */}
         <Stack tokens={{ childrenGap: 12 }}>
-          <Text variant="mediumPlus" styles={{ root: { fontWeight: 600 } }}>
+          <Text variant='mediumPlus' styles={{ root: { fontWeight: 600 } }}>
             Conflict Details:
           </Text>
-          
+
           <Stack tokens={{ childrenGap: 8 }}>
             <Stack horizontal tokens={{ childrenGap: 8 }}>
-              <Text variant="small" styles={{ root: { fontWeight: 600, minWidth: '120px' } }}>
+              <Text variant='small' styles={{ root: { fontWeight: 600, minWidth: '120px' } }}>
                 Modified by:
               </Text>
-              <Text variant="small">
-                {conflictInfo.lastModifiedBy}
-              </Text>
+              <Text variant='small'>{conflictInfo.lastModifiedBy}</Text>
             </Stack>
-            
+
             <Stack horizontal tokens={{ childrenGap: 8 }}>
-              <Text variant="small" styles={{ root: { fontWeight: 600, minWidth: '120px' } }}>
+              <Text variant='small' styles={{ root: { fontWeight: 600, minWidth: '120px' } }}>
                 Modified on:
               </Text>
-              <Text variant="small">
-                {formatDateTime(conflictInfo.lastModified)}
-              </Text>
+              <Text variant='small'>{formatDateTime(conflictInfo.lastModified)}</Text>
             </Stack>
-            
+
             {conflictInfo.originalModified && (
               <Stack horizontal tokens={{ childrenGap: 8 }}>
-                <Text variant="small" styles={{ root: { fontWeight: 600, minWidth: '120px' } }}>
+                <Text variant='small' styles={{ root: { fontWeight: 600, minWidth: '120px' } }}>
                   You started editing:
                 </Text>
-                <Text variant="small">
-                  {formatDateTime(conflictInfo.originalModified)}
-                </Text>
+                <Text variant='small'>{formatDateTime(conflictInfo.originalModified)}</Text>
               </Stack>
             )}
           </Stack>
@@ -169,7 +165,7 @@ export const ConflictResolutionDialog: React.FC<ConflictResolutionDialogProps> =
         {/* Processing indicator */}
         {isProcessing && (
           <MessageBar messageBarType={MessageBarType.info}>
-            <Stack horizontal tokens={{ childrenGap: 8 }} verticalAlign="center">
+            <Stack horizontal tokens={{ childrenGap: 8 }} verticalAlign='center'>
               <Spinner size={1} />
               <Text>Processing your request...</Text>
             </Stack>
@@ -180,8 +176,8 @@ export const ConflictResolutionDialog: React.FC<ConflictResolutionDialogProps> =
         {selectedAction === 'overwrite' && !isProcessing && (
           <MessageBar messageBarType={MessageBarType.warning}>
             <Text>
-              <strong>Warning:</strong> Continuing will overwrite changes made by {conflictInfo.lastModifiedBy}. 
-              This action cannot be undone.
+              <strong>Warning:</strong> Continuing will overwrite changes made by{' '}
+              {conflictInfo.lastModifiedBy}. This action cannot be undone.
             </Text>
           </MessageBar>
         )}
@@ -208,12 +204,12 @@ export const ConflictResolutionDialog: React.FC<ConflictResolutionDialogProps> =
               iconProps={{ iconName: 'Warning' }}
               styles={{
                 root: {
-                  borderColor: '#ff8c00'
+                  borderColor: '#ff8c00',
                 },
                 rootHovered: {
                   borderColor: '#ff8c00',
-                  backgroundColor: '#fff4e6'
-                }
+                  backgroundColor: '#fff4e6',
+                },
               }}
             >
               Continue Anyway
@@ -221,10 +217,7 @@ export const ConflictResolutionDialog: React.FC<ConflictResolutionDialogProps> =
           )}
 
           {/* Cancel button */}
-          <DefaultButton
-            onClick={() => handleResolve('cancel')}
-            disabled={isProcessing}
-          >
+          <DefaultButton onClick={() => handleResolve('cancel')} disabled={isProcessing}>
             Cancel
           </DefaultButton>
         </Stack>
@@ -257,7 +250,7 @@ export const useConflictResolutionDialog = () => {
     isProcessing,
     openDialog,
     closeDialog,
-    setProcessing
+    setProcessing,
   };
 };
 
@@ -283,9 +276,10 @@ export const ConflictHandler: React.FC<ConflictHandlerProps> = ({
   onRefresh,
   onOverwrite,
   onDismiss,
-  onAction
+  onAction,
 }) => {
-  const { isOpen, isProcessing, openDialog, closeDialog, setProcessing } = useConflictResolutionDialog();
+  const { isOpen, isProcessing, openDialog, closeDialog, setProcessing } =
+    useConflictResolutionDialog();
 
   React.useEffect(() => {
     if (conflictInfo?.hasConflict && showDialog && !isOpen) {
@@ -295,7 +289,7 @@ export const ConflictHandler: React.FC<ConflictHandlerProps> = ({
 
   const handleAction = async (action: ConflictResolutionAction) => {
     setProcessing(true);
-    
+
     try {
       if (onAction) {
         await onAction(action);

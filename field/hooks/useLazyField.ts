@@ -1,17 +1,17 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface UseLazyFieldOptions {
-	lazy: boolean;
-	threshold?: number;
-	rootMargin?: string;
-	onLoad?: () => void;
+  lazy: boolean;
+  threshold?: number;
+  rootMargin?: string;
+  onLoad?: () => void;
 }
 
 interface UseLazyFieldReturn {
-	isVisible: boolean;
-	isManuallyLoaded: boolean;
-	manualLoad: () => void;
-	fieldRef: React.RefObject<HTMLDivElement>;
+  isVisible: boolean;
+  isManuallyLoaded: boolean;
+  manualLoad: () => void;
+  fieldRef: React.RefObject<HTMLDivElement>;
 }
 
 /**
@@ -19,60 +19,60 @@ interface UseLazyFieldReturn {
  * Loads content when field comes into viewport or manually triggered
  */
 export const useLazyField = ({
-	lazy,
-	threshold = 0.1,
-	rootMargin = '50px',
-	onLoad,
+  lazy,
+  threshold = 0.1,
+  rootMargin = '50px',
+  onLoad,
 }: UseLazyFieldOptions): UseLazyFieldReturn => {
-	const [isVisible, setIsVisible] = useState(!lazy);
-	const [isManuallyLoaded, setIsManuallyLoaded] = useState(false);
-	const fieldRef = useRef<HTMLDivElement>(null);
+  const [isVisible, setIsVisible] = useState(!lazy);
+  const [isManuallyLoaded, setIsManuallyLoaded] = useState(false);
+  const fieldRef = useRef<HTMLDivElement>(null);
 
-	// Manual load function
-	const manualLoad = useCallback(() => {
-		if (!isVisible && !isManuallyLoaded) {
-			setIsVisible(true);
-			setIsManuallyLoaded(true);
-			onLoad?.();
-		}
-	}, [isVisible, isManuallyLoaded, onLoad]);
+  // Manual load function
+  const manualLoad = useCallback(() => {
+    if (!isVisible && !isManuallyLoaded) {
+      setIsVisible(true);
+      setIsManuallyLoaded(true);
+      onLoad?.();
+    }
+  }, [isVisible, isManuallyLoaded, onLoad]);
 
-	// Intersection Observer effect
-	useEffect(() => {
-		if (!lazy || isManuallyLoaded || isVisible) {
-			return;
-		}
+  // Intersection Observer effect
+  useEffect(() => {
+    if (!lazy || isManuallyLoaded || isVisible) {
+      return;
+    }
 
-		const currentRef = fieldRef.current;
-		if (!currentRef) {
-			return;
-		}
+    const currentRef = fieldRef.current;
+    if (!currentRef) {
+      return;
+    }
 
-		const observer = new IntersectionObserver(
-			([entry]) => {
-				if (entry.isIntersecting) {
-					setIsVisible(true);
-					onLoad?.();
-					observer.disconnect(); // Load once, never unload for performance
-				}
-			},
-			{
-				threshold,
-				rootMargin,
-			}
-		);
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+          onLoad?.();
+          observer.disconnect(); // Load once, never unload for performance
+        }
+      },
+      {
+        threshold,
+        rootMargin,
+      }
+    );
 
-		observer.observe(currentRef);
+    observer.observe(currentRef);
 
-		return () => {
-			observer.disconnect();
-		};
-	}, [lazy, threshold, rootMargin, isManuallyLoaded, isVisible, onLoad]);
+    return () => {
+      observer.disconnect();
+    };
+  }, [lazy, threshold, rootMargin, isManuallyLoaded, isVisible, onLoad]);
 
-	return {
-		isVisible: isVisible || isManuallyLoaded,
-		isManuallyLoaded,
-		manualLoad,
-		fieldRef,
-	};
+  return {
+    isVisible: isVisible || isManuallyLoaded,
+    isManuallyLoaded,
+    manualLoad,
+    fieldRef,
+  };
 };

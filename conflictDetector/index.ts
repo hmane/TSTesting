@@ -15,25 +15,25 @@ export type {
 export { DEFAULT_CONFLICT_OPTIONS } from './types';
 
 // React hooks
-export { 
-  useConflictDetection, 
-  usePreSaveConflictCheck 
+export {
+  useConflictDetection,
+  usePreSaveConflictCheck
 } from './useConflictDetection';
 
 // React context and provider
-export { 
-  ConflictDetectionProvider, 
-  useConflictContext 
+export {
+  ConflictDetectionProvider,
+  useConflictContext
 } from './ConflictContext';
 
 // UI components
-export { 
+export {
   ConflictNotificationBar,
   ConflictNotification,
   useConflictNotification
 } from './ConflictNotificationBar';
 
-export { 
+export {
   ConflictResolutionDialog,
   useConflictResolutionDialog,
   ConflictHandler
@@ -69,14 +69,14 @@ export const ConflictDetectionUtils = {
   // Helper to get conflict severity based on time difference
   getConflictSeverity: (conflictInfo: ConflictInfo): 'low' | 'medium' | 'high' => {
     if (!conflictInfo.hasConflict) return 'low';
-    
+
     const now = new Date().getTime();
     const conflictTime = new Date(conflictInfo.lastModified).getTime();
     const timeDiff = now - conflictTime;
-    
+
     const oneMinute = 60 * 1000;
     const fiveMinutes = 5 * 60 * 1000;
-    
+
     if (timeDiff < oneMinute) return 'high';
     if (timeDiff < fiveMinutes) return 'medium';
     return 'low';
@@ -90,20 +90,20 @@ export const ConflictDetectionComponents = {
     useConflictDetection,
     ConflictNotificationBar
   },
-  
+
   // Hook + Dialog (for advanced scenarios)
   withDialog: {
     useConflictDetection,
     ConflictResolutionDialog
   },
-  
+
   // Provider + Context (best for class components)
   withProvider: {
     ConflictDetectionProvider,
     useConflictContext,
     ConflictHandler
   },
-  
+
   // Complete solution with all UI elements
   complete: {
     ConflictDetectionProvider,
@@ -122,7 +122,7 @@ export const ConflictDetectionPresets = {
     logConflicts: true,
     notificationPosition: 'top' as const
   },
-  
+
   // Notification only - inform but don't block
   notify: {
     checkOnSave: true,
@@ -131,7 +131,7 @@ export const ConflictDetectionPresets = {
     logConflicts: true,
     notificationPosition: 'top' as const
   },
-  
+
   // Strict mode - block saves on conflicts
   strict: {
     checkOnSave: true,
@@ -140,7 +140,7 @@ export const ConflictDetectionPresets = {
     logConflicts: true,
     notificationPosition: 'top' as const
   },
-  
+
   // Real-time monitoring with polling
   realtime: {
     checkOnSave: true,
@@ -150,7 +150,7 @@ export const ConflictDetectionPresets = {
     logConflicts: true,
     notificationPosition: 'top' as const
   },
-  
+
   // Form customizer optimized
   formCustomizer: {
     checkOnSave: true,

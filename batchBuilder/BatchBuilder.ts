@@ -4,7 +4,7 @@ import '@pnp/sp/items';
 import '@pnp/sp/lists';
 import '@pnp/sp/webs';
 
-// Interfaces (keeping your existing ones with minor additions)
+// Interfaces
 export interface IListItemFormUpdateValue {
   FieldName: string;
   FieldValue: string;
@@ -32,7 +32,6 @@ export interface IOperationResult {
   success: boolean;
   data?: any;
   error?: string;
-  retryAttempts?: number;
   itemId?: number;
   operationId?: string;
 }
@@ -54,15 +53,7 @@ export interface IBatchResult {
   errors: IBatchError[];
 }
 
-export interface IRetryConfig {
-  enabled: boolean;
-  maxRetries: number;
-  retryDelay: number;
-  retryableErrors: string[];
-}
-
 export interface IBatchBuilderConfig {
-  retryConfig?: IRetryConfig;
   batchSize?: number;
   enableConcurrency?: boolean;
 }
@@ -184,12 +175,6 @@ export class BatchBuilder {
     this.config = {
       batchSize: 100,
       enableConcurrency: false,
-      retryConfig: {
-        enabled: true,
-        maxRetries: 3,
-        retryDelay: 1000,
-        retryableErrors: ['timeout', 'network', '503', '502', '429', 'throttled'],
-      },
       ...config,
     };
   }
@@ -517,17 +502,6 @@ export class BatchBuilder {
       default:
         throw new Error(`Unsupported operation type: ${operation.operationType}`);
     }
-  }
-
-  private shouldRetry(error: any): boolean {
-    if (!this.config.retryConfig?.enabled) return false;
-
-    const errorString = error?.message?.toLowerCase() || '';
-    const retryableErrors = this.config.retryConfig.retryableErrors || [];
-
-    return retryableErrors.some(retryableError =>
-      errorString.includes(retryableError.toLowerCase())
-    );
   }
 
   /**

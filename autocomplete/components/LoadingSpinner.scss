@@ -1,5 +1,5 @@
 // components/LoadingSpinner.scss
-@import '~@fluentui/react/lib/common/common';
+@import '~@fluentui/react/dist/sass/References.scss';
 
 // Animations
 @keyframes autocomplete-spinner-rotate {
@@ -95,7 +95,7 @@
     top: 50%;
     right: 8px;
     transform: translateY(-50%);
-    
+
     .autocomplete-loading-spinner__content {
       width: 16px;
       height: 16px;
@@ -108,7 +108,7 @@
     right: 0;
     bottom: 0;
     border-radius: var(--borderRadius, 2px);
-    
+
     .autocomplete-loading-spinner__content {
       width: 100%;
       height: 100%;
@@ -119,7 +119,7 @@
   &--inline {
     position: relative;
     display: inline-flex;
-    
+
     .autocomplete-loading-spinner__content {
       display: inline-flex;
     }
@@ -347,7 +347,7 @@
   .autocomplete-loading-spinner {
     &--right {
       right: 6px;
-      
+
       .autocomplete-loading-spinner__content {
         width: 14px;
         height: 14px;

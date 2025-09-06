@@ -161,12 +161,12 @@ $breakpoint-tablet: 1024px;
     @media (min-width: 641px) and (max-width: 1024px) {
       --field-label-width-global: var(--field-label-width-responsive-tablet);
     }
-    
+
     // Desktop: comfortable default size
     @media (min-width: 1025px) and (max-width: 1366px) {
       --field-label-width-global: var(--field-label-width-responsive-desktop);
     }
-    
+
     // Large desktop: wider labels for better readability
     @media (min-width: 1367px) {
       --field-label-width-global: var(--field-label-width-responsive-wide);
@@ -228,6 +228,12 @@ $breakpoint-tablet: 1024px;
   align-items: center;
   margin-left: var(--field-spacing-xs);
   flex-shrink: 0;
+}
+
+.descriptionInline {
+  display: inline-flex;
+  margin-left: 0;
+  margin-right: var(--field-spacing-s);
 }
 
 .descriptionIcon {
