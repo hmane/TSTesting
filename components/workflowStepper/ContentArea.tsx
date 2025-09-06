@@ -1,16 +1,14 @@
-import React, { useMemo } from 'react';
 import { useTheme } from '@fluentui/react';
+import * as React from 'react';
+import { useMemo } from 'react';
 import { ContentAreaProps } from './types';
 import { getStepperStyles } from './WorkflowStepper.styles';
 
-export const ContentArea: React.FC<ContentAreaProps> = ({
-  selectedStep,
-  isVisible
-}) => {
+export const ContentArea: React.FC<ContentAreaProps> = ({ selectedStep, isVisible }) => {
   const theme = useTheme();
-  
-  const styles = useMemo(() => 
-    getStepperStyles(theme, { fullWidth: false, stepCount: 0 }), 
+
+  const styles = useMemo(
+    () => getStepperStyles(theme, { fullWidth: false, stepCount: 0 }),
     [theme]
   );
 
@@ -21,9 +19,7 @@ export const ContentArea: React.FC<ContentAreaProps> = ({
   const renderContent = () => {
     if (!selectedStep.content) {
       return (
-        <div className={styles.contentText}>
-          No additional information available for this step.
-        </div>
+        <div className={styles.contentText}>No additional information available for this step.</div>
       );
     }
 
@@ -35,7 +31,7 @@ export const ContentArea: React.FC<ContentAreaProps> = ({
     // Handle string content
     if (typeof selectedStep.content === 'string') {
       return (
-        <div 
+        <div
           className={styles.contentText}
           dangerouslySetInnerHTML={{ __html: selectedStep.content }}
         />
@@ -43,11 +39,7 @@ export const ContentArea: React.FC<ContentAreaProps> = ({
     }
 
     // Fallback for other content types
-    return (
-      <div className={styles.contentText}>
-        {String(selectedStep.content)}
-      </div>
-    );
+    return <div className={styles.contentText}>{String(selectedStep.content)}</div>;
   };
 
   const getStatusText = () => {
@@ -70,46 +62,46 @@ export const ContentArea: React.FC<ContentAreaProps> = ({
   };
 
   return (
-    <div 
+    <div
       className={styles.contentArea}
-      role="region"
+      role='region'
       aria-label={`Content for ${selectedStep.title}`}
-      aria-live="polite"
+      aria-live='polite'
     >
       <div className={styles.contentTitle}>
         {selectedStep.title}
         {selectedStep.status && (
-          <span 
-            style={{ 
-              marginLeft: '12px', 
+          <span
+            style={{
+              marginLeft: '12px',
               fontSize: theme.fonts.small.fontSize,
               color: theme.palette.neutralSecondary,
-              fontWeight: 'normal'
+              fontWeight: 'normal',
             }}
           >
             ({getStatusText()})
           </span>
         )}
       </div>
-      
+
       {(selectedStep.description1 || selectedStep.description2) && (
         <div style={{ marginBottom: '16px' }}>
           {selectedStep.description1 && (
-            <div 
-              style={{ 
+            <div
+              style={{
                 fontSize: theme.fonts.medium.fontSize,
                 color: theme.palette.neutralSecondary,
-                marginBottom: '4px'
+                marginBottom: '4px',
               }}
             >
               {selectedStep.description1}
             </div>
           )}
           {selectedStep.description2 && (
-            <div 
-              style={{ 
+            <div
+              style={{
                 fontSize: theme.fonts.small.fontSize,
-                color: theme.palette.neutralTertiary
+                color: theme.palette.neutralTertiary,
               }}
             >
               {selectedStep.description2}
@@ -117,7 +109,7 @@ export const ContentArea: React.FC<ContentAreaProps> = ({
           )}
         </div>
       )}
-      
+
       {renderContent()}
     </div>
   );

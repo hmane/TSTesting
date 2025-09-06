@@ -66,8 +66,8 @@ export const getStepNumber = (steps: StepData[], stepId: string): number => {
  * Gets the next clickable step ID for keyboard navigation
  */
 export const getNextClickableStepId = (
-  steps: StepData[], 
-  currentStepId: string, 
+  steps: StepData[],
+  currentStepId: string,
   mode: 'fullSteps' | 'progress'
 ): string | null => {
   const currentIndex = steps.findIndex(step => step.id === currentStepId);
@@ -87,8 +87,8 @@ export const getNextClickableStepId = (
  * Gets the previous clickable step ID for keyboard navigation
  */
 export const getPrevClickableStepId = (
-  steps: StepData[], 
-  currentStepId: string, 
+  steps: StepData[],
+  currentStepId: string,
   mode: 'fullSteps' | 'progress'
 ): string | null => {
   const currentIndex = steps.findIndex(step => step.id === currentStepId);
@@ -124,7 +124,7 @@ export const getStatusDescription = (status: StepStatus): string => {
     pending: 'This step is waiting to be started',
     warning: 'This step requires attention',
     error: 'This step has encountered an error',
-    blocked: 'This step is blocked and cannot proceed'
+    blocked: 'This step is blocked and cannot proceed',
   };
 
   return statusMap[status] || 'Unknown status';
@@ -137,7 +137,7 @@ export const debounce = <T extends (...args: any[]) => any>(
   func: T,
   wait: number
 ): ((...args: Parameters<T>) => void) => {
-  let timeout: NodeJS.Timeout | null = null;
+  let timeout: number | null = null;
 
   return (...args: Parameters<T>) => {
     if (timeout) {
@@ -166,11 +166,13 @@ export const supportsClipboard = (): boolean => {
  * Generates a simple hash for step content (useful for caching)
  */
 export const hashStepContent = (step: StepData): string => {
-  const content = `${step.id}-${step.title}-${step.status}-${step.description1 || ''}-${step.description2 || ''}`;
+  const content = `${step.id}-${step.title}-${step.status}-${step.description1 || ''}-${
+    step.description2 || ''
+  }`;
   let hash = 0;
   for (let i = 0; i < content.length; i++) {
     const char = content.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
+    hash = (hash << 5) - hash + char;
     hash = hash & hash; // Convert to 32-bit integer
   }
   return Math.abs(hash).toString(36);

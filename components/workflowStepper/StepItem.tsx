@@ -1,5 +1,6 @@
-import React, { useCallback, useRef } from 'react';
 import { useTheme } from '@fluentui/react';
+import * as React from 'react';
+import { useCallback, useRef } from 'react';
 import { StepItemProps } from './types';
 import { getStepItemStyles } from './WorkflowStepper.styles';
 
@@ -10,18 +11,12 @@ export const StepItem: React.FC<StepItemProps> = ({
   isClickable,
   showStepNumbers,
   customColors,
-  onStepClick
+  onStepClick,
 }) => {
   const theme = useTheme();
   const stepRef = useRef<HTMLDivElement>(null);
-  
-  const styles = getStepItemStyles(
-    theme,
-    step.status,
-    isSelected,
-    isClickable,
-    customColors
-  );
+
+  const styles = getStepItemStyles(theme, step.status, isSelected, isClickable, customColors);
 
   const handleClick = useCallback(() => {
     if (isClickable) {
@@ -29,12 +24,15 @@ export const StepItem: React.FC<StepItemProps> = ({
     }
   }, [isClickable, onStepClick, step]);
 
-  const handleKeyDown = useCallback((event: React.KeyboardEvent) => {
-    if (isClickable && (event.key === 'Enter' || event.key === ' ')) {
-      event.preventDefault();
-      onStepClick(step);
-    }
-  }, [isClickable, onStepClick, step]);
+  const handleKeyDown = useCallback(
+    (event: React.KeyboardEvent) => {
+      if (isClickable && (event.key === 'Enter' || event.key === ' ')) {
+        event.preventDefault();
+        onStepClick(step);
+      }
+    },
+    [isClickable, onStepClick, step]
+  );
 
   const renderDescription = () => {
     if (!step.description1 && !step.description2) return null;
@@ -71,16 +69,13 @@ export const StepItem: React.FC<StepItemProps> = ({
     >
       <div className={styles.stepContent}>
         {showStepNumbers && (
-          <div className={styles.stepNumber} aria-hidden="true">
+          <div className={styles.stepNumber} aria-hidden='true'>
             {stepNumber}
           </div>
         )}
-        
+
         <div className={styles.stepDetails}>
-          <div 
-            className={styles.stepTitle}
-            title={step.title}
-          >
+          <div className={styles.stepTitle} title={step.title}>
             {step.title}
           </div>
           {renderDescription()}
