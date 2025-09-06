@@ -6,27 +6,7 @@ import { memo, useCallback, useContext, useMemo } from 'react';
 import { ActionButtonsProps, CardAction } from '../Card.types';
 import { DEFAULT_ICONS } from '../utils/constants';
 
-// Card Context - this will be imported from Card.tsx in production
-const CardContext = React.createContext<
-  | {
-      allowExpand: boolean;
-      allowMaximize: boolean;
-      isExpanded: boolean;
-      isMaximized: boolean;
-      onToggleExpand: (source?: 'user' | 'programmatic') => void;
-      onToggleMaximize: (source?: 'user' | 'programmatic') => void;
-      onActionClick: (action: CardAction, event: React.MouseEvent) => void;
-      disabled: boolean;
-      accessibility?: {
-        expandButtonLabel?: string;
-        collapseButtonLabel?: string;
-        maximizeButtonLabel?: string;
-        restoreButtonLabel?: string;
-      };
-    }
-  | undefined
->(undefined);
-
+import { CardContext } from './Card';
 /**
  * Helper functions for button styling - defined before use
  */

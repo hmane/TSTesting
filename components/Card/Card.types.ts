@@ -115,6 +115,12 @@ export interface CardContextType {
   lazyLoad: boolean;
   hasContentLoaded: boolean;
   headerSize: HeaderSize;
+  accessibility?: {
+    expandButtonLabel?: string;
+    collapseButtonLabel?: string;
+    maximizeButtonLabel?: string;
+    restoreButtonLabel?: string;
+  };
   onToggleExpand: (source?: 'user' | 'programmatic') => void;
   onToggleMaximize: (source?: 'user' | 'programmatic') => void;
   onActionClick: (action: CardAction, event: MouseEvent) => void;

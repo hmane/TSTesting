@@ -1,25 +1,10 @@
 import * as React from 'react';
-import { memo, useCallback, useEffect, useMemo, useRef, useContext, ReactNode } from 'react';
+import { memo, ReactNode, useCallback, useContext, useEffect, useMemo, useRef } from 'react';
 import { ContentPadding, ContentProps } from '../Card.types';
 import { PADDING_CONFIG } from '../utils/constants';
 import { CardLoading, ContentLoadingPlaceholder } from './LoadingStates';
 
-// Import CardContext - this will be defined in Card.tsx
-const CardContext = React.createContext<
-  | {
-      isExpanded: boolean;
-      allowExpand: boolean;
-      id: string;
-      lazyLoad: boolean;
-      hasContentLoaded: boolean;
-      loading: boolean;
-      loadingType: string;
-      onContentLoad: () => void;
-      size: string;
-    }
-  | undefined
->(undefined);
-
+import { CardContext } from './Card';
 /**
  * Error Boundary for Content component
  */

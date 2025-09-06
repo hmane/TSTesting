@@ -4,22 +4,7 @@ import { HeaderProps } from '../Card.types';
 import { SIZE_CONFIG } from '../utils/constants';
 import { HeaderLoadingShimmer } from './LoadingStates';
 
-// Import CardContext - this will be defined in Card.tsx
-const CardContext = React.createContext<
-  | {
-      variant: string;
-      customHeaderColor?: string;
-      allowExpand: boolean;
-      disabled: boolean;
-      loading: boolean;
-      onToggleExpand: (source?: 'user' | 'programmatic') => void;
-      isExpanded: boolean;
-      id: string;
-      headerSize: string;
-    }
-  | undefined
->(undefined);
-
+import { CardContext } from './Card';
 /**
  * Card Header component with context integration
  */
@@ -27,7 +12,6 @@ export const Header = memo<HeaderProps>(
   ({ children, className = '', style, clickable = true, showLoadingShimmer = true, size }) => {
     // Get card context
     const cardContext = useContext(CardContext);
-
     if (!cardContext) {
       console.warn('[SpfxCard] Header must be used within a Card component');
       return null;
