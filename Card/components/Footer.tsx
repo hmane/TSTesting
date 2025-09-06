@@ -1,5 +1,6 @@
-import React, { memo, useMemo } from 'react';
-import { FooterProps, ContentPadding } from '../types/Card.types';
+import * as React from 'react';
+import { memo, useMemo } from 'react';
+import { FooterProps, ContentPadding } from '../Card.types';
 import { PADDING_CONFIG } from '../utils/constants';
 
 /**
@@ -9,12 +10,12 @@ const getPaddingValue = (padding: ContentPadding): string => {
   if (typeof padding === 'string') {
     return PADDING_CONFIG[padding as keyof typeof PADDING_CONFIG] || padding;
   }
-  
+
   if (typeof padding === 'object') {
     const { top = 0, right = 0, bottom = 0, left = 0 } = padding;
     return `${top}px ${right}px ${bottom}px ${left}px`;
   }
-  
+
   return PADDING_CONFIG.comfortable; // Default
 };
 
@@ -82,9 +83,9 @@ export const ActionFooter = memo<FooterProps & {
   textAlign = 'left'
 }) => {
   const footerContent = useMemo(() => (
-    <div style={{ 
-      display: 'flex', 
-      alignItems: 'center', 
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
       justifyContent: 'space-between',
       gap: '12px',
       flexWrap: 'wrap'
@@ -93,12 +94,12 @@ export const ActionFooter = memo<FooterProps & {
       <div style={{ flex: 1, textAlign, minWidth: 0 }}>
         {children}
       </div>
-      
+
       {/* Right actions */}
       {(primaryAction || secondaryActions.length > 0) && (
-        <div style={{ 
-          display: 'flex', 
-          gap: '8px', 
+        <div style={{
+          display: 'flex',
+          gap: '8px',
           alignItems: 'center',
           flexShrink: 0
         }}>
@@ -134,7 +135,7 @@ export const ActionFooter = memo<FooterProps & {
               {action.label}
             </button>
           ))}
-          
+
           {/* Primary action */}
           {primaryAction && (
             <button
@@ -241,39 +242,39 @@ export const StatusFooter = memo<FooterProps & {
   // Format timestamp
   const formattedTimestamp = useMemo(() => {
     if (!timestamp) return null;
-    
+
     const date = timestamp.value instanceof Date ? timestamp.value : new Date(timestamp.value);
-    
+
     if (timestamp.format === 'relative') {
       const now = new Date();
       const diff = now.getTime() - date.getTime();
       const minutes = Math.floor(diff / 60000);
       const hours = Math.floor(minutes / 60);
       const days = Math.floor(hours / 24);
-      
+
       if (minutes < 1) return 'Just now';
       if (minutes < 60) return `${minutes}m ago`;
       if (hours < 24) return `${hours}h ago`;
       if (days < 7) return `${days}d ago`;
       return date.toLocaleDateString();
     }
-    
+
     return date.toLocaleString();
   }, [timestamp]);
 
   const footerContent = useMemo(() => (
-    <div style={{ 
-      display: 'flex', 
-      alignItems: 'center', 
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
       justifyContent: 'space-between',
       gap: '12px',
       fontSize: '12px',
       color: 'var(--neutralSecondary, #605e5c)'
     }}>
       {/* Left side - custom content and status */}
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
         gap: '12px',
         flex: 1,
         minWidth: 0
@@ -283,11 +284,11 @@ export const StatusFooter = memo<FooterProps & {
             {children}
           </div>
         )}
-        
+
         {status && (
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
             gap: '4px',
             color: statusColors[status.type],
             flexShrink: 0
@@ -299,10 +300,10 @@ export const StatusFooter = memo<FooterProps & {
           </div>
         )}
       </div>
-      
+
       {/* Right side - timestamp */}
       {timestamp && (
-        <div style={{ 
+        <div style={{
           textAlign: 'right',
           flexShrink: 0
         }}>
@@ -355,9 +356,9 @@ export const ProgressFooter = memo<FooterProps & {
   const footerContent = useMemo(() => (
     <div>
       {/* Header with label and percentage */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
         alignItems: 'center',
         marginBottom: '8px',
         fontSize: '12px',
@@ -368,7 +369,7 @@ export const ProgressFooter = memo<FooterProps & {
           <span>{Math.round(percentage)}%</span>
         )}
       </div>
-      
+
       {/* Progress bar */}
       <div style={{
         width: '100%',
@@ -386,7 +387,7 @@ export const ProgressFooter = memo<FooterProps & {
           transition: 'width 0.3s ease'
         }} />
       </div>
-      
+
       {/* Additional content */}
       {children && (
         <div style={{ textAlign }}>
@@ -451,7 +452,7 @@ export const ExpandableFooter = memo<FooterProps & {
           {children}
         </div>
       )}
-      
+
       {/* Expandable section trigger */}
       <button
         onClick={handleToggle}
@@ -473,7 +474,7 @@ export const ExpandableFooter = memo<FooterProps & {
         aria-controls="expandable-footer-details"
       >
         <span>{summary}</span>
-        <i 
+        <i
           className="ms-Icon ms-Icon--ChevronDown"
           style={{
             transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
@@ -482,7 +483,7 @@ export const ExpandableFooter = memo<FooterProps & {
           }}
         />
       </button>
-      
+
       {/* Expandable details */}
       <div
         id="expandable-footer-details"
@@ -493,7 +494,7 @@ export const ExpandableFooter = memo<FooterProps & {
           opacity: isExpanded ? 1 : 0
         }}
       >
-        <div style={{ 
+        <div style={{
           paddingTop: '8px',
           borderTop: '1px solid var(--neutralLight, #edebe9)',
           fontSize: '12px',
@@ -545,7 +546,7 @@ export const MultiColumnFooter = memo<FooterProps & {
           {children}
         </div>
       )}
-      
+
       <div style={{
         display: 'grid',
         gridTemplateColumns: columns.map(col => col.width || '1fr').join(' '),
@@ -553,9 +554,9 @@ export const MultiColumnFooter = memo<FooterProps & {
         alignItems: 'center'
       }}>
         {columns.map((column, index) => (
-          <div 
+          <div
             key={index}
-            style={{ 
+            style={{
               textAlign: column.align || 'left',
               fontSize: '12px',
               color: 'var(--neutralSecondary, #605e5c)'
@@ -605,11 +606,11 @@ const injectFooterStyles = () => {
         align-items: stretch;
         gap: 8px;
       }
-      
+
       .spfx-action-footer > div > div:last-child {
         justify-content: center;
       }
-      
+
       .spfx-multi-column-footer > div > div:last-child {
         grid-template-columns: 1fr;
         gap: 8px;
@@ -635,13 +636,13 @@ const injectFooterStyles = () => {
         background: ButtonFace;
         color: ButtonText;
       }
-      
+
       .spfx-action-footer button {
         border: 1px solid ButtonBorder !important;
         background: ButtonFace !important;
         color: ButtonText !important;
       }
-      
+
       .spfx-action-footer button:hover {
         background: Highlight !important;
         color: HighlightText !important;

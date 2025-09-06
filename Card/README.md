@@ -40,7 +40,7 @@ A comprehensive, production-ready card component library for SharePoint Framewor
 ## 📦 Installation
 
 ### Prerequisites
-- SharePoint Framework 1.15+ 
+- SharePoint Framework 1.15+
 - React 16.8+
 - Fluent UI React 8.x
 - Node.js 16+
@@ -65,9 +65,9 @@ src/components/SpfxCard/
 
 2. Import styles in your main component:
 ```typescript
-import './components/SpfxCard/styles/Card.scss';
-import './components/SpfxCard/styles/Accordion.scss';
-import './components/SpfxCard/styles/animations.scss';
+import './components/SpfxCard/styles/Card.module.scss';
+import './components/SpfxCard/styles/Accordion.module.scss';
+import './components/SpfxCard/styles/animations.module.scss';
 ```
 
 ## 🚀 Quick Start
@@ -111,7 +111,7 @@ export const AdvancedCard: React.FC = () => {
   ];
 
   return (
-    <Card 
+    <Card
       id="advanced-card"
       variant="success"
       allowMaximize={true}
@@ -135,7 +135,7 @@ import { Accordion, Card, Header, Content } from './components/SpfxCard';
 
 export const MyAccordion: React.FC = () => {
   return (
-    <Accordion 
+    <Accordion
       id="settings-accordion"
       allowMultiple={false}
       variant="connected"
@@ -146,7 +146,7 @@ export const MyAccordion: React.FC = () => {
           <p>General configuration options</p>
         </Content>
       </Card>
-      
+
       <Card id="advanced-settings">
         <Header>Advanced Settings</Header>
         <Content>
@@ -247,7 +247,7 @@ The component automatically integrates with SharePoint themes:
 ### Custom Theme Override
 
 ```typescript
-<Card 
+<Card
   theme={{
     primaryColor: '#custom-color',
     backgroundColor: '#custom-bg',
@@ -285,7 +285,7 @@ The component automatically integrates with SharePoint themes:
 
 2. **Enable Performance Mode**:
 ```typescript
-<Card 
+<Card
   performance={{
     debounceToggle: 200,
     memoizeContent: true
@@ -351,11 +351,11 @@ test('card expands and collapses', () => {
   );
 
   const header = screen.getByRole('button');
-  
+
   // Test expand
   fireEvent.click(header);
   expect(screen.getByText('Test Content')).toBeVisible();
-  
+
   // Test collapse
   fireEvent.click(header);
   expect(screen.getByText('Test Content')).not.toBeVisible();
@@ -368,7 +368,7 @@ test('card expands and collapses', () => {
 test('programmatic control works', () => {
   const TestComponent = () => {
     const cardController = useCardController();
-    
+
     return (
       <div>
         <button onClick={() => cardController.expandAll()}>
@@ -383,7 +383,7 @@ test('programmatic control works', () => {
   };
 
   render(<TestComponent />);
-  
+
   fireEvent.click(screen.getByText('Expand All'));
   expect(screen.getByText('Content')).toBeVisible();
 });
@@ -446,7 +446,7 @@ const FormWithValidation = () => {
   const handleSubmit = () => {
     const validationErrors = validateForm();
     setErrors(validationErrors);
-    
+
     // Expand and scroll to first error
     if (Object.keys(validationErrors).length > 0) {
       const firstErrorField = Object.keys(validationErrors)[0];
@@ -460,8 +460,8 @@ const FormWithValidation = () => {
 
   return (
     <Accordion id="form-accordion">
-      <Card 
-        id="form-basic-info" 
+      <Card
+        id="form-basic-info"
         variant={errors.name ? 'error' : 'default'}
       >
         <Header>
@@ -469,7 +469,7 @@ const FormWithValidation = () => {
           {errors.name && <span className="error-indicator">*</span>}
         </Header>
         <Content>
-          <input 
+          <input
             name="name"
             className={errors.name ? 'error' : ''}
           />
@@ -566,7 +566,7 @@ MIT License - see LICENSE file for details.
 ### v1.0.0 (Current)
 - Initial release
 - Full card functionality
-- Accordion support  
+- Accordion support
 - Programmatic control
 - SharePoint theming
 - Accessibility compliance

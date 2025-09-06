@@ -5,14 +5,14 @@
   --spfx-anim-duration-normal: 300ms;
   --spfx-anim-duration-slow: 500ms;
   --spfx-anim-duration-slower: 800ms;
-  
+
   // Easing variables
   --spfx-anim-ease-out: cubic-bezier(0.4, 0, 0.2, 1);
   --spfx-anim-ease-in: cubic-bezier(0.4, 0, 1, 1);
   --spfx-anim-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
   --spfx-anim-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --spfx-anim-ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
-  
+
   // Animation states
   --spfx-anim-play-state: running;
 }
@@ -420,12 +420,12 @@
 // Enhanced highlight with glow
 @keyframes cardGlow {
   0%, 100% {
-    box-shadow: 
+    box-shadow:
       0 2px 4px var(--spfx-card-shadow-color),
       0 0 0 0 rgba(0, 120, 212, 0);
   }
   50% {
-    box-shadow: 
+    box-shadow:
       0 4px 8px var(--spfx-card-shadow-color),
       0 0 0 4px rgba(0, 120, 212, 0.2);
   }
@@ -498,82 +498,82 @@
   &-fade-in {
     animation: cardFadeIn var(--spfx-anim-duration-normal) var(--spfx-anim-ease-out) forwards;
   }
-  
+
   &-fade-out {
     animation: cardFadeOut var(--spfx-anim-duration-normal) var(--spfx-anim-ease-in) forwards;
   }
-  
+
   &-slide-in-left {
     animation: cardSlideInLeft var(--spfx-anim-duration-normal) var(--spfx-anim-ease-out) forwards;
   }
-  
+
   &-slide-in-right {
     animation: cardSlideInRight var(--spfx-anim-duration-normal) var(--spfx-anim-ease-out) forwards;
   }
-  
+
   &-slide-in-up {
     animation: cardSlideInUp var(--spfx-anim-duration-normal) var(--spfx-anim-ease-out) forwards;
   }
-  
+
   &-slide-in-down {
     animation: cardSlideInDown var(--spfx-anim-duration-normal) var(--spfx-anim-ease-out) forwards;
   }
-  
+
   &-scale-in {
     animation: cardScaleIn var(--spfx-anim-duration-normal) var(--spfx-anim-ease-spring) forwards;
   }
-  
+
   &-scale-out {
     animation: cardScaleOut var(--spfx-anim-duration-normal) var(--spfx-anim-ease-in) forwards;
   }
-  
+
   &-rotate-in {
     animation: cardRotateIn var(--spfx-anim-duration-slow) var(--spfx-anim-ease-spring) forwards;
   }
-  
+
   &-highlight {
     animation: cardHighlight var(--spfx-anim-duration-slower) var(--spfx-anim-ease-out);
   }
-  
+
   &-glow {
     animation: cardGlow 2s var(--spfx-anim-ease-in-out) infinite;
   }
-  
+
   &-pulse {
     animation: pulse 2s var(--spfx-anim-ease-in-out) infinite;
   }
-  
+
   &-bounce {
     animation: subtleBounce 0.6s var(--spfx-anim-ease-out);
   }
-  
+
   // Duration modifiers
   &-fast {
     animation-duration: var(--spfx-anim-duration-fast) !important;
   }
-  
+
   &-slow {
     animation-duration: var(--spfx-anim-duration-slow) !important;
   }
-  
+
   &-slower {
     animation-duration: var(--spfx-anim-duration-slower) !important;
   }
-  
+
   // Easing modifiers
   &-ease-spring {
     animation-timing-function: var(--spfx-anim-ease-spring) !important;
   }
-  
+
   &-ease-bounce {
     animation-timing-function: var(--spfx-anim-ease-bounce) !important;
   }
-  
+
   // Animation state modifiers
   &-paused {
     animation-play-state: paused !important;
   }
-  
+
   &-infinite {
     animation-iteration-count: infinite !important;
   }
@@ -584,11 +584,11 @@
   &.hover-lift:hover {
     animation: buttonHover var(--spfx-anim-duration-fast) var(--spfx-anim-ease-out) forwards;
   }
-  
+
   &.hover-glow:hover {
     animation: cardGlow 0.6s var(--spfx-anim-ease-out);
   }
-  
+
   &.hover-bounce:hover {
     animation: subtleBounce 0.6s var(--spfx-anim-ease-out);
   }
@@ -607,7 +607,7 @@
       animation-duration: var(--spfx-anim-duration-fast);
     }
   }
-  
+
   // Disable complex animations on very small screens
   @media (max-width: 480px) {
     .spfx-animate-rotate-in,
@@ -630,19 +630,15 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
-  
+
   // Completely disable decorative animations
   .spfx-animate-glow,
   .spfx-animate-pulse,
   .hover-glow,
-  .hover-bounce,
-  @keyframes shimmer,
-  @keyframes shimmerWave,
-  @keyframes loadingDots,
-  @keyframes pulse {
+  .hover-bounce {
     animation: none !important;
   }
-  
+
   // Keep essential state changes but make them instant
   .spfx-card-content {
     &.expanded,
@@ -651,7 +647,7 @@
       animation: none !important;
     }
   }
-  
+
   .spfx-card-expand-icon {
     transition: transform 0.01ms !important;
   }
@@ -664,7 +660,7 @@
     transition: none !important;
     transform: none !important;
   }
-  
+
   .spfx-card {
     box-shadow: none !important;
     border: 1px solid #000 !important;
@@ -679,13 +675,13 @@
       animation: none !important;
       border: 2px solid Highlight !important;
     }
-    
+
     &.spfx-animate-glow {
       animation: none !important;
       outline: 2px solid Highlight !important;
     }
   }
-  
+
   // Remove complex visual effects
   @keyframes cardHighlight,
   @keyframes cardGlow,
@@ -705,13 +701,13 @@
   &.will-animate {
     will-change: transform, opacity, box-shadow;
   }
-  
+
   &.will-animate-content {
     .spfx-card-content {
       will-change: max-height, opacity, transform;
     }
   }
-  
+
   &.will-animate-maximize {
     will-change: transform, border-radius, box-shadow;
   }
@@ -721,7 +717,7 @@
 .spfx-card {
   &.animation-complete {
     will-change: auto;
-    
+
     .spfx-card-content {
       will-change: auto;
     }
@@ -751,124 +747,6 @@
   }
 }
 
-// ==================== Animation Mixins (for SASS/SCSS usage) ====================
-
-// Mixin for creating entrance animations
-@mixin card-entrance-animation($direction: 'fade', $duration: 300ms, $delay: 0ms) {
-  animation-delay: $delay;
-  animation-duration: $duration;
-  animation-timing-function: var(--spfx-anim-ease-out);
-  animation-fill-mode: forwards;
-  
-  @if $direction == 'fade' {
-    animation-name: cardFadeIn;
-  } @else if $direction == 'slide-left' {
-    animation-name: cardSlideInLeft;
-  } @else if $direction == 'slide-right' {
-    animation-name: cardSlideInRight;
-  } @else if $direction == 'slide-up' {
-    animation-name: cardSlideInUp;
-  } @else if $direction == 'slide-down' {
-    animation-name: cardSlideInDown;
-  } @else if $direction == 'scale' {
-    animation-name: cardScaleIn;
-  } @else if $direction == 'rotate' {
-    animation-name: cardRotateIn;
-  }
-}
-
-// Mixin for creating exit animations
-@mixin card-exit-animation($direction: 'fade', $duration: 250ms) {
-  animation-duration: $duration;
-  animation-timing-function: var(--spfx-anim-ease-in);
-  animation-fill-mode: forwards;
-  
-  @if $direction == 'fade' {
-    animation-name: cardFadeOut;
-  } @else if $direction == 'slide-left' {
-    animation-name: cardSlideOutLeft;
-  } @else if $direction == 'slide-right' {
-    animation-name: cardSlideOutRight;
-  } @else if $direction == 'scale' {
-    animation-name: cardScaleOut;
-  }
-}
-
-// Mixin for content expand/collapse
-@mixin content-toggle-animation($type: 'slide', $duration: 400ms) {
-  .spfx-card-content {
-    overflow: hidden;
-    transition-duration: $duration;
-    transition-timing-function: var(--spfx-anim-ease-out);
-    
-    @if $type == 'slide' {
-      &.expanded {
-        animation: contentSlideExpand $duration var(--spfx-anim-ease-out) forwards;
-      }
-      
-      &.collapsed {
-        animation: contentSlideCollapse $duration var(--spfx-anim-ease-in) forwards;
-      }
-    } @else if $type == 'scale' {
-      &.expanded {
-        animation: contentExpand $duration var(--spfx-anim-ease-out) forwards;
-      }
-      
-      &.collapsed {
-        animation: contentCollapse $duration var(--spfx-anim-ease-in) forwards;
-      }
-    }
-  }
-}
-
-// Mixin for hover effects
-@mixin card-hover-effect($effect: 'lift', $duration: 200ms) {
-  transition: all $duration var(--spfx-anim-ease-out);
-  
-  @if $effect == 'lift' {
-    &:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-    }
-  } @else if $effect == 'scale' {
-    &:hover {
-      transform: scale(1.02);
-    }
-  } @else if $effect == 'glow' {
-    &:hover {
-      box-shadow: 0 0 0 4px rgba(0, 120, 212, 0.2);
-    }
-  } @else if $effect == 'rotate' {
-    &:hover {
-      transform: rotate(1deg);
-    }
-  }
-}
-
-// ==================== CSS Custom Properties for Dynamic Control ====================
-
-// Allow runtime control of animations
-.spfx-card {
-  --card-animation-duration: var(--spfx-anim-duration-normal);
-  --card-animation-easing: var(--spfx-anim-ease-out);
-  --card-animation-delay: 0ms;
-  
-  // Apply custom properties to animations
-  &.spfx-animate-fade-in {
-    animation-duration: var(--card-animation-duration);
-    animation-timing-function: var(--card-animation-easing);
-    animation-delay: var(--card-animation-delay);
-  }
-  
-  .spfx-card-content {
-    --content-animation-duration: var(--spfx-anim-duration-normal);
-    --content-animation-easing: var(--spfx-anim-ease-out);
-    
-    transition-duration: var(--content-animation-duration);
-    transition-timing-function: var(--content-animation-easing);
-  }
-}
-
 // ==================== Theme-based Animation Variations ====================
 
 // Success theme animations
@@ -893,12 +771,12 @@
   }
 }
 
-// Error theme animations  
+// Error theme animations
 .spfx-card-error {
   &.spfx-animate-highlight {
     animation: cardErrorHighlight 0.8s var(--spfx-anim-ease-out);
   }
-  
+
   &.spfx-animate-shake {
     animation: errorShake 0.5s var(--spfx-anim-ease-out);
   }
@@ -936,7 +814,7 @@
   &.spfx-animate-highlight {
     animation: cardWarningHighlight 0.8s var(--spfx-anim-ease-out);
   }
-  
+
   &.spfx-animate-pulse {
     animation: warningPulse 2s var(--spfx-anim-ease-in-out) infinite;
   }
@@ -1058,11 +936,11 @@
   &.complex-entrance {
     animation: cardComplexEntrance 1s var(--spfx-anim-ease-spring) forwards;
   }
-  
+
   &.flip-effect {
     animation: cardFlip 0.6s var(--spfx-anim-ease-out);
   }
-  
+
   &.typewriter-text {
     .spfx-card-header-text {
       overflow: hidden;
@@ -1071,7 +949,7 @@
       animation: typewriter 2s steps(20) forwards;
     }
   }
-  
+
   &.advanced-loading {
     .spfx-card-loading-spinner {
       animation: advancedSpin 1s linear infinite;
@@ -1105,14 +983,14 @@
     transition-duration: 2s !important;
     outline: 1px dashed rgba(255, 0, 0, 0.3) !important;
   }
-  
+
   *:hover {
     outline-color: rgba(0, 255, 0, 0.5) !important;
   }
-  
+
   .spfx-card {
     position: relative;
-    
+
     &::before {
       content: 'CARD: ' attr(data-card-id);
       position: absolute;

@@ -9,7 +9,7 @@ export type HeaderSize = 'compact' | 'regular' | 'large';
 
 export type LoadingType = 'none' | 'spinner' | 'skeleton' | 'shimmer' | 'overlay';
 
-export type ContentPadding = 
+export type ContentPadding =
   | 'none'           // 0px
   | 'compact'        // 8px
   | 'comfortable'    // 16px - default
@@ -18,7 +18,7 @@ export type ContentPadding =
   | string           // custom like "12px 20px"
   | {                // granular control
       top?: string | number;
-      right?: string | number; 
+      right?: string | number;
       bottom?: string | number;
       left?: string | number;
     };
@@ -50,12 +50,12 @@ export interface CardEventData {
   metadata?: Record<string, any>;
 }
 
-export type CardEventType = 
-  | 'expand' 
-  | 'collapse' 
-  | 'maximize' 
-  | 'restore' 
-  | 'contentLoad' 
+export type CardEventType =
+  | 'expand'
+  | 'collapse'
+  | 'maximize'
+  | 'restore'
+  | 'contentLoad'
   | 'programmaticToggle';
 
 // ==================== Animation Types ====================
@@ -126,97 +126,97 @@ export interface CardContextType {
 export interface CardProps {
   /** Unique identifier for the card */
   id: string;
-  
+
   /** Card size variant */
   size?: CardSize;
-  
+
   /** Whether the card is expanded by default */
   defaultExpanded?: boolean;
-  
+
   /** Whether the card can be collapsed/expanded */
   allowExpand?: boolean;
-  
+
   /** Whether the card can be maximized */
   allowMaximize?: boolean;
-  
+
   /** Icon for maximize button */
   maximizeIcon?: string;
-  
+
   /** Icon for restore button */
   restoreIcon?: string;
-  
+
   /** Card header background variant */
   variant?: CardVariant;
-  
+
   /** Header size - affects padding and font size */
   headerSize?: HeaderSize;
-  
+
   /** Custom background color for header (overrides variant) */
   customHeaderColor?: string;
-  
+
   /** Loading state */
   loading?: boolean;
-  
+
   /** Loading type */
   loadingType?: LoadingType;
-  
+
   /** Loading message */
   loadingMessage?: string;
-  
+
   /** Enable lazy loading - content loads only when expanded */
   lazyLoad?: boolean;
-  
+
   /** Enable persistence of card state */
   persist?: boolean;
-  
+
   /** Custom storage key for persistence */
   persistKey?: string;
-  
+
   /** Highlight border on programmatic changes */
   highlightOnProgrammaticChange?: boolean;
-  
+
   /** Duration of highlight effect in milliseconds */
   highlightDuration?: number;
-  
+
   /** Custom highlight color */
   highlightColor?: string;
-  
+
   /** Animation configuration */
   animation?: AnimationConfig;
-  
+
   /** Callback when card is expanded */
   onExpand?: (data: CardEventData) => void;
-  
+
   /** Callback when card is collapsed */
   onCollapse?: (data: CardEventData) => void;
-  
+
   /** Callback when card is maximized */
   onMaximize?: (data: CardEventData) => void;
-  
+
   /** Callback when card is restored */
   onRestore?: (data: CardEventData) => void;
-  
+
   /** Callback when card data is loaded */
   onDataLoaded?: (data: CardEventData) => void;
-  
+
   /** Callback when content is loaded for first time (lazy loading) */
   onContentLoad?: (data: CardEventData) => void;
-  
+
   /** Global event listener for card events */
   onCardEvent?: (type: CardEventType, data: CardEventData) => void;
-  
+
   /** Custom CSS class */
   className?: string;
-  
+
   /** Custom styles */
   style?: CSSProperties;
-  
+
   /** Card elevation/shadow level */
   elevation?: 1 | 2 | 3 | 4 | 5;
-  
+
   /** Whether card is disabled */
   disabled?: boolean;
-  
+
   /** Custom theme overrides */
   theme?: {
     primaryColor?: string;
@@ -224,7 +224,7 @@ export interface CardProps {
     textColor?: string;
     borderColor?: string;
   };
-  
+
   /** Accessibility options */
   accessibility?: {
     expandButtonLabel?: string;
@@ -236,7 +236,7 @@ export interface CardProps {
     labelledBy?: string;
     describedBy?: string;
   };
-  
+
   /** Performance options */
   performance?: {
     debounceToggle?: number;
@@ -244,7 +244,7 @@ export interface CardProps {
     preloadThreshold?: number;
     memoizeContent?: boolean;
   };
-  
+
   /** Children components */
   children: ReactNode;
 }
@@ -312,34 +312,34 @@ export interface LoadingStateProps {
 export interface AccordionProps {
   /** Unique identifier for the accordion */
   id: string;
-  
+
   /** Allow multiple cards to be expanded simultaneously */
   allowMultiple?: boolean;
-  
+
   /** Cards that should be expanded by default */
   defaultExpanded?: string[];
-  
+
   /** Remove spacing between cards */
   spacing?: 'none' | 'compact' | 'regular';
-  
+
   /** Visual connection between cards */
   variant?: 'default' | 'connected' | 'outlined';
-  
+
   /** Enable persistence of accordion state */
   persist?: boolean;
-  
+
   /** Custom storage key for persistence */
   persistKey?: string;
-  
+
   /** Callback when card states change */
   onCardChange?: (expandedCards: string[]) => void;
-  
+
   /** Custom CSS class */
   className?: string;
-  
+
   /** Custom styles */
   style?: CSSProperties;
-  
+
   /** Children - should be Card components */
   children: ReactNode;
 }
@@ -353,34 +353,34 @@ export interface CardController {
   toggleCard(id: string, highlight?: boolean): boolean;
   expandCard(id: string, highlight?: boolean): boolean;
   collapseCard(id: string, highlight?: boolean): boolean;
-  
+
   // Maximize operations
   maximizeCard(id: string): boolean;
   restoreCard(id: string): boolean;
   toggleMaximize(id: string): boolean;
   isCardMaximized(id: string): boolean;
-  
+
   // Scroll operations
   scrollToCard(id: string, options?: ScrollOptions): Promise<boolean>;
   expandAndScrollTo(id: string, options?: ScrollOptions): Promise<boolean>;
-  
+
   // State management
   getCardStates(): CardState[];
   getCardState(id: string): CardState | null;
   highlightCard(id: string): boolean;
-  
+
   // Persistence
   persistStates(): void;
   restoreStates(): void;
   clearStoredStates(): void;
-  
+
   // Subscriptions
   subscribe(cardId: string, callback: (action: string, data?: any) => void): () => void;
   subscribeGlobal(callback: (action: string, cardId: string, data?: any) => void): () => void;
-  
+
   // Batch operations
   batchOperation(operations: Array<{ cardId: string; action: 'expand' | 'collapse' | 'toggle' | 'maximize' | 'restore' }>, highlight?: boolean): Promise<boolean[]>;
-  
+
   // Registration (internal use)
   registerCard(registration: CardRegistration): void;
   unregisterCard(id: string): void;
@@ -414,8 +414,27 @@ export interface CardControllerHook {
   maximizeCard: (id: string) => boolean;
   restoreCard: (id: string) => boolean;
   expandAndScrollTo: (id: string, options?: ScrollOptions) => Promise<boolean>;
+  scrollToCard: (id: string, options?: ScrollOptions) => Promise<boolean>;
+  toggleMaximize: (id: string) => boolean;
+  isCardMaximized: (id: string) => boolean;
+  batchOperation: (
+    operations: Array<{
+      cardId: string;
+      action: 'expand' | 'collapse' | 'toggle' | 'maximize' | 'restore';
+    }>,
+    highlight?: boolean
+  ) => Promise<boolean[]>;
   getCardStates: () => CardState[];
   getCardState: (id: string) => CardState | null;
+  highlightCard: (id: string) => boolean;
+  subscribe: (cardId: string, callback: (action: string, data?: any) => void) => () => void;
+  subscribeGlobal: (callback: (action: string, cardId: string, data?: any) => void) => () => void;
+  persistStates: () => void;
+  restoreStates: () => void;
+  clearStoredStates: () => void;
+  getStats: () => any;
+  getRegisteredCardIds: () => string[];
+  isCardRegistered: (id: string) => boolean;
 }
 
 // ==================== Error Types ====================

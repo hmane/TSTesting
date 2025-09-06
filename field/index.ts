@@ -2,10 +2,10 @@
 export { Field } from './Field';
 
 // Child components
-export { Label } from './components/Label';
 export { Description } from './components/Description';
 export { Error } from './components/Error'; // Enhanced with RHF
 export { FieldGroup } from './components/FieldGroup';
+export { Label } from './components/Label';
 
 // Context and hooks
 export { FieldContext, useFieldContext } from './Field';
@@ -19,45 +19,22 @@ export { focusController } from './controller/FocusController';
 
 // Utility functions
 export {
-  generateFieldClasses,
-  generateFieldStyles,
-  hasLabelComponent,
-  getReactProps,
-  scanElementValidation,
-  findFieldElements,
-  extractErrorMessage,
-  focusFirstElement,
-  scrollToElement,
-  debounce,
-  generateFieldId,
+  debounce, extractErrorMessage, findFieldElements, focusFirstElement, generateFieldClasses, generateFieldId, generateFieldStyles, getReactProps, hasLabelComponent, scanElementValidation, scrollToElement
 } from './utils/fieldUtils';
 
 // TypeScript types (enhanced with RHF)
 export type {
-  FieldProps,
-  LabelProps,
   DescriptionProps,
-  ErrorProps,
-  FieldGroupProps,
-  FieldContextType,
-  FieldGroupContextType,
-  ValidationState,
-  FieldRegistration,
-  ValidationResult,
-  FieldValidationState,
-  FieldValidationMap,
-  FieldRenderProps,
-  LayoutType,
-  LabelWidthType,
-  SpacingType,
+  ErrorProps, FieldContextType,
+  FieldGroupContextType, FieldGroupProps, FieldProps, FieldRegistration, FieldRenderProps, FieldValidationMap, FieldValidationState, LabelProps, LabelWidthType, LayoutType, SpacingType, ValidationResult, ValidationState
 } from './Field.types';
 
 // Compound component pattern
 import { Field as FieldComponent } from './Field';
-import { Label } from './components/Label';
 import { Description } from './components/Description';
 import { Error } from './components/Error';
 import { FieldGroup } from './components/FieldGroup';
+import { Label } from './components/Label';
 
 // Create compound component
 const CompoundField = FieldComponent as typeof FieldComponent & {

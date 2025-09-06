@@ -1,16 +1,12 @@
-import { useEffect, useRef, useCallback } from 'react';
+import * as React from 'react';
+import { useCallback, useEffect, useRef } from 'react';
+import { CardState } from '../Card.types';
 import { StorageService } from '../services/StorageService';
-import { CardState } from '../types/Card.types';
-import React from 'react';
 /**
  * Hook for managing card persistence
  * Handles automatic saving and restoring of card states
  */
-export const usePersistence = (
-  cardId: string,
-  enabled: boolean = false,
-  persistKey?: string
-) => {
+export const usePersistence = (cardId: string, enabled: boolean = false, persistKey?: string) => {
   const storageService = StorageService.getInstance();
   const enabledRef = useRef(enabled);
   const cardIdRef = useRef(cardId);
@@ -24,24 +20,28 @@ export const usePersistence = (
   }, [enabled, cardId, persistKey]);
 
   // Save card state
-  const saveCardState = useCallback((state: CardState) => {
-    if (!enabledRef.current) return false;
+  const saveCardState = useCallback(
+    (state: CardState) => {
+      if (!enabledRef.current) return false;
 
-    try {
-      const key = persistKeyRef.current || 'default';
-      const existingStates = storageService.loadData<Record<string, CardState>>(`card-states-${key}`, {});
-      
-      existingStates[cardIdRef.current] = {
-        ...state,
-        lastUpdated: Date.now()
-      };
+      try {
+        const key = persistKeyRef.current || 'default';
+        const existingStates =
+          storageService.loadData<Record<string, CardState>>(`card-states-${key}`, {}) || {};
 
-      return storageService.saveData(`card-states-${key}`, existingStates);
-    } catch (error) {
-      console.error('[SpfxCard] Failed to save card state:', error);
-      return false;
-    }
-  }, [storageService]);
+        existingStates[cardIdRef.current] = {
+          ...state,
+          lastUpdated: Date.now(),
+        };
+
+        return storageService.saveData(`card-states-${key}`, existingStates);
+      } catch (error) {
+        console.error('[SpfxCard] Failed to save card state:', error);
+        return false;
+      }
+    },
+    [storageService]
+  );
 
   // Load card state
   const loadCardState = useCallback((): CardState | null => {
@@ -49,8 +49,9 @@ export const usePersistence = (
 
     try {
       const key = persistKeyRef.current || 'default';
-      const existingStates = storageService.loadData<Record<string, CardState>>(`card-states-${key}`, {});
-      
+      const existingStates =
+        storageService.loadData<Record<string, CardState>>(`card-states-${key}`, {}) || {};
+
       return existingStates[cardIdRef.current] || null;
     } catch (error) {
       console.error('[SpfxCard] Failed to load card state:', error);
@@ -64,8 +65,9 @@ export const usePersistence = (
 
     try {
       const key = persistKeyRef.current || 'default';
-      const existingStates = storageService.loadData<Record<string, CardState>>(`card-states-${key}`, {});
-      
+      const existingStates =
+        storageService.loadData<Record<string, CardState>>(`card-states-${key}`, {}) || {};
+
       delete existingStates[cardIdRef.current];
 
       return storageService.saveData(`card-states-${key}`, existingStates);
@@ -79,7 +81,7 @@ export const usePersistence = (
     saveCardState,
     loadCardState,
     clearCardState,
-    isEnabled: enabled
+    isEnabled: enabled,
   };
 };
 
@@ -104,17 +106,20 @@ export const useAccordionPersistence = (
   }, [enabled, accordionId, persistKey]);
 
   // Save accordion state
-  const saveAccordionState = useCallback((expandedCards: string[]) => {
-    if (!enabledRef.current) return false;
+  const saveAccordionState = useCallback(
+    (expandedCards: string[]) => {
+      if (!enabledRef.current) return false;
 
-    try {
-      const key = persistKeyRef.current || accordionIdRef.current;
-      return storageService.saveAccordionStates(key, expandedCards);
-    } catch (error) {
-      console.error('[SpfxCard] Failed to save accordion state:', error);
-      return false;
-    }
-  }, [storageService]);
+      try {
+        const key = persistKeyRef.current || accordionIdRef.current;
+        return storageService.saveAccordionStates(key, expandedCards);
+      } catch (error) {
+        console.error('[SpfxCard] Failed to save accordion state:', error);
+        return false;
+      }
+    },
+    [storageService]
+  );
 
   // Load accordion state
   const loadAccordionState = useCallback((): string[] => {
@@ -146,7 +151,7 @@ export const useAccordionPersistence = (
     saveAccordionState,
     loadAccordionState,
     clearAccordionState,
-    isEnabled: enabled
+    isEnabled: enabled,
   };
 };
 
@@ -256,7 +261,7 @@ export const useStorageStats = (updateIntervalMs: number = 5000) => {
 
   useEffect(() => {
     const storageService = StorageService.getInstance();
-    
+
     const updateStats = () => {
       try {
         setStats(storageService.getStats());
@@ -291,14 +296,17 @@ export const useBulkPersistence = () => {
     }
   }, [storageService]);
 
-  const importAllData = useCallback((data: Record<string, any>) => {
-    try {
-      return storageService.importData(data);
-    } catch (error) {
-      console.error('[SpfxCard] Failed to import data:', error);
-      return false;
-    }
-  }, [storageService]);
+  const importAllData = useCallback(
+    (data: Record<string, any>) => {
+      try {
+        return storageService.importData(data);
+      } catch (error) {
+        console.error('[SpfxCard] Failed to import data:', error);
+        return false;
+      }
+    },
+    [storageService]
+  );
 
   const clearAllData = useCallback(() => {
     try {
@@ -312,7 +320,7 @@ export const useBulkPersistence = () => {
   return {
     exportAllData,
     importAllData,
-    clearAllData
+    clearAllData,
   };
 };
 
@@ -344,7 +352,7 @@ export const useCrossTabSync = (
           key: event.key,
           newValue,
           oldValue,
-          url: event.url
+          url: event.url,
         });
       } catch (error) {
         console.error('[SpfxCard] Failed to parse storage change:', error);
@@ -370,28 +378,31 @@ export const useValidatedPersistence = <T>(
 ) => {
   const storageService = StorageService.getInstance();
 
-  const saveData = useCallback((data: T) => {
-    if (!enabled) return false;
+  const saveData = useCallback(
+    (data: T) => {
+      if (!enabled) return false;
 
-    try {
-      if (!validator(data)) {
-        console.warn('[SpfxCard] Data validation failed, not saving');
+      try {
+        if (!validator(data)) {
+          console.warn('[SpfxCard] Data validation failed, not saving');
+          return false;
+        }
+
+        return storageService.saveData(key, data);
+      } catch (error) {
+        console.error('[SpfxCard] Failed to save validated data:', error);
         return false;
       }
-
-      return storageService.saveData(key, data);
-    } catch (error) {
-      console.error('[SpfxCard] Failed to save validated data:', error);
-      return false;
-    }
-  }, [enabled, key, validator, storageService]);
+    },
+    [enabled, key, validator, storageService]
+  );
 
   const loadData = useCallback((): T => {
     if (!enabled) return defaultValue;
 
     try {
       const stored = storageService.loadData(key);
-      
+
       if (stored && validator(stored)) {
         return stored;
       } else {
@@ -418,6 +429,6 @@ export const useValidatedPersistence = <T>(
   return {
     saveData,
     loadData,
-    clearData
+    clearData,
   };
 };

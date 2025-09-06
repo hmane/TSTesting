@@ -1,9 +1,10 @@
-import { SPFI } from "@pnp/sp";
-import "@pnp/sp/webs";
-import "@pnp/sp/lists";
-import "@pnp/sp/items";
+import { SPFI } from '@pnp/sp';
+import '@pnp/sp/batching';
+import '@pnp/sp/items';
+import '@pnp/sp/lists';
+import '@pnp/sp/webs';
 
-// Interfaces
+// Interfaces (keeping your existing ones with minor additions)
 export interface IListItemFormUpdateValue {
   FieldName: string;
   FieldValue: string;
@@ -11,12 +12,18 @@ export interface IListItemFormUpdateValue {
 
 export interface IBatchOperation {
   listName: string;
-  operationType: 'add' | 'update' | 'delete' | 'addValidateUpdateItemUsingPath' | 'validateUpdateListItem';
+  operationType:
+    | 'add'
+    | 'update'
+    | 'delete'
+    | 'addValidateUpdateItemUsingPath'
+    | 'validateUpdateListItem';
   itemId?: number;
   data?: any;
   formValues?: IListItemFormUpdateValue[];
   path?: string;
   eTag?: string;
+  operationId?: string;
 }
 
 export interface IOperationResult {
@@ -27,6 +34,7 @@ export interface IOperationResult {
   error?: string;
   retryAttempts?: number;
   itemId?: number;
+  operationId?: string;
 }
 
 export interface IBatchError {
@@ -34,6 +42,7 @@ export interface IBatchError {
   operationType: string;
   error: string;
   itemId?: number;
+  operationId?: string;
 }
 
 export interface IBatchResult {
@@ -55,15 +64,27 @@ export interface IRetryConfig {
 export interface IBatchBuilderConfig {
   retryConfig?: IRetryConfig;
   batchSize?: number;
+  enableConcurrency?: boolean;
 }
 
-// List Operation Builder for Fluent API
+// Internal interface for tracking batch operations
+interface IBatchedOperationTracker {
+  operation: IBatchOperation;
+  resultContainer: { result?: any; error?: any };
+}
+
+// List Operation Builder
 class ListOperationBuilder {
   private listName: string;
   private operations: IBatchOperation[] = [];
+  private operationCounter = 0;
 
   constructor(listName: string) {
     this.listName = listName;
+  }
+
+  private generateOperationId(): string {
+    return `${this.listName}_${this.operationCounter++}_${Date.now()}`;
   }
 
   /**
@@ -74,7 +95,8 @@ class ListOperationBuilder {
     this.operations.push({
       listName: this.listName,
       operationType: 'add',
-      data
+      data,
+      operationId: this.generateOperationId(),
     });
     return this;
   }
@@ -91,7 +113,8 @@ class ListOperationBuilder {
       operationType: 'update',
       itemId,
       data,
-      eTag
+      eTag,
+      operationId: this.generateOperationId(),
     });
     return this;
   }
@@ -106,7 +129,8 @@ class ListOperationBuilder {
       listName: this.listName,
       operationType: 'delete',
       itemId,
-      eTag
+      eTag,
+      operationId: this.generateOperationId(),
     });
     return this;
   }
@@ -121,7 +145,8 @@ class ListOperationBuilder {
       listName: this.listName,
       operationType: 'addValidateUpdateItemUsingPath',
       formValues,
-      path
+      path,
+      operationId: this.generateOperationId(),
     });
     return this;
   }
@@ -136,7 +161,8 @@ class ListOperationBuilder {
       listName: this.listName,
       operationType: 'validateUpdateListItem',
       itemId,
-      formValues
+      formValues,
+      operationId: this.generateOperationId(),
     });
     return this;
   }
@@ -156,14 +182,15 @@ export class BatchBuilder {
   constructor(sp: SPFI, config: IBatchBuilderConfig = {}) {
     this.sp = sp;
     this.config = {
-      batchSize: 1000, // SharePoint default limit
+      batchSize: 100,
+      enableConcurrency: false,
       retryConfig: {
         enabled: true,
         maxRetries: 3,
         retryDelay: 1000,
-        retryableErrors: ['timeout', 'network', '503', '502', '429']
+        retryableErrors: ['timeout', 'network', '503', '502', '429', 'throttled'],
       },
-      ...config
+      ...config,
     };
   }
 
@@ -198,7 +225,7 @@ export class BatchBuilder {
         successfulOperations: 0,
         failedOperations: 0,
         results: [],
-        errors: []
+        errors: [],
       };
     }
 
@@ -208,27 +235,54 @@ export class BatchBuilder {
       successfulOperations: 0,
       failedOperations: 0,
       results: [],
-      errors: []
+      errors: [],
     };
 
     // Split operations into batches respecting SharePoint limits
     const batches = this.splitIntoBatches(this.operations);
 
-    for (const batch of batches) {
-      try {
-        const batchResult = await this.executeBatch(batch);
-        result.results.push(...batchResult.results);
-        result.errors.push(...batchResult.errors);
-      } catch (error) {
-        // Handle batch-level errors
-        batch.forEach(op => {
-          result.errors.push({
-            listName: op.listName,
-            operationType: op.operationType,
-            error: error instanceof Error ? error.message : 'Unknown batch error',
-            itemId: op.itemId
+    // Execute batches sequentially or with limited concurrency
+    if (this.config.enableConcurrency) {
+      const batchPromises = batches.map(batch => this.executeBatch(batch));
+      const batchResults = await Promise.allSettled(batchPromises);
+
+      batchResults.forEach((batchResult, index) => {
+        if (batchResult.status === 'fulfilled') {
+          result.results.push(...batchResult.value.results);
+          result.errors.push(...batchResult.value.errors);
+        } else {
+          // Handle batch-level failures
+          const batch = batches[index];
+          batch.forEach(op => {
+            result.errors.push({
+              listName: op.listName,
+              operationType: op.operationType,
+              error: batchResult.reason?.message || 'Batch execution failed',
+              itemId: op.itemId,
+              operationId: op.operationId,
+            });
           });
-        });
+        }
+      });
+    } else {
+      // Sequential execution for better reliability
+      for (const batch of batches) {
+        try {
+          const batchResult = await this.executeBatch(batch);
+          result.results.push(...batchResult.results);
+          result.errors.push(...batchResult.errors);
+        } catch (error) {
+          // Handle batch-level errors
+          batch.forEach(op => {
+            result.errors.push({
+              listName: op.listName,
+              operationType: op.operationType,
+              error: error instanceof Error ? error.message : 'Unknown batch error',
+              itemId: op.itemId,
+              operationId: op.operationId,
+            });
+          });
+        }
       }
     }
 
@@ -246,7 +300,7 @@ export class BatchBuilder {
 
   private splitIntoBatches(operations: IBatchOperation[]): IBatchOperation[][] {
     const batches: IBatchOperation[][] = [];
-    const batchSize = this.config.batchSize || 1000;
+    const batchSize = this.config.batchSize || 100;
 
     for (let i = 0; i < operations.length; i += batchSize) {
       batches.push(operations.slice(i, i + batchSize));
@@ -255,157 +309,240 @@ export class BatchBuilder {
     return batches;
   }
 
-  private async executeBatch(operations: IBatchOperation[]): Promise<{ results: IOperationResult[], errors: IBatchError[] }> {
+  private async executeBatch(
+    operations: IBatchOperation[]
+  ): Promise<{ results: IOperationResult[]; errors: IBatchError[] }> {
     const results: IOperationResult[] = [];
     const errors: IBatchError[] = [];
 
-    const batch = this.sp.web.createBatch();
-
-    const promises = operations.map(async (operation) => {
-      return this.executeOperation(operation, batch);
-    });
-
     try {
-      await batch.execute();
-      const operationResults = await Promise.allSettled(promises);
-      
-      operationResults.forEach((promiseResult, index) => {
-        const operation = operations[index];
-        
-        if (promiseResult.status === 'fulfilled') {
-          results.push({
-            operationType: operation.operationType,
-            listName: operation.listName,
-            success: true,
-            data: promiseResult.value,
-            itemId: operation.itemId
-          });
-        } else {
-          const errorMessage = promiseResult.reason instanceof Error 
-            ? promiseResult.reason.message 
-            : 'Unknown error';
-          
+      // Create batched SP instance using the correct PnP.js v3+ pattern
+      const [batchedSP, execute] = this.sp.batched();
+      const operationTrackers: IBatchedOperationTracker[] = [];
+
+      // Add all operations to batch using .then() syntax
+      for (const operation of operations) {
+        try {
+          const tracker: IBatchedOperationTracker = {
+            operation,
+            resultContainer: {},
+          };
+
+          this.addOperationToBatch(operation, batchedSP, tracker.resultContainer);
+          operationTrackers.push(tracker);
+        } catch (error) {
+          // Handle immediate errors (like validation failures)
+          const errorMessage =
+            error instanceof Error ? error.message : 'Failed to add operation to batch';
           results.push({
             operationType: operation.operationType,
             listName: operation.listName,
             success: false,
             error: errorMessage,
-            itemId: operation.itemId
+            itemId: operation.itemId,
+            operationId: operation.operationId,
+          });
+          errors.push({
+            listName: operation.listName,
+            operationType: operation.operationType,
+            error: errorMessage,
+            itemId: operation.itemId,
+            operationId: operation.operationId,
+          });
+        }
+      }
+
+      // Execute the entire batch
+      await execute();
+
+      // Process results after batch execution
+      for (const tracker of operationTrackers) {
+        const { operation, resultContainer } = tracker;
+
+        if (resultContainer.error) {
+          const errorMessage =
+            resultContainer.error instanceof Error
+              ? resultContainer.error.message
+              : 'Operation failed';
+
+          results.push({
+            operationType: operation.operationType,
+            listName: operation.listName,
+            success: false,
+            error: errorMessage,
+            itemId: operation.itemId,
+            operationId: operation.operationId,
           });
 
           errors.push({
             listName: operation.listName,
             operationType: operation.operationType,
             error: errorMessage,
-            itemId: operation.itemId
+            itemId: operation.itemId,
+            operationId: operation.operationId,
+          });
+        } else {
+          results.push({
+            operationType: operation.operationType,
+            listName: operation.listName,
+            success: true,
+            data: resultContainer.result,
+            itemId: operation.itemId,
+            operationId: operation.operationId,
           });
         }
-      });
+      }
     } catch (batchError) {
       // Handle batch execution errors
-      operations.forEach(operation => {
-        const errorMessage = batchError instanceof Error 
-          ? batchError.message 
-          : 'Batch execution failed';
-        
+      const batchErrorMessage =
+        batchError instanceof Error ? batchError.message : 'Batch execution failed';
+
+      for (const operation of operations) {
         results.push({
           operationType: operation.operationType,
           listName: operation.listName,
           success: false,
-          error: errorMessage,
-          itemId: operation.itemId
+          error: batchErrorMessage,
+          itemId: operation.itemId,
+          operationId: operation.operationId,
         });
 
         errors.push({
           listName: operation.listName,
           operationType: operation.operationType,
-          error: errorMessage,
-          itemId: operation.itemId
+          error: batchErrorMessage,
+          itemId: operation.itemId,
+          operationId: operation.operationId,
         });
-      });
+      }
     }
 
     return { results, errors };
   }
 
-  private async executeOperation(operation: IBatchOperation, batch: any): Promise<any> {
-    const list = this.sp.web.lists.getByTitle(operation.listName);
+  private addOperationToBatch(
+    operation: IBatchOperation,
+    batchedSP: SPFI,
+    resultContainer: { result?: any; error?: any }
+  ): void {
+    const list = batchedSP.web.lists.getByTitle(operation.listName);
 
-    try {
-      switch (operation.operationType) {
-        case 'add':
-          return await list.items.inBatch(batch).add(operation.data);
-
-        case 'update':
-          if (!operation.itemId) {
-            throw new Error('Item ID required for update operation');
+    switch (operation.operationType) {
+      case 'add': {
+        if (!operation.data) {
+          throw new Error('Data required for add operation');
+        }
+        list.items.add(operation.data).then(
+          result => {
+            resultContainer.result = result;
+          },
+          error => {
+            resultContainer.error = error;
           }
-          const updateArgs: any[] = [operation.data];
-          if (operation.eTag) {
-            updateArgs.push(operation.eTag);
-          }
-          return await list.items.getById(operation.itemId).inBatch(batch).update(...updateArgs);
-
-        case 'delete':
-          if (!operation.itemId) {
-            throw new Error('Item ID required for delete operation');
-          }
-          const deleteArgs: any[] = [];
-          if (operation.eTag) {
-            deleteArgs.push(operation.eTag);
-          }
-          return await list.items.getById(operation.itemId).inBatch(batch).delete(...deleteArgs);
-
-        case 'addValidateUpdateItemUsingPath':
-          if (!operation.formValues || !operation.path) {
-            throw new Error('Form values and path required for addValidateUpdateItemUsingPath');
-          }
-          return await list.inBatch(batch).addValidateUpdateItemUsingPath(operation.formValues, operation.path);
-
-        case 'validateUpdateListItem':
-          if (!operation.itemId || !operation.formValues) {
-            throw new Error('Item ID and form values required for validateUpdateListItem');
-          }
-          return await list.items.getById(operation.itemId).inBatch(batch).validateUpdateListItem(operation.formValues);
-
-        default:
-          throw new Error(`Unsupported operation type: ${operation.operationType}`);
+        );
+        break;
       }
-    } catch (error) {
-      if (this.config.retryConfig?.enabled && this.shouldRetry(error)) {
-        return this.retryOperation(operation, batch);
+
+      case 'update': {
+        if (!operation.itemId || !operation.data) {
+          throw new Error('Item ID and data required for update operation');
+        }
+        const updatePromise = operation.eTag
+          ? list.items.getById(operation.itemId).update(operation.data, operation.eTag)
+          : list.items.getById(operation.itemId).update(operation.data);
+
+        updatePromise.then(
+          result => {
+            resultContainer.result = result;
+          },
+          error => {
+            resultContainer.error = error;
+          }
+        );
+        break;
       }
-      throw error;
+
+      case 'delete': {
+        if (!operation.itemId) {
+          throw new Error('Item ID required for delete operation');
+        }
+        const deletePromise = operation.eTag
+          ? list.items.getById(operation.itemId).delete(operation.eTag)
+          : list.items.getById(operation.itemId).delete();
+
+        deletePromise.then(
+          result => {
+            resultContainer.result = result;
+          },
+          error => {
+            resultContainer.error = error;
+          }
+        );
+        break;
+      }
+
+      case 'addValidateUpdateItemUsingPath': {
+        if (!operation.formValues || !operation.path) {
+          throw new Error('Form values and path required for addValidateUpdateItemUsingPath');
+        }
+        list.addValidateUpdateItemUsingPath(operation.formValues, operation.path).then(
+          result => {
+            resultContainer.result = result;
+          },
+          error => {
+            resultContainer.error = error;
+          }
+        );
+        break;
+      }
+
+      case 'validateUpdateListItem': {
+        if (!operation.itemId || !operation.formValues) {
+          throw new Error('Item ID and form values required for validateUpdateListItem');
+        }
+        list.items
+          .getById(operation.itemId)
+          .validateUpdateListItem(operation.formValues)
+          .then(
+            result => {
+              resultContainer.result = result;
+            },
+            error => {
+              resultContainer.error = error;
+            }
+          );
+        break;
+      }
+
+      default:
+        throw new Error(`Unsupported operation type: ${operation.operationType}`);
     }
   }
 
   private shouldRetry(error: any): boolean {
     if (!this.config.retryConfig?.enabled) return false;
-    
+
     const errorString = error?.message?.toLowerCase() || '';
     const retryableErrors = this.config.retryConfig.retryableErrors || [];
-    
-    return retryableErrors.some(retryableError => errorString.includes(retryableError.toLowerCase()));
+
+    return retryableErrors.some(retryableError =>
+      errorString.includes(retryableError.toLowerCase())
+    );
   }
 
-  private async retryOperation(operation: IBatchOperation, batch: any, attempt: number = 1): Promise<any> {
-    const maxRetries = this.config.retryConfig?.maxRetries || 3;
-    const retryDelay = this.config.retryConfig?.retryDelay || 1000;
+  /**
+   * Get current configuration
+   */
+  getConfig(): IBatchBuilderConfig {
+    return { ...this.config };
+  }
 
-    if (attempt > maxRetries) {
-      throw new Error(`Operation failed after ${maxRetries} retry attempts`);
-    }
-
-    await new Promise(resolve => setTimeout(resolve, retryDelay * attempt));
-
-    try {
-      return await this.executeOperation(operation, batch);
-    } catch (error) {
-      if (this.shouldRetry(error)) {
-        return this.retryOperation(operation, batch, attempt + 1);
-      }
-      throw error;
-    }
+  /**
+   * Update configuration
+   */
+  updateConfig(config: Partial<IBatchBuilderConfig>): this {
+    this.config = { ...this.config, ...config };
+    return this;
   }
 }
 

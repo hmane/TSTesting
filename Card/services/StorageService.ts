@@ -1,4 +1,4 @@
-import { CardState, PersistedCardState, StorageConfig } from '../types/Card.types';
+import { CardState, PersistedCardState, StorageConfig } from '../Card.types';
 import { STORAGE_KEYS, ERROR_MESSAGES, VALIDATION } from '../utils/constants';
 
 /**
@@ -17,7 +17,7 @@ export class StorageService {
       namespace: config?.namespace || 'default',
       expiration: config?.expiration || (7 * 24 * 60 * 60 * 1000) // 7 days
     };
-    
+
     this.initializeStorage();
   }
 
@@ -93,7 +93,7 @@ export class StorageService {
 
       const key = this.generateKey(STORAGE_KEYS.CARD_STATES);
       this.storage.setItem(key, JSON.stringify(persistedData));
-      
+
       return true;
     } catch (error) {
       console.error('[SpfxCard] Failed to save card states:', error);
@@ -112,13 +112,13 @@ export class StorageService {
     try {
       const key = this.generateKey(STORAGE_KEYS.CARD_STATES);
       const stored = this.storage.getItem(key);
-      
+
       if (!stored) {
         return {};
       }
 
       const persistedData: PersistedCardState = JSON.parse(stored);
-      
+
       // Check if data is expired
       if (this.isExpired(persistedData.timestamp)) {
         this.removeCardStates();
@@ -133,7 +133,7 @@ export class StorageService {
       }
 
       return persistedData.cardStates || {};
-      
+
     } catch (error) {
       console.error('[SpfxCard] Failed to load card states:', error);
       return {};
@@ -155,7 +155,7 @@ export class StorageService {
         timestamp: Date.now(),
         version: '1.0.0'
       };
-      
+
       this.storage.setItem(key, JSON.stringify(data));
       return true;
     } catch (error) {
@@ -175,20 +175,20 @@ export class StorageService {
     try {
       const key = this.generateKey(`${STORAGE_KEYS.ACCORDION_STATES}-${accordionId}`);
       const stored = this.storage.getItem(key);
-      
+
       if (!stored) {
         return [];
       }
 
       const data = JSON.parse(stored);
-      
+
       if (this.isExpired(data.timestamp)) {
         this.removeAccordionStates(accordionId);
         return [];
       }
 
       return data.expandedCards || [];
-      
+
     } catch (error) {
       console.error('[SpfxCard] Failed to load accordion states:', error);
       return [];
@@ -210,7 +210,7 @@ export class StorageService {
         timestamp: Date.now(),
         version: '1.0.0'
       };
-      
+
       this.storage.setItem(storageKey, JSON.stringify(wrappedData));
       return true;
     } catch (error) {
@@ -230,20 +230,20 @@ export class StorageService {
     try {
       const storageKey = this.generateKey(key);
       const stored = this.storage.getItem(storageKey);
-      
+
       if (!stored) {
         return defaultValue;
       }
 
       const wrappedData = JSON.parse(stored);
-      
+
       if (this.isExpired(wrappedData.timestamp)) {
         this.removeData(key);
         return defaultValue;
       }
 
       return wrappedData.data;
-      
+
     } catch (error) {
       console.error(`[SpfxCard] Failed to load data for key ${key}:`, error);
       return defaultValue;
@@ -326,7 +326,7 @@ export class StorageService {
 
       // Remove found keys
       keysToRemove.forEach(key => this.storage!.removeItem(key));
-      
+
       return true;
     } catch (error) {
       console.error('[SpfxCard] Failed to clear all data:', error);
@@ -414,7 +414,7 @@ export class StorageService {
 
     if (this.storage) {
       const prefix = `${this.config.prefix}-${this.config.namespace}-`;
-      
+
       for (let i = 0; i < this.storage.length; i++) {
         const key = this.storage.key(i);
         if (key && key.startsWith(prefix)) {
@@ -488,7 +488,7 @@ export class StorageService {
         const fullKey = this.generateKey(shortKey);
         this.storage!.setItem(fullKey, JSON.stringify(value));
       });
-      
+
       return true;
     } catch (error) {
       console.error('[SpfxCard] Error importing data:', error);

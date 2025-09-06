@@ -1,20 +1,26 @@
-import React, { useEffect, useRef, useMemo, useCallback, createContext, useContext } from 'react';
-import { Controller, useFormContext, FieldValues } from 'react-hook-form';
-import type { FieldProps, FieldContextType, ValidationState, FieldRenderProps } from './Field.types';
+import * as React from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef } from 'react';
+import { Controller, FieldValues, useFormContext } from 'react-hook-form';
+import styles from './Field.module.scss';
+import type {
+  FieldContextType,
+  FieldProps,
+  FieldRenderProps,
+  ValidationState,
+} from './Field.types';
+import { useFieldGroupContext } from './components/FieldGroup'; // Import FieldGroup context
 import { focusController } from './controller/FocusController';
 import { useLazyField } from './hooks/useLazyField';
-import { useResponsiveLayout } from './hooks/useResponsiveLayout';
 import { useParentDetection } from './hooks/useParentDetection';
-import { useFieldGroupContext } from './components/FieldGroup'; // Import FieldGroup context
-import { 
-  generateFieldClasses, 
-  generateFieldStyles, 
-  hasLabelComponent,
+import { useResponsiveLayout } from './hooks/useResponsiveLayout';
+import {
   focusFirstElement,
+  generateFieldClasses,
+  generateFieldId,
+  generateFieldStyles,
+  hasLabelComponent,
   scrollToElement,
-  generateFieldId
 } from './utils/fieldUtils';
-import styles from './Field.module.scss';
 
 // Field Context
 const FieldContext = createContext<FieldContextType | null>(null);
@@ -86,23 +92,26 @@ export const Field = <TFieldValues extends FieldValues = FieldValues>({
   const { currentLayout } = useResponsiveLayout({ layout: effectiveLayout });
 
   // Lazy loading hook
-  const { isVisible, manualLoad, fieldRef: lazyRef } = useLazyField({
+  const {
+    isVisible,
+    manualLoad,
+    fieldRef: lazyRef,
+  } = useLazyField({
     lazy,
     onLoad,
   });
 
   // Parent detection hook
-  const { 
-    detectParent, 
-    expandParentCard, 
-    expandParentAccordion 
-  } = useParentDetection();
+  const { detectParent, expandParentCard, expandParentAccordion } = useParentDetection();
 
   // Merge refs for lazy loading
-  const mergedRef = useCallback((node: HTMLDivElement | null) => {
-    fieldRef.current = node;
-    (lazyRef as any).current = node;
-  }, [lazyRef]);
+  const mergedRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      (fieldRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+      (lazyRef as any).current = node;
+    },
+    [lazyRef]
+  );
 
   // Enhanced focus function with parent expansion
   const focusFieldWithExpansion = useCallback(async (): Promise<boolean> => {
@@ -111,7 +120,7 @@ export const Field = <TFieldValues extends FieldValues = FieldValues>({
     try {
       // Detect parent containers
       const parentInfo = detectParent(fieldRef);
-      
+
       if (expandParent && parentInfo) {
         if (parentInfo.type === 'card' && !parentInfo.isExpanded) {
           // Expand parent card first
@@ -122,10 +131,7 @@ export const Field = <TFieldValues extends FieldValues = FieldValues>({
           }
         } else if (parentInfo.type === 'accordion' && !parentInfo.isExpanded) {
           // Expand parent accordion card
-          const expanded = await expandParentAccordion(
-            parentInfo.accordionId!, 
-            parentInfo.id
-          );
+          const expanded = await expandParentAccordion(parentInfo.accordionId!, parentInfo.id);
           if (expanded) {
             await new Promise(resolve => setTimeout(resolve, 100));
           }
@@ -180,7 +186,7 @@ export const Field = <TFieldValues extends FieldValues = FieldValues>({
     try {
       // Detect and expand parent if needed
       const parentInfo = detectParent(fieldRef);
-      
+
       if (expandParent && parentInfo) {
         if (parentInfo.type === 'card' && !parentInfo.isExpanded) {
           await expandParentCard(parentInfo.id);
@@ -207,7 +213,8 @@ export const Field = <TFieldValues extends FieldValues = FieldValues>({
   const rhfValidationFn = useCallback(async (): Promise<boolean> => {
     if (activeControl && name) {
       try {
-        const result = await activeControl.trigger(name as any);
+        // Cast activeControl to any to access the trigger method
+        const result = await (activeControl as any).trigger(name as any);
         return result;
       } catch (error) {
         console.warn(`RHF validation failed for field ${name}:`, error);
@@ -232,20 +239,24 @@ export const Field = <TFieldValues extends FieldValues = FieldValues>({
       focusController.unregisterField(fieldId);
     };
   }, [
-    fieldId, 
-    focusFieldWithExpansion, 
+    fieldId,
+    focusFieldWithExpansion,
     scrollToFieldWithExpansion,
     focusField,
     scrollToField,
-    rhfValidationFn, 
-    name
+    rhfValidationFn,
+    name,
   ]);
 
   // Auto focus on mount (with expansion)
   useEffect(() => {
     if (autoFocus && isVisible) {
       const timer = setTimeout(() => {
-        focusFieldWithExpansion();
+        focusFieldWithExpansion()
+          .then(() => console.log(`Auto-focused field ${fieldId}`))
+          .catch(() => {
+            /*ignore*/
+          });
       }, 100);
 
       return () => clearTimeout(timer);
@@ -257,14 +268,15 @@ export const Field = <TFieldValues extends FieldValues = FieldValues>({
 
   // Field classes (using effective values from FieldGroup context)
   const fieldClasses = useMemo(
-    () => generateFieldClasses(
-      styles.field,
-      currentLayout,
-      hasLabel,
-      effectiveDisabled,
-      effectiveLabelWidth,
-      className
-    ),
+    () =>
+      generateFieldClasses(
+        styles.field,
+        currentLayout,
+        hasLabel,
+        effectiveDisabled,
+        effectiveLabelWidth,
+        className
+      ),
     [currentLayout, hasLabel, effectiveDisabled, effectiveLabelWidth, className]
   );
 
@@ -312,10 +324,13 @@ export const Field = <TFieldValues extends FieldValues = FieldValues>({
           };
 
           // Handle field change
-          const handleFieldChange = useCallback((value: any) => {
-            field.onChange(value);
-            onFieldChange?.(value);
-          }, [field.onChange, onFieldChange]);
+          const handleFieldChange = useCallback(
+            (value: any) => {
+              field.onChange(value);
+              onFieldChange?.(value);
+            },
+            [field.onChange, onFieldChange]
+          );
 
           // Render props for children
           const renderProps: FieldRenderProps<TFieldValues> = {
@@ -335,7 +350,7 @@ export const Field = <TFieldValues extends FieldValues = FieldValues>({
                 className={fieldClasses}
                 style={fieldStyles}
                 data-field-id={fieldId}
-                data-field-loading="true"
+                data-field-loading='true'
               >
                 {loadingComponent || <DefaultLoadingComponent />}
               </div>
@@ -356,10 +371,11 @@ export const Field = <TFieldValues extends FieldValues = FieldValues>({
                 data-field-group-inherited={fieldGroupContext ? 'true' : 'false'}
               >
                 <div className={styles.fieldContent}>
-                  {typeof children === 'function' 
-                    ? (children as (props: FieldRenderProps<TFieldValues>) => ReactNode)(renderProps)
-                    : children
-                  }
+                  {typeof children === 'function'
+                    ? (children as (props: FieldRenderProps<TFieldValues>) => ReactNode)(
+                        renderProps
+                      )
+                    : children}
                 </div>
               </div>
             </FieldContext.Provider>
@@ -394,7 +410,7 @@ export const Field = <TFieldValues extends FieldValues = FieldValues>({
         className={fieldClasses}
         style={fieldStyles}
         data-field-id={fieldId}
-        data-field-loading="true"
+        data-field-loading='true'
       >
         {loadingComponent || <DefaultLoadingComponent />}
       </div>
@@ -414,13 +430,12 @@ export const Field = <TFieldValues extends FieldValues = FieldValues>({
         data-field-group-inherited={fieldGroupContext ? 'true' : 'false'}
       >
         <div className={styles.fieldContent}>
-          {typeof children === 'function' 
-            ? (children as (props: FieldRenderProps<TFieldValues>) => ReactNode)({ 
-                fieldState: undefined, 
-                formState: undefined 
+          {typeof children === 'function'
+            ? (children as (props: FieldRenderProps<TFieldValues>) => ReactNode)({
+                fieldState: undefined,
+                formState: undefined,
               })
-            : children
-          }
+            : children}
         </div>
       </div>
     </FieldContext.Provider>

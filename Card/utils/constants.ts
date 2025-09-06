@@ -193,6 +193,6 @@ export const ERROR_MESSAGES = {
 // ==================== Validation Patterns ====================
 export const VALIDATION = {
   CARD_ID: /^[a-zA-Z0-9\-_]+$/,
-  STORAGE_KEY: /^[a-zA-Z0-9\-_\.]+$/,
+  STORAGE_KEY: /^[a-zA-Z0-9\-_.]+$/,
   CSS_UNIT: /^(\d+(?:\.\d+)?)(px|em|rem|%|vh|vw)$/
 } as const;

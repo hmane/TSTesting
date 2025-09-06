@@ -1,40 +1,41 @@
-import React, { memo, useMemo, useCallback } from 'react';
+import { memo, useMemo, useCallback } from 'react';
 import { LivePersona } from '@pnp/spfx-controls-react/lib/LivePersona';
 import { PersonaSize } from '@fluentui/react/lib/Persona';
 import { Icon } from '@fluentui/react/lib/Icon';
 import { TooltipHost } from '@fluentui/react/lib/Tooltip';
 import type { ActivityItemProps, IPrincipal } from './ActivityItem.types';
 import styles from './ActivityItem.module.scss';
+import * as React from 'react';
 
 // Helper function to format relative time
 const getRelativeTime = (date: Date): string => {
 	const now = new Date();
 	const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-	
+
 	if (diffInSeconds < 60) {
 		return 'Just now';
 	}
-	
+
 	const diffInMinutes = Math.floor(diffInSeconds / 60);
 	if (diffInMinutes < 60) {
 		return `${diffInMinutes} minute${diffInMinutes !== 1 ? 's' : ''} ago`;
 	}
-	
+
 	const diffInHours = Math.floor(diffInMinutes / 60);
 	if (diffInHours < 24) {
 		return `${diffInHours} hour${diffInHours !== 1 ? 's' : ''} ago`;
 	}
-	
+
 	const diffInDays = Math.floor(diffInHours / 24);
 	if (diffInDays < 30) {
 		return `${diffInDays} day${diffInDays !== 1 ? 's' : ''} ago`;
 	}
-	
+
 	const diffInMonths = Math.floor(diffInDays / 30);
 	if (diffInMonths < 12) {
 		return `${diffInMonths} month${diffInMonths !== 1 ? 's' : ''} ago`;
 	}
-	
+
 	const diffInYears = Math.floor(diffInMonths / 12);
 	return `${diffInYears} year${diffInYears !== 1 ? 's' : ''} ago`;
 };
@@ -50,7 +51,7 @@ const getAbsoluteTime = (date: Date, showTime: boolean = true): string => {
 			minute: '2-digit',
 		}),
 	};
-	
+
 	return date.toLocaleDateString('en-US', options);
 };
 
@@ -73,14 +74,14 @@ export const ActivityItem = memo<ActivityItemProps>(({
 }) => {
 	// Memoized time formatting
 	const timeInfo = useMemo(() => {
-		const createdTime = showRelativeTime 
-			? getRelativeTime(createdDate) 
+		const createdTime = showRelativeTime
+			? getRelativeTime(createdDate)
 			: getAbsoluteTime(createdDate);
-		
-		const modifiedTime = modifiedDate 
+
+		const modifiedTime = modifiedDate
 			? (showRelativeTime ? getRelativeTime(modifiedDate) : getAbsoluteTime(modifiedDate))
 			: null;
-		
+
 		return {
 			created: {
 				relative: getRelativeTime(createdDate),
@@ -113,19 +114,19 @@ export const ActivityItem = memo<ActivityItemProps>(({
 	// Component classes
 	const componentClasses = useMemo(() => {
 		const classes = [styles.activityItem];
-		
+
 		// Add variant class
 		classes.push(styles[`variant${variant.charAt(0).toUpperCase() + variant.slice(1)}`]);
-		
+
 		// Add clickable class if onClick handler provided
 		if (onClick) {
 			classes.push(styles.clickable);
 		}
-		
+
 		if (className) {
 			classes.push(className);
 		}
-		
+
 		return classes.join(' ');
 	}, [variant, onClick, className]);
 
@@ -165,7 +166,7 @@ export const ActivityItem = memo<ActivityItemProps>(({
 					<span className={styles.personaName}>{createdBy.title}</span>
 					<span className={styles.activityText}>created</span>
 				</div>
-				
+
 				{modifiedBy && modifiedDate && (
 					<>
 						<span className={styles.separator}>•</span>
@@ -177,7 +178,7 @@ export const ActivityItem = memo<ActivityItemProps>(({
 					</>
 				)}
 			</div>
-			
+
 			<div className={styles.timeSection}>
 				{timeInfo.modified ? (
 					renderTimeWithTooltip(timeInfo.modified, 'Last modified')
@@ -205,7 +206,7 @@ export const ActivityItem = memo<ActivityItemProps>(({
 					)}
 				</div>
 			</div>
-			
+
 			{modifiedBy && modifiedDate && timeInfo.modified && (
 				<>
 					<div className={styles.divider} />
@@ -246,7 +247,7 @@ export const ActivityItem = memo<ActivityItemProps>(({
 					</div>
 				</div>
 			</div>
-			
+
 			{modifiedBy && modifiedDate && timeInfo.modified && (
 				<div className={`${styles.timelineItem} ${styles.modified}`}>
 					<div className={styles.timelineContent} onClick={handleItemClick}>
@@ -277,7 +278,7 @@ export const ActivityItem = memo<ActivityItemProps>(({
 			<span className={styles.inlineTime}>
 				{timeInfo.created.display}
 			</span>
-			
+
 			{modifiedBy && modifiedDate && timeInfo.modified && (
 				<>
 					<span className={styles.inlineText}>, modified by</span>

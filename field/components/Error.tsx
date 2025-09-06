@@ -1,4 +1,5 @@
-import React, { memo, useMemo } from 'react';
+import * as React from 'react';
+import { memo, useMemo } from 'react';
 import { Icon } from '@fluentui/react';
 import type { ErrorProps } from '../Field.types';
 import { useFieldContext } from '../Field';
@@ -15,7 +16,7 @@ export const Error = memo<ErrorProps>(({
 
   const errorClasses = useMemo(() => {
     const classes = [styles.fieldError];
-    
+
     // Add animation class
     if (animation !== 'none') {
       const animationClass = `animation${animation.charAt(0).toUpperCase() + animation.slice(1)}`;
@@ -23,25 +24,25 @@ export const Error = memo<ErrorProps>(({
         classes.push(styles[animationClass as keyof typeof styles]);
       }
     }
-    
+
     // Add position class
     if (position === 'inline') {
       classes.push(styles.positionInline);
     }
-    
+
     if (className) {
       classes.push(className);
     }
-    
+
     return classes.join(' ');
   }, [animation, position, className]);
 
   // Determine what error message to show
   // Priority: children > RHF error > validationState error
-  const errorMessage = children || 
-                      rhfField?.fieldError?.message || 
+  const errorMessage = children ||
+                      rhfField?.fieldError?.message ||
                       validationState.error;
-  
+
   // Show error if validation failed
   const showError = !validationState.isValid && errorMessage;
 
@@ -53,18 +54,18 @@ export const Error = memo<ErrorProps>(({
   }
 
   return (
-    <div 
-      className={errorClasses} 
-      style={style} 
-      role="alert" 
+    <div
+      className={errorClasses}
+      style={style}
+      role="alert"
       aria-live="polite"
       data-field-error="true"
       data-rhf-error={rhfField?.fieldError ? 'true' : 'false'}
     >
       {isValidating ? (
         <>
-          <Icon 
-            iconName="Spinner" 
+          <Icon
+            iconName="Spinner"
             className={styles.errorIcon}
             aria-hidden="true"
           />
@@ -72,8 +73,8 @@ export const Error = memo<ErrorProps>(({
         </>
       ) : (
         <>
-          <Icon 
-            iconName="ErrorBadge" 
+          <Icon
+            iconName="ErrorBadge"
             className={styles.errorIcon}
             aria-hidden="true"
           />

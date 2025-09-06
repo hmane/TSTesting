@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { AnimationConfig } from '../types/Card.types';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { AnimationConfig } from '../Card.types';
 import { getAnimationDuration } from '../utils/animations';
 import { Z_INDEX } from '../utils/constants';
 
@@ -30,7 +30,7 @@ export const useMaximize = (
   // Get card element
   const getCardElement = useCallback((): HTMLElement | null => {
     if (elementRef.current) return elementRef.current;
-    
+
     const element = document.querySelector(`[data-card-id="${cardId}"]`) as HTMLElement;
     if (element) {
       elementRef.current = element;
@@ -61,7 +61,7 @@ export const useMaximize = (
     backdropRef.current = backdrop;
 
     // Force reflow and fade in
-    backdrop.offsetHeight;
+    void backdrop.offsetHeight;
     backdrop.style.opacity = '1';
 
     return backdrop;
@@ -82,88 +82,6 @@ export const useMaximize = (
     }, getAnimationDuration(animation.duration || 300));
   }, [animation.duration]);
 
-  // Maximize card
-  const maximize = useCallback(async () => {
-    if (!enabled || isMaximized || isAnimating) return false;
-
-    const element = getCardElement();
-    if (!element) {
-      console.warn(`[SpfxCard] Card element not found: ${cardId}`);
-      return false;
-    }
-
-    setIsAnimating(true);
-
-    try {
-      // Store original styles
-      const computedStyle = window.getComputedStyle(element);
-      originalStyleRef.current = {
-        position: element.style.position || computedStyle.position,
-        top: element.style.top || computedStyle.top,
-        left: element.style.left || computedStyle.left,
-        width: element.style.width || computedStyle.width,
-        height: element.style.height || computedStyle.height,
-        zIndex: element.style.zIndex || computedStyle.zIndex,
-        transform: element.style.transform || computedStyle.transform
-      };
-
-      // Create backdrop
-      const backdrop = createBackdrop();
-
-      // Get current position and size
-      const rect = element.getBoundingClientRect();
-      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-      const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
-
-      // Set initial position (current position)
-      element.style.position = 'fixed';
-      element.style.top = `${rect.top}px`;
-      element.style.left = `${rect.left}px`;
-      element.style.width = `${rect.width}px`;
-      element.style.height = `${rect.height}px`;
-      element.style.zIndex = Z_INDEX.MAXIMIZED.toString();
-      element.style.margin = '0';
-      element.style.transition = `all ${getAnimationDuration(animation.duration || 350)}ms ${animation.easing || 'cubic-bezier(0.4, 0, 0.2, 1)'}`;
-
-      // Add maximized class
-      element.classList.add('spfx-card-maximized');
-
-      // Force reflow
-      element.offsetHeight;
-
-      // Animate to fullscreen
-      element.style.top = '0';
-      element.style.left = '0';
-      element.style.width = '100vw';
-      element.style.height = '100vh';
-      element.style.borderRadius = '0';
-
-      // Handle backdrop click
-      const handleBackdropClick = (event: MouseEvent) => {
-        if (event.target === backdrop) {
-          restore();
-        }
-      };
-      backdrop.addEventListener('click', handleBackdropClick);
-
-      // Wait for animation to complete
-      await new Promise<void>((resolve) => {
-        setTimeout(() => {
-          setIsMaximized(true);
-          setIsAnimating(false);
-          onMaximize?.();
-          resolve();
-        }, getAnimationDuration(animation.duration || 350));
-      });
-
-      return true;
-    } catch (error) {
-      console.error('[SpfxCard] Error maximizing card:', error);
-      setIsAnimating(false);
-      return false;
-    }
-  }, [enabled, isMaximized, isAnimating, cardId, animation, onMaximize, getCardElement, createBackdrop]);
-
   // Restore card
   const restore = useCallback(async () => {
     if (!enabled || !isMaximized || isAnimating) return false;
@@ -179,7 +97,7 @@ export const useMaximize = (
     try {
       // Animate back to original position
       const original = originalStyleRef.current;
-      
+
       element.style.top = original.top;
       element.style.left = original.left;
       element.style.width = original.width;
@@ -187,7 +105,7 @@ export const useMaximize = (
       element.style.borderRadius = ''; // Reset to original
 
       // Wait for animation to complete
-      await new Promise<void>((resolve) => {
+      await new Promise<void>(resolve => {
         setTimeout(() => {
           // Restore all original styles
           element.style.position = original.position;
@@ -219,7 +137,111 @@ export const useMaximize = (
       setIsAnimating(false);
       return false;
     }
-  }, [enabled, isMaximized, isAnimating, cardId, animation, onRestore, getCardElement, removeBackdrop]);
+  }, [
+    enabled,
+    isMaximized,
+    isAnimating,
+    cardId,
+    animation,
+    onRestore,
+    getCardElement,
+    removeBackdrop,
+  ]);
+
+  // Maximize card
+  const maximize = useCallback(async () => {
+    if (!enabled || isMaximized || isAnimating) return false;
+
+    const element = getCardElement();
+    if (!element) {
+      console.warn(`[SpfxCard] Card element not found: ${cardId}`);
+      return false;
+    }
+
+    setIsAnimating(true);
+
+    try {
+      // Store original styles
+      const computedStyle = window.getComputedStyle(element);
+      originalStyleRef.current = {
+        position: element.style.position || computedStyle.position,
+        top: element.style.top || computedStyle.top,
+        left: element.style.left || computedStyle.left,
+        width: element.style.width || computedStyle.width,
+        height: element.style.height || computedStyle.height,
+        zIndex: element.style.zIndex || computedStyle.zIndex,
+        transform: element.style.transform || computedStyle.transform,
+      };
+
+      // Create backdrop
+      const backdrop = createBackdrop();
+
+      // Get current position and size
+      const rect = element.getBoundingClientRect();
+
+      // Set initial position (current position)
+      element.style.position = 'fixed';
+      element.style.top = `${rect.top}px`;
+      element.style.left = `${rect.left}px`;
+      element.style.width = `${rect.width}px`;
+      element.style.height = `${rect.height}px`;
+      element.style.zIndex = Z_INDEX.MAXIMIZED_CARD.toString();
+      element.style.margin = '0';
+      element.style.transition = `all ${getAnimationDuration(animation.duration || 350)}ms ${
+        animation.easing || 'cubic-bezier(0.4, 0, 0.2, 1)'
+      }`;
+
+      // Add maximized class
+      element.classList.add('spfx-card-maximized');
+
+      // Force reflow
+      void element.offsetHeight;
+
+      // Animate to fullscreen
+      element.style.top = '0';
+      element.style.left = '0';
+      element.style.width = '100vw';
+      element.style.height = '100vh';
+      element.style.borderRadius = '0';
+
+      // Handle backdrop click
+      const handleBackdropClick = (event: MouseEvent) => {
+        if (event.target === backdrop) {
+          restore()
+            .then(() => console.log('Card restored via backdrop click'))
+            .catch(() => {
+              /* ignore errors */
+            });
+        }
+      };
+      backdrop.addEventListener('click', handleBackdropClick);
+
+      // Wait for animation to complete
+      await new Promise<void>(resolve => {
+        setTimeout(() => {
+          setIsMaximized(true);
+          setIsAnimating(false);
+          onMaximize?.();
+          resolve();
+        }, getAnimationDuration(animation.duration || 350));
+      });
+
+      return true;
+    } catch (error) {
+      console.error('[SpfxCard] Error maximizing card:', error);
+      setIsAnimating(false);
+      return false;
+    }
+  }, [
+    enabled,
+    isMaximized,
+    isAnimating,
+    cardId,
+    animation,
+    onMaximize,
+    getCardElement,
+    createBackdrop,
+  ]);
 
   // Toggle maximize/restore
   const toggle = useCallback(() => {
@@ -227,14 +249,21 @@ export const useMaximize = (
   }, [isMaximized, maximize, restore]);
 
   // Keyboard event handler
-  const handleKeyDown = useCallback((event: KeyboardEvent) => {
-    if (!isMaximized) return;
+  const handleKeyDown = useCallback(
+    (event: KeyboardEvent) => {
+      if (!isMaximized) return;
 
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      restore();
-    }
-  }, [isMaximized, restore]);
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        restore()
+          .then(() => console.log('Card restored via Escape key'))
+          .catch(() => {
+            /* ignore errors */
+          });
+      }
+    },
+    [isMaximized, restore]
+  );
 
   // Set up keyboard listeners
   useEffect(() => {
@@ -311,17 +340,14 @@ export const useMaximize = (
     restore,
     toggle,
     canMaximize: enabled && !isAnimating,
-    canRestore: enabled && isMaximized && !isAnimating
+    canRestore: enabled && isMaximized && !isAnimating,
   };
 };
 
 /**
  * Hook for managing maximize portal (alternative implementation)
  */
-export const useMaximizePortal = (
-  cardId: string,
-  enabled: boolean = true
-) => {
+export const useMaximizePortal = (cardId: string, enabled: boolean = true) => {
   const [isMaximized, setIsMaximized] = useState(false);
   const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null);
 
@@ -337,7 +363,7 @@ export const useMaximizePortal = (
       left: 0;
       right: 0;
       bottom: 0;
-      z-index: ${Z_INDEX.MAXIMIZED};
+      z-index: ${Z_INDEX.MAXIMIZED_CARD};
       background: rgba(0, 0, 0, 0.5);
       display: flex;
       align-items: center;
@@ -402,6 +428,6 @@ export const useMaximizePortal = (
     maximize,
     restore,
     toggle,
-    portalContainer
+    portalContainer,
   };
 };

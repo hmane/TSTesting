@@ -1,17 +1,17 @@
-import React, { 
-  useState, 
-  useEffect, 
-  useCallback, 
-  useMemo, 
-  useRef,
+import * as React from 'react';
+import {
   Children,
   cloneElement,
-  isValidElement
+  isValidElement,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
 } from 'react';
-import { AccordionProps } from './types/Card.types';
-import { useAccordionPersistence } from './hooks/usePersistence';
+import { AccordionProps } from './Card.types';
 import { useCardController } from './hooks/useCardController';
-import { ANIMATION } from './utils/constants';
+import { useAccordionPersistence } from './hooks/usePersistence';
 
 /**
  * Accordion component that manages multiple cards as an accordion
@@ -28,17 +28,18 @@ export const Accordion: React.FC<AccordionProps> = ({
   onCardChange,
   className = '',
   style,
-  children
+  children,
 }) => {
   const [expandedCards, setExpandedCards] = useState<string[]>(defaultExpanded);
   const accordionRef = useRef<HTMLDivElement>(null);
   const cardController = useCardController();
-  
+
   // Persistence hook
-  const { 
-    saveAccordionState, 
-    loadAccordionState 
-  } = useAccordionPersistence(id, persist, persistKey);
+  const { saveAccordionState, loadAccordionState } = useAccordionPersistence(
+    id,
+    persist,
+    persistKey
+  );
 
   // Load persisted state on mount
   useEffect(() => {
@@ -53,7 +54,7 @@ export const Accordion: React.FC<AccordionProps> = ({
   // Extract card IDs from children
   const cardIds = useMemo(() => {
     const ids: string[] = [];
-    Children.forEach(children, (child) => {
+    Children.forEach(children, child => {
       if (isValidElement(child) && child.props.id) {
         ids.push(child.props.id);
       }
@@ -62,42 +63,45 @@ export const Accordion: React.FC<AccordionProps> = ({
   }, [children]);
 
   // Handle card expansion/collapse
-  const handleCardToggle = useCallback((cardId: string, isExpanded: boolean) => {
-    setExpandedCards(prev => {
-      let newExpanded: string[];
-      
-      if (isExpanded) {
-        // Card is being expanded
-        if (allowMultiple) {
-          // Allow multiple expanded cards
-          newExpanded = prev.includes(cardId) ? prev : [...prev, cardId];
+  const handleCardToggle = useCallback(
+    (cardId: string, isExpanded: boolean) => {
+      setExpandedCards(prev => {
+        let newExpanded: string[];
+
+        if (isExpanded) {
+          // Card is being expanded
+          if (allowMultiple) {
+            // Allow multiple expanded cards
+            newExpanded = prev.includes(cardId) ? prev : [...prev, cardId];
+          } else {
+            // Only allow one expanded card
+            newExpanded = [cardId];
+
+            // Collapse other cards
+            prev.forEach(prevCardId => {
+              if (prevCardId !== cardId) {
+                cardController.collapseCard(prevCardId, false);
+              }
+            });
+          }
         } else {
-          // Only allow one expanded card
-          newExpanded = [cardId];
-          
-          // Collapse other cards
-          prev.forEach(prevCardId => {
-            if (prevCardId !== cardId) {
-              cardController.collapseCard(prevCardId, false);
-            }
-          });
+          // Card is being collapsed
+          newExpanded = prev.filter(id => id !== cardId);
         }
-      } else {
-        // Card is being collapsed
-        newExpanded = prev.filter(id => id !== cardId);
-      }
 
-      // Save state if persistence is enabled
-      if (persist) {
-        saveAccordionState(newExpanded);
-      }
+        // Save state if persistence is enabled
+        if (persist) {
+          saveAccordionState(newExpanded);
+        }
 
-      // Notify parent component
-      onCardChange?.(newExpanded);
+        // Notify parent component
+        onCardChange?.(newExpanded);
 
-      return newExpanded;
-    });
-  }, [allowMultiple, cardController, persist, saveAccordionState, onCardChange]);
+        return newExpanded;
+      });
+    },
+    [allowMultiple, cardController, persist, saveAccordionState, onCardChange]
+  );
 
   // Subscribe to card controller events
   useEffect(() => {
@@ -124,7 +128,7 @@ export const Accordion: React.FC<AccordionProps> = ({
     cardIds.forEach(cardId => {
       const shouldBeExpanded = expandedCards.includes(cardId);
       const currentState = cardController.getCardState(cardId);
-      
+
       if (currentState && currentState.isExpanded !== shouldBeExpanded) {
         if (shouldBeExpanded) {
           cardController.expandCard(cardId, false);
@@ -136,18 +140,27 @@ export const Accordion: React.FC<AccordionProps> = ({
   }, [expandedCards, cardIds, cardController]);
 
   // Memoized accordion classes
-  const accordionClasses = useMemo(() => [
-    'spfx-accordion',
-    `spfx-accordion-${variant}`,
-    `spfx-accordion-spacing-${spacing}`,
-    allowMultiple ? 'allow-multiple' : 'single-expand',
-    className
-  ].filter(Boolean).join(' '), [variant, spacing, allowMultiple, className]);
+  const accordionClasses = useMemo(
+    () =>
+      [
+        'spfx-accordion',
+        `spfx-accordion-${variant}`,
+        `spfx-accordion-spacing-${spacing}`,
+        allowMultiple ? 'allow-multiple' : 'single-expand',
+        className,
+      ]
+        .filter(Boolean)
+        .join(' '),
+    [variant, spacing, allowMultiple, className]
+  );
 
   // Memoized accordion styles
-  const accordionStyle = useMemo(() => ({
-    ...style
-  }), [style]);
+  const accordionStyle = useMemo(
+    () => ({
+      ...style,
+    }),
+    [style]
+  );
 
   // Process children to add accordion-specific props
   const processedChildren = useMemo(() => {
@@ -164,17 +177,20 @@ export const Accordion: React.FC<AccordionProps> = ({
       // Additional props for accordion cards
       const accordionProps = {
         defaultExpanded: isExpanded,
-        className: `${child.props.className || ''} spfx-accordion-card ${isFirst ? 'first' : ''} ${isLast ? 'last' : ''}`.trim(),
+        className: `${child.props.className || ''} spfx-accordion-card ${isFirst ? 'first' : ''} ${
+          isLast ? 'last' : ''
+        }`.trim(),
         style: {
           ...child.props.style,
           ...(spacing === 'none' && {
             marginBottom: isLast ? 0 : -1, // Overlap borders for connected look
-            borderRadius: getBorderRadius(variant, isFirst, isLast)
-          })
+            // eslint-disable-next-line @typescript-eslint/no-use-before-define
+            borderRadius: getBorderRadius(variant, isFirst, isLast),
+          }),
         },
         'data-accordion-id': id,
         'data-accordion-position': index,
-        'data-accordion-expanded': isExpanded
+        'data-accordion-expanded': isExpanded,
       };
 
       return cloneElement(child, accordionProps);
@@ -182,28 +198,31 @@ export const Accordion: React.FC<AccordionProps> = ({
   }, [children, expandedCards, spacing, variant, id]);
 
   // Public API for external control
-  const accordionApi = useMemo(() => ({
-    expandCard: (cardId: string) => {
-      if (cardIds.includes(cardId)) {
-        handleCardToggle(cardId, true);
-      }
-    },
-    collapseCard: (cardId: string) => {
-      if (cardIds.includes(cardId)) {
-        handleCardToggle(cardId, false);
-      }
-    },
-    expandAll: () => {
-      if (allowMultiple) {
-        setExpandedCards([...cardIds]);
-      }
-    },
-    collapseAll: () => {
-      setExpandedCards([]);
-    },
-    getExpandedCards: () => [...expandedCards],
-    isCardExpanded: (cardId: string) => expandedCards.includes(cardId)
-  }), [cardIds, expandedCards, allowMultiple, handleCardToggle]);
+  const accordionApi = useMemo(
+    () => ({
+      expandCard: (cardId: string) => {
+        if (cardIds.includes(cardId)) {
+          handleCardToggle(cardId, true);
+        }
+      },
+      collapseCard: (cardId: string) => {
+        if (cardIds.includes(cardId)) {
+          handleCardToggle(cardId, false);
+        }
+      },
+      expandAll: () => {
+        if (allowMultiple) {
+          setExpandedCards([...cardIds]);
+        }
+      },
+      collapseAll: () => {
+        setExpandedCards([]);
+      },
+      getExpandedCards: () => [...expandedCards],
+      isCardExpanded: (cardId: string) => expandedCards.includes(cardId),
+    }),
+    [cardIds, expandedCards, allowMultiple, handleCardToggle]
+  );
 
   // Expose API through ref
   React.useImperativeHandle(accordionRef, () => accordionApi, [accordionApi]);
@@ -215,8 +234,8 @@ export const Accordion: React.FC<AccordionProps> = ({
       style={accordionStyle}
       data-accordion-id={id}
       data-allow-multiple={allowMultiple}
-      role="tablist"
-      aria-orientation="vertical"
+      role='tablist'
+      aria-orientation='vertical'
     >
       {processedChildren}
     </div>
@@ -230,35 +249,40 @@ export const useAccordion = (accordionId: string) => {
   const accordionRef = useRef<HTMLDivElement>();
 
   useEffect(() => {
-    accordionRef.current = document.querySelector(`[data-accordion-id="${accordionId}"]`) as HTMLDivElement;
+    accordionRef.current = document.querySelector(
+      `[data-accordion-id="${accordionId}"]`
+    ) as HTMLDivElement;
   }, [accordionId]);
 
-  return useMemo(() => ({
-    expandCard: (cardId: string) => {
-      const accordion = accordionRef.current;
-      if (accordion && (accordion as any).expandCard) {
-        (accordion as any).expandCard(cardId);
-      }
-    },
-    collapseCard: (cardId: string) => {
-      const accordion = accordionRef.current;
-      if (accordion && (accordion as any).collapseCard) {
-        (accordion as any).collapseCard(cardId);
-      }
-    },
-    expandAll: () => {
-      const accordion = accordionRef.current;
-      if (accordion && (accordion as any).expandAll) {
-        (accordion as any).expandAll();
-      }
-    },
-    collapseAll: () => {
-      const accordion = accordionRef.current;
-      if (accordion && (accordion as any).collapseAll) {
-        (accordion as any).collapseAll();
-      }
-    }
-  }), []);
+  return useMemo(
+    () => ({
+      expandCard: (cardId: string) => {
+        const accordion = accordionRef.current;
+        if (accordion && (accordion as any).expandCard) {
+          (accordion as any).expandCard(cardId);
+        }
+      },
+      collapseCard: (cardId: string) => {
+        const accordion = accordionRef.current;
+        if (accordion && (accordion as any).collapseCard) {
+          (accordion as any).collapseCard(cardId);
+        }
+      },
+      expandAll: () => {
+        const accordion = accordionRef.current;
+        if (accordion && (accordion as any).expandAll) {
+          (accordion as any).expandAll();
+        }
+      },
+      collapseAll: () => {
+        const accordion = accordionRef.current;
+        if (accordion && (accordion as any).collapseAll) {
+          (accordion as any).collapseAll();
+        }
+      },
+    }),
+    []
+  );
 };
 
 /**
@@ -276,10 +300,12 @@ const getBorderRadius = (variant: string, isFirst: boolean, isLast: boolean): st
 /**
  * Controlled Accordion component for external state management
  */
-export const ControlledAccordion: React.FC<AccordionProps & {
-  expandedCards: string[];
-  onExpandedCardsChange: (expandedCards: string[]) => void;
-}> = ({
+export const ControlledAccordion: React.FC<
+  AccordionProps & {
+    expandedCards: string[];
+    onExpandedCardsChange: (expandedCards: string[]) => void;
+  }
+> = ({
   id,
   allowMultiple = false,
   expandedCards,
@@ -291,17 +317,17 @@ export const ControlledAccordion: React.FC<AccordionProps & {
   onCardChange,
   className = '',
   style,
-  children
+  children,
 }) => {
   const cardController = useCardController();
-  
+
   // Persistence hook
   const { saveAccordionState } = useAccordionPersistence(id, persist, persistKey);
 
   // Extract card IDs from children
   const cardIds = useMemo(() => {
     const ids: string[] = [];
-    Children.forEach(children, (child) => {
+    Children.forEach(children, child => {
       if (isValidElement(child) && child.props.id) {
         ids.push(child.props.id);
       }
@@ -310,41 +336,52 @@ export const ControlledAccordion: React.FC<AccordionProps & {
   }, [children]);
 
   // Handle card expansion/collapse
-  const handleCardToggle = useCallback((cardId: string, isExpanded: boolean) => {
-    let newExpanded: string[];
-    
-    if (isExpanded) {
-      // Card is being expanded
-      if (allowMultiple) {
-        // Allow multiple expanded cards
-        newExpanded = expandedCards.includes(cardId) ? expandedCards : [...expandedCards, cardId];
+  const handleCardToggle = useCallback(
+    (cardId: string, isExpanded: boolean) => {
+      let newExpanded: string[];
+
+      if (isExpanded) {
+        // Card is being expanded
+        if (allowMultiple) {
+          // Allow multiple expanded cards
+          newExpanded = expandedCards.includes(cardId) ? expandedCards : [...expandedCards, cardId];
+        } else {
+          // Only allow one expanded card
+          newExpanded = [cardId];
+
+          // Collapse other cards
+          expandedCards.forEach(prevCardId => {
+            if (prevCardId !== cardId) {
+              cardController.collapseCard(prevCardId, false);
+            }
+          });
+        }
       } else {
-        // Only allow one expanded card
-        newExpanded = [cardId];
-        
-        // Collapse other cards
-        expandedCards.forEach(prevCardId => {
-          if (prevCardId !== cardId) {
-            cardController.collapseCard(prevCardId, false);
-          }
-        });
+        // Card is being collapsed
+        newExpanded = expandedCards.filter(id => id !== cardId);
       }
-    } else {
-      // Card is being collapsed
-      newExpanded = expandedCards.filter(id => id !== cardId);
-    }
 
-    // Update external state
-    onExpandedCardsChange(newExpanded);
+      // Update external state
+      onExpandedCardsChange(newExpanded);
 
-    // Save state if persistence is enabled
-    if (persist) {
-      saveAccordionState(newExpanded);
-    }
+      // Save state if persistence is enabled
+      if (persist) {
+        saveAccordionState(newExpanded);
+      }
 
-    // Notify parent component
-    onCardChange?.(newExpanded);
-  }, [allowMultiple, expandedCards, onExpandedCardsChange, cardController, persist, saveAccordionState, onCardChange]);
+      // Notify parent component
+      onCardChange?.(newExpanded);
+    },
+    [
+      allowMultiple,
+      expandedCards,
+      onExpandedCardsChange,
+      cardController,
+      persist,
+      saveAccordionState,
+      onCardChange,
+    ]
+  );
 
   // Subscribe to card controller events
   useEffect(() => {
@@ -380,31 +417,39 @@ export const ControlledAccordion: React.FC<AccordionProps & {
 
       const accordionProps = {
         defaultExpanded: isExpanded,
-        className: `${child.props.className || ''} spfx-accordion-card ${isFirst ? 'first' : ''} ${isLast ? 'last' : ''}`.trim(),
+        className: `${child.props.className || ''} spfx-accordion-card ${isFirst ? 'first' : ''} ${
+          isLast ? 'last' : ''
+        }`.trim(),
         style: {
           ...child.props.style,
           ...(spacing === 'none' && {
             marginBottom: isLast ? 0 : -1,
-            borderRadius: getBorderRadius(variant, isFirst, isLast)
-          })
+            borderRadius: getBorderRadius(variant, isFirst, isLast),
+          }),
         },
         'data-accordion-id': id,
         'data-accordion-position': index,
-        'data-accordion-expanded': isExpanded
+        'data-accordion-expanded': isExpanded,
       };
 
       return cloneElement(child, accordionProps);
     });
   }, [children, expandedCards, spacing, variant, id]);
 
-  const accordionClasses = useMemo(() => [
-    'spfx-accordion',
-    `spfx-accordion-${variant}`,
-    `spfx-accordion-spacing-${spacing}`,
-    allowMultiple ? 'allow-multiple' : 'single-expand',
-    'controlled',
-    className
-  ].filter(Boolean).join(' '), [variant, spacing, allowMultiple, className]);
+  const accordionClasses = useMemo(
+    () =>
+      [
+        'spfx-accordion',
+        `spfx-accordion-${variant}`,
+        `spfx-accordion-spacing-${spacing}`,
+        allowMultiple ? 'allow-multiple' : 'single-expand',
+        'controlled',
+        className,
+      ]
+        .filter(Boolean)
+        .join(' '),
+    [variant, spacing, allowMultiple, className]
+  );
 
   return (
     <div
@@ -412,8 +457,8 @@ export const ControlledAccordion: React.FC<AccordionProps & {
       style={style}
       data-accordion-id={id}
       data-allow-multiple={allowMultiple}
-      role="tablist"
-      aria-orientation="vertical"
+      role='tablist'
+      aria-orientation='vertical'
     >
       {processedChildren}
     </div>
@@ -423,12 +468,14 @@ export const ControlledAccordion: React.FC<AccordionProps & {
 /**
  * Accordion with built-in search/filter functionality
  */
-export const SearchableAccordion: React.FC<AccordionProps & {
-  searchable?: boolean;
-  searchPlaceholder?: string;
-  filterFunction?: (child: React.ReactElement, searchTerm: string) => boolean;
-  noResultsMessage?: string;
-}> = ({
+export const SearchableAccordion: React.FC<
+  AccordionProps & {
+    searchable?: boolean;
+    searchPlaceholder?: string;
+    filterFunction?: (child: React.ReactElement, searchTerm: string) => boolean;
+    noResultsMessage?: string;
+  }
+> = ({
   id,
   allowMultiple = false,
   defaultExpanded = [],
@@ -443,20 +490,23 @@ export const SearchableAccordion: React.FC<AccordionProps & {
   searchable = true,
   searchPlaceholder = 'Search cards...',
   filterFunction,
-  noResultsMessage = 'No cards match your search.'
+  noResultsMessage = 'No cards match your search.',
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  
+
   // Default filter function
   const defaultFilterFunction = useCallback((child: React.ReactElement, term: string): boolean => {
     if (!term) return true;
-    
+
     const searchContent = [
       child.props.children, // Look in children
-      child.props.title,    // Look in title prop
-      child.props['data-search-terms'] // Custom search terms
-    ].filter(Boolean).join(' ').toLowerCase();
-    
+      child.props.title, // Look in title prop
+      child.props['data-search-terms'], // Custom search terms
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+
     return searchContent.includes(term.toLowerCase());
   }, []);
 
@@ -475,23 +525,23 @@ export const SearchableAccordion: React.FC<AccordionProps & {
   }, [children, searchTerm, effectiveFilterFunction]);
 
   const searchInput = searchable && (
-    <div className="spfx-accordion-search" style={{ marginBottom: '16px' }}>
+    <div className='spfx-accordion-search' style={{ marginBottom: '16px' }}>
       <div style={{ position: 'relative' }}>
-        <i 
-          className="ms-Icon ms-Icon--Search" 
-          style={{ 
-            position: 'absolute', 
-            left: '12px', 
-            top: '50%', 
-            transform: 'translateY(-50%)', 
+        <i
+          className='ms-Icon ms-Icon--Search'
+          style={{
+            position: 'absolute',
+            left: '12px',
+            top: '50%',
+            transform: 'translateY(-50%)',
             color: 'var(--neutralSecondary, #605e5c)',
-            fontSize: '16px'
-          }} 
+            fontSize: '16px',
+          }}
         />
         <input
-          type="text"
+          type='text'
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={e => setSearchTerm(e.target.value)}
           placeholder={searchPlaceholder}
           style={{
             width: '100%',
@@ -500,9 +550,9 @@ export const SearchableAccordion: React.FC<AccordionProps & {
             borderRadius: '4px',
             fontSize: '14px',
             backgroundColor: 'var(--white, #ffffff)',
-            boxSizing: 'border-box'
+            boxSizing: 'border-box',
           }}
-          aria-label="Search cards"
+          aria-label='Search cards'
         />
         {searchTerm && (
           <button
@@ -516,11 +566,11 @@ export const SearchableAccordion: React.FC<AccordionProps & {
               border: 'none',
               cursor: 'pointer',
               padding: '4px',
-              borderRadius: '2px'
+              borderRadius: '2px',
             }}
-            aria-label="Clear search"
+            aria-label='Clear search'
           >
-            <i className="ms-Icon ms-Icon--Clear" style={{ fontSize: '12px' }} />
+            <i className='ms-Icon ms-Icon--Clear' style={{ fontSize: '12px' }} />
           </button>
         )}
       </div>
@@ -528,15 +578,15 @@ export const SearchableAccordion: React.FC<AccordionProps & {
   );
 
   const noResults = searchTerm && filteredChildren.length === 0 && (
-    <div 
-      className="spfx-accordion-no-results"
+    <div
+      className='spfx-accordion-no-results'
       style={{
         padding: '20px',
         textAlign: 'center',
         color: 'var(--neutralSecondary, #605e5c)',
         backgroundColor: 'var(--neutralLighter, #f8f9fa)',
         borderRadius: '8px',
-        border: '1px solid var(--neutralLight, #edebe9)'
+        border: '1px solid var(--neutralLight, #edebe9)',
       }}
     >
       {noResultsMessage}
@@ -568,7 +618,7 @@ export const SearchableAccordion: React.FC<AccordionProps & {
 /**
  * Accordion with keyboard navigation enhancements
  */
-export const KeyboardAccordion: React.FC<AccordionProps> = (props) => {
+export const KeyboardAccordion: React.FC<AccordionProps> = props => {
   const accordionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -576,9 +626,7 @@ export const KeyboardAccordion: React.FC<AccordionProps> = (props) => {
       if (!accordionRef.current?.contains(event.target as Node)) return;
 
       const cards = accordionRef.current.querySelectorAll('.spfx-accordion-card');
-      const currentIndex = Array.from(cards).findIndex(card => 
-        card.contains(event.target as Node)
-      );
+      const currentIndex = Array.from(cards).findIndex(card => card.contains(event.target as Node));
 
       switch (event.key) {
         case 'ArrowUp':

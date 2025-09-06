@@ -1,4 +1,4 @@
-import { AnimationConfig } from '../types/Card.types';
+import { AnimationConfig } from '../Card.types';
 import { ANIMATION } from './constants';
 
 /**
@@ -212,7 +212,9 @@ export const animateElement = (
 
     const cleanup = () => {
       element.style.animation = '';
+      // eslint-disable-next-line @typescript-eslint/no-use-before-define
       element.removeEventListener('animationend', handleAnimationEnd);
+      // eslint-disable-next-line @typescript-eslint/no-use-before-define
       element.removeEventListener('animationcancel', handleAnimationCancel);
     };
 
@@ -331,10 +333,10 @@ export class AnimationScheduler {
 
   private process(): void {
     this.isRunning = true;
-    
+
     const processFrame = () => {
       const start = performance.now();
-      
+
       // Process callbacks within frame budget (16ms)
       while (this.queue.length > 0 && (performance.now() - start) < 14) {
         const callback = this.queue.shift();
@@ -375,7 +377,7 @@ export const debounceAnimation = (
   delay: number = ANIMATION.DURATION.FAST
 ): (() => void) => {
   let timeoutId: NodeJS.Timeout;
-  
+
   return () => {
     clearTimeout(timeoutId);
     timeoutId = setTimeout(() => {
@@ -404,15 +406,16 @@ export const smoothHeightTransition = (
   return new Promise((resolve) => {
     const startHeight = element.offsetHeight;
     const endHeight = targetHeight === 'auto' ? element.scrollHeight : targetHeight;
-    
+
     element.style.height = `${startHeight}px`;
     element.style.transition = `height ${duration}ms ${ANIMATION.EASING.EASE_OUT}`;
-    
+
     // Force reflow
-    element.offsetHeight;
-    
+    // eslint-disable-next-line no-void
+    void element.offsetHeight;
+
     element.style.height = `${endHeight}px`;
-    
+
     const handleTransitionEnd = () => {
       if (targetHeight === 'auto') {
         element.style.height = 'auto';
@@ -421,9 +424,9 @@ export const smoothHeightTransition = (
       element.removeEventListener('transitionend', handleTransitionEnd);
       resolve();
     };
-    
+
     element.addEventListener('transitionend', handleTransitionEnd, { once: true });
-    
+
     // Fallback
     setTimeout(() => {
       if (element.style.transition) {

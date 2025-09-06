@@ -1,12 +1,12 @@
-import { ReactNode, CSSProperties, RefObject } from 'react';
-import { 
-  FieldPath, 
-  FieldValues, 
-  Control, 
-  RegisterOptions, 
+import { CSSProperties, ReactNode, RefObject } from 'react';
+import {
+  Control,
+  ControllerRenderProps,
   FieldError,
+  FieldPath,
+  FieldValues,
+  RegisterOptions,
   UseFormStateReturn,
-  ControllerRenderProps
 } from 'react-hook-form';
 
 // Enhanced ValidationState with RHF support
@@ -150,25 +150,25 @@ export interface ErrorProps {
 export interface FieldGroupProps<TFieldValues extends FieldValues = FieldValues> {
   id?: string;
   children: ReactNode;
-  
+
   /** Label width for all child fields */
   labelWidth?: LabelWidthType;
-  
+
   /** CSS class name */
   className?: string;
-  
+
   /** Inline styles */
   style?: CSSProperties;
-  
+
   /** Spacing between fields */
   spacing?: SpacingType;
-  
+
   /** Layout direction for all child fields */
   layout?: LayoutType;
-  
+
   /** Disabled state for all child fields */
   disabled?: boolean;
-  
+
   /** React Hook Form control - propagates to child fields that don't have their own control */
   control?: Control<TFieldValues>;
 }
@@ -179,7 +179,7 @@ export interface FieldGroupContextType<TFieldValues extends FieldValues = FieldV
   spacing: SpacingType;
   layout: LayoutType;
   disabled?: boolean;
-  
+
   /** Control object that child fields can inherit */
   control?: Control<TFieldValues>;
 }
@@ -190,7 +190,7 @@ export interface FieldRegistration {
   // Enhanced focus functions that can expand parents
   focusFn: () => Promise<boolean> | boolean;
   scrollFn: () => Promise<boolean> | boolean;
-  // Backward compatibility - simple focus/scroll without expansion  
+  // Backward compatibility - simple focus/scroll without expansion
   simpleFocusFn?: () => boolean;
   simpleScrollFn?: () => boolean;
   // RHF validation
@@ -293,24 +293,24 @@ export interface UseFieldFocusReturn {
   focusPreviousField: (currentId: string, expandParent?: boolean) => Promise<boolean>;
   focusFirstField: (expandParent?: boolean) => Promise<boolean>;
   focusLastField: (expandParent?: boolean) => Promise<boolean>;
-  
+
   // Enhanced validation with smart error focusing
   validateAllFields: (container?: HTMLElement) => ValidationResult;
   validateRHFFields: () => Promise<ValidationResult>;
   getFieldErrors: (container?: HTMLElement) => { [fieldId: string]: string };
   focusFirstInvalidField: (container?: HTMLElement, expandParent?: boolean) => Promise<boolean>;
-  
+
   // Smart form validation and error handling
   validateAndFocus: (container?: HTMLElement) => Promise<FormSubmissionResult>;
   handleFormErrors: (
     errors: { [fieldName: string]: string },
     fieldNameToIdMap?: { [fieldName: string]: string }
   ) => Promise<boolean>;
-  
+
   // RHF integration
   triggerRHFValidation: (fieldName?: string) => Promise<boolean>;
   getRHFErrors: () => { [fieldName: string]: string };
-  
+
   // Advanced navigation
   handleTabNavigation: (
     currentFieldId: string,
@@ -322,27 +322,27 @@ export interface UseFieldFocusReturn {
     fieldIndex: number,
     expandParent?: boolean
   ) => Promise<boolean>;
-  
+
   // Batch operations with parent expansion
   focusFieldsInSequence: (
-    fieldIds: string[], 
+    fieldIds: string[],
     delay?: number,
     expandParent?: boolean
   ) => Promise<boolean[]>;
   scrollToFieldsInSequence: (
-    fieldIds: string[], 
+    fieldIds: string[],
     delay?: number,
     expandParent?: boolean
   ) => Promise<boolean[]>;
-  
+
   // Utility methods
   getAllFields: () => string[];
   isFieldRegistered: (fieldId: string) => boolean;
   getRegisteredFieldCount: () => number;
-  
+
   // Enhanced statistics with parent context
   getValidationStats: (container?: HTMLElement) => ValidationStats;
-  
+
   // Debug helpers
   getDebugInfo: () => FieldDebugInfo;
 }
@@ -512,19 +512,20 @@ export interface FieldSystemConfig {
 }
 
 // Export utility types
-export type FieldElement = HTMLDivElement | HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+export type FieldElement =
+  | HTMLDivElement
+  | HTMLInputElement
+  | HTMLSelectElement
+  | HTMLTextAreaElement;
 export type FocusableElement = HTMLElement & { focus(): void };
 export type ValidationSource = 'direct' | 'nested' | 'data-attribute' | 'rhf' | 'default';
 export type ParentType = 'card' | 'accordion';
 export type NavigationDirection = 'forward' | 'backward' | 'up' | 'down' | 'first' | 'last';
 
 // Re-export common types for convenience
-export type { 
-  Control, 
-  FieldPath, 
-  FieldValues, 
-  RegisterOptions, 
-  FieldError,
-  UseFormStateReturn,
-  ControllerRenderProps 
+export type {
+  Control, ControllerRenderProps, FieldError, FieldPath,
+  FieldValues,
+  RegisterOptions, UseFormStateReturn
 } from 'react-hook-form';
+

@@ -1,4 +1,5 @@
-import React, { memo, useMemo } from 'react';
+import * as React from 'react';
+import { memo, useMemo } from 'react';
 import { TooltipHost, Icon } from '@fluentui/react';
 import type { ITooltipHostStyles } from '@fluentui/react/lib/Tooltip';
 import type { DescriptionProps } from '../Field.types';
@@ -21,16 +22,16 @@ export const Description = memo<DescriptionProps>(({
 }) => {
 	const descriptionClasses = useMemo(() => {
 		const classes = [styles.description];
-		
+
 		// Add position class if needed
 		if (position === 'inline') {
 			classes.push(styles.descriptionInline);
 		}
-		
+
 		if (className) {
 			classes.push(className);
 		}
-		
+
 		return classes.join(' ');
 	}, [position, className]);
 

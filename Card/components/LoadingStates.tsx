@@ -1,6 +1,6 @@
-import React from 'react';
 import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
-import { LoadingStateProps } from '../types/Card.types';
+import * as React from 'react';
+import { LoadingStateProps } from '../Card.types';
 import { LOADING_TEMPLATES } from '../utils/constants';
 
 /**
@@ -13,50 +13,43 @@ import { LOADING_TEMPLATES } from '../utils/constants';
 export const SpinnerLoading: React.FC<LoadingStateProps> = ({
   message = 'Loading...',
   className = '',
-  style
+  style,
 }) => (
   <div className={`spfx-card-loading-spinner ${className}`} style={style}>
-    <Spinner 
-      size={SpinnerSize.medium} 
-      label={message}
-      ariaLive="polite"
-    />
+    <Spinner size={SpinnerSize.medium} label={message} ariaLive='polite' />
   </div>
 );
 
 /**
  * Skeleton loading component
  */
-export const SkeletonLoading: React.FC<LoadingStateProps> = ({
-  className = '',
-  style
-}) => {
+export const SkeletonLoading: React.FC<LoadingStateProps> = ({ className = '', style }) => {
   const { headerHeight, lineHeight, lineCount, spacing } = LOADING_TEMPLATES.skeleton;
-  
+
   return (
     <div className={`spfx-card-loading-skeleton ${className}`} style={style}>
       {/* Header skeleton */}
-      <div 
-        className="skeleton-header"
+      <div
+        className='skeleton-header'
         style={{
           height: headerHeight,
           backgroundColor: 'var(--neutralLighter, #f8f9fa)',
           borderRadius: '4px',
-          marginBottom: spacing
+          marginBottom: spacing,
         }}
       />
-      
+
       {/* Content lines skeleton */}
       {Array.from({ length: lineCount }).map((_, index) => (
         <div
           key={index}
-          className="skeleton-line"
+          className='skeleton-line'
           style={{
             height: lineHeight,
             backgroundColor: 'var(--neutralLighter, #f8f9fa)',
             borderRadius: '4px',
             marginBottom: spacing,
-            width: index === lineCount - 1 ? '70%' : '100%' // Last line shorter
+            width: index === lineCount - 1 ? '70%' : '100%', // Last line shorter
           }}
         />
       ))}
@@ -67,51 +60,48 @@ export const SkeletonLoading: React.FC<LoadingStateProps> = ({
 /**
  * Shimmer loading component
  */
-export const ShimmerLoading: React.FC<LoadingStateProps> = ({
-  className = '',
-  style
-}) => {
+export const ShimmerLoading: React.FC<LoadingStateProps> = ({ className = '', style }) => {
   const { animationDuration, gradientColors } = LOADING_TEMPLATES.shimmer;
-  
+
   const shimmerStyle: React.CSSProperties = {
     background: `linear-gradient(90deg, ${gradientColors.join(', ')})`,
     backgroundSize: '200% 100%',
     animation: `shimmer ${animationDuration} infinite ease-in-out`,
     borderRadius: '4px',
-    ...style
+    ...style,
   };
 
   return (
     <div className={`spfx-card-loading-shimmer ${className}`}>
       {/* Header shimmer */}
-      <div 
+      <div
         style={{
           ...shimmerStyle,
           height: '24px',
-          marginBottom: '16px'
+          marginBottom: '16px',
         }}
       />
-      
+
       {/* Content shimmer blocks */}
-      <div 
+      <div
         style={{
           ...shimmerStyle,
           height: '16px',
-          marginBottom: '8px'
+          marginBottom: '8px',
         }}
       />
-      <div 
+      <div
         style={{
           ...shimmerStyle,
           height: '16px',
-          marginBottom: '8px'
+          marginBottom: '8px',
         }}
       />
-      <div 
+      <div
         style={{
           ...shimmerStyle,
           height: '16px',
-          width: '75%'
+          width: '75%',
         }}
       />
     </div>
@@ -124,10 +114,10 @@ export const ShimmerLoading: React.FC<LoadingStateProps> = ({
 export const OverlayLoading: React.FC<LoadingStateProps> = ({
   message = 'Loading...',
   className = '',
-  style
+  style,
 }) => (
-  <div 
-    className={`spfx-card-loading-overlay ${className}`} 
+  <div
+    className={`spfx-card-loading-overlay ${className}`}
     style={{
       position: 'absolute',
       top: 0,
@@ -142,23 +132,23 @@ export const OverlayLoading: React.FC<LoadingStateProps> = ({
       zIndex: 10,
       backdropFilter: 'blur(2px)',
       borderRadius: 'inherit',
-      ...style
+      ...style,
     }}
   >
-    <Spinner 
-      size={SpinnerSize.large} 
-      ariaLive="polite"
+    <Spinner
+      size={SpinnerSize.large}
+      ariaLive='polite'
       styles={{
-        root: { marginBottom: '16px' }
+        root: { marginBottom: '16px' },
       }}
     />
     {message && (
-      <div 
+      <div
         style={{
           color: 'var(--neutralSecondary, #605e5c)',
           fontSize: '14px',
           fontWeight: 400,
-          textAlign: 'center'
+          textAlign: 'center',
         }}
       >
         {message}
@@ -170,18 +160,18 @@ export const OverlayLoading: React.FC<LoadingStateProps> = ({
 /**
  * Main loading component that switches between types
  */
-export const CardLoading: React.FC<LoadingStateProps> = (props) => {
+export const CardLoading: React.FC<LoadingStateProps> = props => {
   const { type = 'none', ...restProps } = props;
 
   switch (type) {
     case 'spinner':
-      return <SpinnerLoading {...restProps} />;
+      return <SpinnerLoading type={type} {...restProps} />;
     case 'skeleton':
-      return <SkeletonLoading {...restProps} />;
+      return <SkeletonLoading type={type} {...restProps} />;
     case 'shimmer':
-      return <ShimmerLoading {...restProps} />;
+      return <ShimmerLoading type={type} {...restProps} />;
     case 'overlay':
-      return <OverlayLoading {...restProps} />;
+      return <OverlayLoading type={type} {...restProps} />;
     case 'none':
     default:
       return null;
@@ -195,19 +185,20 @@ export const HeaderLoadingShimmer: React.FC<{
   className?: string;
   style?: React.CSSProperties;
 }> = ({ className = '', style }) => (
-  <div 
+  <div
     className={`spfx-card-header-loading-shimmer ${className}`}
     style={{
       width: '20px',
       height: '20px',
       borderRadius: '50%',
-      background: 'linear-gradient(90deg, var(--neutralLighter, #f8f9fa) 25%, var(--neutralLight, #edebe9) 50%, var(--neutralLighter, #f8f9fa) 75%)',
+      background:
+        'linear-gradient(90deg, var(--neutralLighter, #f8f9fa) 25%, var(--neutralLight, #edebe9) 50%, var(--neutralLighter, #f8f9fa) 75%)',
       backgroundSize: '200% 100%',
       animation: 'shimmer 1.5s infinite ease-in-out',
       marginRight: '8px',
-      ...style
+      ...style,
     }}
-    aria-hidden="true"
+    aria-hidden='true'
   />
 );
 
@@ -219,10 +210,7 @@ export const CustomLoading: React.FC<{
   className?: string;
   style?: React.CSSProperties;
 }> = ({ children, className = '', style }) => (
-  <div 
-    className={`spfx-card-loading-custom ${className}`} 
-    style={style}
-  >
+  <div className={`spfx-card-loading-custom ${className}`} style={style}>
     {children}
   </div>
 );
@@ -235,12 +223,7 @@ export const ContentLoadingPlaceholder: React.FC<{
   lines?: number;
   className?: string;
   style?: React.CSSProperties;
-}> = ({ 
-  height = 100, 
-  lines = 3, 
-  className = '', 
-  style 
-}) => {
+}> = ({ height = 100, lines = 3, className = '', style }) => {
   const containerStyle: React.CSSProperties = {
     height: typeof height === 'number' ? `${height}px` : height,
     display: 'flex',
@@ -248,7 +231,7 @@ export const ContentLoadingPlaceholder: React.FC<{
     justifyContent: 'center',
     gap: '8px',
     padding: '16px',
-    ...style
+    ...style,
   };
 
   return (
@@ -261,9 +244,10 @@ export const ContentLoadingPlaceholder: React.FC<{
             backgroundColor: 'var(--neutralLighter, #f8f9fa)',
             borderRadius: '4px',
             width: index === lines - 1 ? '70%' : '100%',
-            background: 'linear-gradient(90deg, var(--neutralLighter, #f8f9fa) 25%, var(--neutralLight, #edebe9) 50%, var(--neutralLighter, #f8f9fa) 75%)',
+            background:
+              'linear-gradient(90deg, var(--neutralLighter, #f8f9fa) 25%, var(--neutralLight, #edebe9) 50%, var(--neutralLighter, #f8f9fa) 75%)',
             backgroundSize: '200% 100%',
-            animation: 'shimmer 1.5s infinite ease-in-out'
+            animation: 'shimmer 1.5s infinite ease-in-out',
           }}
         />
       ))}
@@ -278,22 +262,21 @@ export const LoadingDots: React.FC<{
   size?: 'small' | 'medium' | 'large';
   color?: string;
   className?: string;
-}> = ({ 
-  size = 'medium', 
-  color = 'var(--themePrimary, #0078d4)', 
-  className = '' 
-}) => {
+}> = ({ size = 'medium', color = 'var(--themePrimary, #0078d4)', className = '' }) => {
   const sizeMap = {
     small: 4,
     medium: 6,
-    large: 8
+    large: 8,
   };
 
   const dotSize = sizeMap[size];
 
   return (
-    <div className={`spfx-card-loading-dots ${className}`} style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-      {[0, 1, 2].map((index) => (
+    <div
+      className={`spfx-card-loading-dots ${className}`}
+      style={{ display: 'flex', gap: '4px', alignItems: 'center' }}
+    >
+      {[0, 1, 2].map(index => (
         <div
           key={index}
           style={{
@@ -302,7 +285,7 @@ export const LoadingDots: React.FC<{
             borderRadius: '50%',
             backgroundColor: color,
             animation: `loadingDots 1.4s infinite ease-in-out both`,
-            animationDelay: `${index * 0.16}s`
+            animationDelay: `${index * 0.16}s`,
           }}
         />
       ))}
@@ -328,7 +311,7 @@ export const ProgressLoading: React.FC<{
   color = 'var(--themePrimary, #0078d4)',
   backgroundColor = 'var(--neutralLighter, #f8f9fa)',
   className = '',
-  style
+  style,
 }) => {
   const progressStyle: React.CSSProperties = {
     width: '100%',
@@ -337,7 +320,7 @@ export const ProgressLoading: React.FC<{
     borderRadius: `${height / 2}px`,
     overflow: 'hidden',
     position: 'relative',
-    ...style
+    ...style,
   };
 
   const barStyle: React.CSSProperties = {
@@ -348,8 +331,8 @@ export const ProgressLoading: React.FC<{
     width: indeterminate ? '30%' : `${Math.max(0, Math.min(100, progress))}%`,
     ...(indeterminate && {
       position: 'absolute',
-      animation: 'progressIndeterminate 2s infinite ease-in-out'
-    })
+      animation: 'progressIndeterminate 2s infinite ease-in-out',
+    }),
   };
 
   return (
@@ -397,7 +380,7 @@ const injectLoadingKeyframes = () => {
       .spfx-card-progress-loading > div {
         animation: none !important;
       }
-      
+
       .spfx-card-loading-shimmer,
       .spfx-card-header-loading-shimmer,
       .spfx-card-content-loading-placeholder > div {
@@ -435,14 +418,18 @@ export class LoadingErrorBoundary extends React.Component<
 
   render() {
     if (this.state.hasError) {
-      return this.props.fallback || (
-        <div style={{ 
-          padding: '16px', 
-          textAlign: 'center', 
-          color: 'var(--neutralSecondary, #605e5c)' 
-        }}>
-          Loading component error
-        </div>
+      return (
+        this.props.fallback || (
+          <div
+            style={{
+              padding: '16px',
+              textAlign: 'center',
+              color: 'var(--neutralSecondary, #605e5c)',
+            }}
+          >
+            Loading component error
+          </div>
+        )
       );
     }
 

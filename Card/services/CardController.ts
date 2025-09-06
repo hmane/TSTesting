@@ -1,13 +1,13 @@
-import { 
-  CardController as ICardController, 
-  CardRegistration, 
-  CardState, 
-  ScrollOptions,
+import {
+  CardError,
   CardEventData,
-  CardError
-} from '../types/Card.types';
+  CardRegistration,
+  CardState,
+  CardController as ICardController,
+  ScrollOptions,
+} from '../Card.types';
+import { ERROR_MESSAGES } from '../utils/constants';
 import { StorageService } from './StorageService';
-import { ERROR_MESSAGES, PERFORMANCE } from '../utils/constants';
 
 /**
  * Singleton Card Controller Service
@@ -83,18 +83,20 @@ export class CardControllerService implements ICardController {
     }
 
     if (this.cards.has(registration.id)) {
-      console.warn(`[SpfxCard] Card ${registration.id} is already registered, updating registration`);
+      console.warn(
+        `[SpfxCard] Card ${registration.id} is already registered, updating registration`
+      );
     }
 
     this.cards.set(registration.id, registration);
-    
+
     // Emit registration event
     this.emitEvent('register', registration.id, {
       cardId: registration.id,
       isExpanded: registration.isExpanded,
       isMaximized: registration.isMaximized,
       timestamp: Date.now(),
-      source: 'programmatic' as const
+      source: 'programmatic' as const,
     });
 
     console.debug(`[SpfxCard] Registered card: ${registration.id}`);
@@ -111,14 +113,14 @@ export class CardControllerService implements ICardController {
 
     this.cards.delete(id);
     this.subscriptions.delete(id);
-    
+
     // Emit unregistration event
     this.emitEvent('unregister', id, {
       cardId: id,
       isExpanded: false,
       isMaximized: false,
       timestamp: Date.now(),
-      source: 'programmatic' as const
+      source: 'programmatic' as const,
     });
 
     console.debug(`[SpfxCard] Unregistered card: ${id}`);
@@ -136,7 +138,7 @@ export class CardControllerService implements ICardController {
 
     // Update registration state
     Object.assign(card, state);
-    
+
     // Emit state change event
     this.emitEvent('stateChange', id, {
       cardId: id,
@@ -144,7 +146,7 @@ export class CardControllerService implements ICardController {
       isMaximized: card.isMaximized,
       timestamp: Date.now(),
       source: 'programmatic' as const,
-      metadata: state
+      metadata: state,
     });
   }
 
@@ -188,14 +190,14 @@ export class CardControllerService implements ICardController {
 
     try {
       card.toggleFn('programmatic');
-      
+
       if (highlight && card.highlightFn) {
         card.highlightFn();
       }
 
       this.notifySubscribers(id, 'toggle', {
         source: 'programmatic',
-        newState: !card.isExpanded
+        newState: !card.isExpanded,
       });
 
       return true;
@@ -221,7 +223,7 @@ export class CardControllerService implements ICardController {
 
     try {
       card.expandFn('programmatic');
-      
+
       if (highlight && card.highlightFn) {
         card.highlightFn();
       }
@@ -250,7 +252,7 @@ export class CardControllerService implements ICardController {
 
     try {
       card.collapseFn('programmatic');
-      
+
       if (highlight && card.highlightFn) {
         card.highlightFn();
       }
@@ -360,7 +362,7 @@ export class CardControllerService implements ICardController {
       }
 
       await this.scrollToElement(cardElement, options);
-      
+
       if (options.highlight && card.highlightFn) {
         card.highlightFn();
       }
@@ -396,7 +398,7 @@ export class CardControllerService implements ICardController {
 
       // Then scroll to it
       const scrollResult = await this.scrollToCard(id, options);
-      
+
       // Highlight after scroll if requested
       if (scrollResult && options.highlight && card.highlightFn) {
         setTimeout(() => card.highlightFn!(), 100);
@@ -413,26 +415,26 @@ export class CardControllerService implements ICardController {
    * Scroll to element helper
    */
   private async scrollToElement(element: HTMLElement, options: ScrollOptions): Promise<void> {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       const { block = 'center', inline = 'nearest', smooth = true, offset = 0 } = options;
-      
+
       // Calculate scroll position with offset
       let scrollTop = element.offsetTop;
-      
+
       if (block === 'center') {
         scrollTop -= (window.innerHeight - element.offsetHeight) / 2;
       } else if (block === 'end') {
-        scrollTop -= (window.innerHeight - element.offsetHeight);
+        scrollTop -= window.innerHeight - element.offsetHeight;
       }
-      
+
       scrollTop += offset;
 
       if (smooth && 'scrollTo' in window) {
         window.scrollTo({
           top: scrollTop,
-          behavior: 'smooth'
+          behavior: 'smooth',
         });
-        
+
         // Resolve after scroll animation
         setTimeout(resolve, 500);
       } else {
@@ -453,7 +455,7 @@ export class CardControllerService implements ICardController {
       isExpanded: card.isExpanded,
       isMaximized: card.isMaximized,
       hasContentLoaded: card.hasContentLoaded,
-      lastUpdated: Date.now()
+      lastUpdated: Date.now(),
     }));
   }
 
@@ -471,7 +473,7 @@ export class CardControllerService implements ICardController {
       isExpanded: card.isExpanded,
       isMaximized: card.isMaximized,
       hasContentLoaded: card.hasContentLoaded,
-      lastUpdated: Date.now()
+      lastUpdated: Date.now(),
     };
   }
 
@@ -501,14 +503,14 @@ export class CardControllerService implements ICardController {
    */
   public persistStates(): void {
     const states: Record<string, CardState> = {};
-    
+
     this.cards.forEach((card, id) => {
       states[id] = {
         id,
         isExpanded: card.isExpanded,
         isMaximized: card.isMaximized,
         hasContentLoaded: card.hasContentLoaded,
-        lastUpdated: Date.now()
+        lastUpdated: Date.now(),
       };
     });
 
@@ -520,7 +522,7 @@ export class CardControllerService implements ICardController {
    */
   public restoreStates(): void {
     const storedStates = this.storageService.loadCardStates();
-    
+
     Object.entries(storedStates).forEach(([id, state]) => {
       const card = this.cards.get(id);
       if (!card) return;
@@ -583,7 +585,9 @@ export class CardControllerService implements ICardController {
   /**
    * Subscribe to global events
    */
-  public subscribeGlobal(callback: (action: string, cardId: string, data?: any) => void): () => void {
+  public subscribeGlobal(
+    callback: (action: string, cardId: string, data?: any) => void
+  ): () => void {
     this.globalSubscriptions.push(callback);
 
     // Return unsubscribe function
@@ -626,9 +630,9 @@ export class CardControllerService implements ICardController {
    */
   private emitEvent(type: string, cardId: string, data: CardEventData): void {
     const customEvent = new CustomEvent(`card-${type}`, {
-      detail: { cardId, data }
+      detail: { cardId, data },
     });
-    
+
     this.eventBus.dispatchEvent(customEvent);
   }
 
@@ -638,16 +642,19 @@ export class CardControllerService implements ICardController {
    * Execute batch operation
    */
   public async batchOperation(
-    operations: Array<{ cardId: string; action: 'expand' | 'collapse' | 'toggle' | 'maximize' | 'restore' }>,
+    operations: Array<{
+      cardId: string;
+      action: 'expand' | 'collapse' | 'toggle' | 'maximize' | 'restore';
+    }>,
     highlight: boolean = true
   ): Promise<boolean[]> {
     const batchId = `batch-${Date.now()}`;
     this.batchOperations.add(batchId);
 
     const results = await Promise.allSettled(
-      operations.map(async (op) => {
+      operations.map(async op => {
         await new Promise(resolve => setTimeout(resolve, 10)); // Small delay between operations
-        
+
         switch (op.action) {
           case 'expand':
             return this.expandCard(op.cardId, highlight);
@@ -666,10 +673,8 @@ export class CardControllerService implements ICardController {
     );
 
     this.batchOperations.delete(batchId);
-    
-    return results.map(result => 
-      result.status === 'fulfilled' ? result.value : false
-    );
+
+    return results.map(result => (result.status === 'fulfilled' ? result.value : false));
   }
 
   /**
@@ -722,11 +727,11 @@ export class CardControllerService implements ICardController {
       message: error.message || 'Unknown error',
       cardId,
       operation,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
 
     console.error(`[SpfxCard] Error in ${operation} for card ${cardId}:`, error);
-    
+
     // Emit error event
     this.emitEvent('error', cardId, {
       cardId,
@@ -734,7 +739,7 @@ export class CardControllerService implements ICardController {
       isMaximized: false,
       timestamp: Date.now(),
       source: 'programmatic' as const,
-      metadata: { error: cardError }
+      metadata: { error: cardError },
     });
   }
 
@@ -753,7 +758,10 @@ export class CardControllerService implements ICardController {
   } {
     const expandedCards = Array.from(this.cards.values()).filter(card => card.isExpanded).length;
     const maximizedCards = Array.from(this.cards.values()).filter(card => card.isMaximized).length;
-    const subscriptions = Array.from(this.subscriptions.values()).reduce((sum, subs) => sum + subs.length, 0);
+    const subscriptions = Array.from(this.subscriptions.values()).reduce(
+      (sum, subs) => sum + subs.length,
+      0
+    );
 
     return {
       totalCards: this.cards.size,
@@ -761,7 +769,7 @@ export class CardControllerService implements ICardController {
       maximizedCards,
       subscriptions,
       globalSubscriptions: this.globalSubscriptions.length,
-      activeBatchOperations: this.batchOperations.size
+      activeBatchOperations: this.batchOperations.size,
     };
   }
 
@@ -793,13 +801,13 @@ export class CardControllerService implements ICardController {
     // Clear all subscriptions
     this.subscriptions.clear();
     this.globalSubscriptions.length = 0;
-    
+
     // Clear batch operations
     this.batchOperations.clear();
-    
+
     // Persist final state
     this.persistStates();
-    
+
     console.log('[SpfxCard] Controller cleanup completed');
   }
 
@@ -810,7 +818,7 @@ export class CardControllerService implements ICardController {
     this.cleanup();
     this.cards.clear();
     this.clearStoredStates();
-    
+
     console.log('[SpfxCard] Controller reset completed');
   }
 }

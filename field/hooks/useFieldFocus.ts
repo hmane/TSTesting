@@ -11,13 +11,13 @@ interface UseFieldFocusReturn {
   focusPreviousField: (currentId: string, expandParent?: boolean) => Promise<boolean>;
   focusFirstField: (expandParent?: boolean) => Promise<boolean>;
   focusLastField: (expandParent?: boolean) => Promise<boolean>;
-  
+
   // Enhanced validation with smart error focusing
   validateAllFields: (container?: HTMLElement) => ValidationResult;
   validateRHFFields: () => Promise<ValidationResult>;
   getFieldErrors: (container?: HTMLElement) => { [fieldId: string]: string };
   focusFirstInvalidField: (container?: HTMLElement, expandParent?: boolean) => Promise<boolean>;
-  
+
   // Smart form validation and error handling
   validateAndFocus: (container?: HTMLElement) => Promise<{
     isValid: boolean;
@@ -28,11 +28,11 @@ interface UseFieldFocusReturn {
     errors: { [fieldName: string]: string },
     fieldNameToIdMap?: { [fieldName: string]: string }
   ) => Promise<boolean>;
-  
+
   // RHF integration
   triggerRHFValidation: (fieldName?: string) => Promise<boolean>;
   getRHFErrors: () => { [fieldName: string]: string };
-  
+
   // Advanced navigation
   handleTabNavigation: (
     currentFieldId: string,
@@ -44,24 +44,24 @@ interface UseFieldFocusReturn {
     fieldIndex: number,
     expandParent?: boolean
   ) => Promise<boolean>;
-  
+
   // Batch operations with parent expansion
   focusFieldsInSequence: (
-    fieldIds: string[], 
+    fieldIds: string[],
     delay?: number,
     expandParent?: boolean
   ) => Promise<boolean[]>;
   scrollToFieldsInSequence: (
-    fieldIds: string[], 
+    fieldIds: string[],
     delay?: number,
     expandParent?: boolean
   ) => Promise<boolean[]>;
-  
+
   // Utility methods
   getAllFields: () => string[];
   isFieldRegistered: (fieldId: string) => boolean;
   getRegisteredFieldCount: () => number;
-  
+
   // Enhanced statistics with parent context
   getValidationStats: (container?: HTMLElement) => {
     totalFields: number;
@@ -73,7 +73,7 @@ interface UseFieldFocusReturn {
     collapsedParents: number;
     validationSources: { [source: string]: number };
   };
-  
+
   // Debug helpers
   getDebugInfo: () => {
     registeredFields: string[];
@@ -130,7 +130,7 @@ export const useFieldFocus = (): UseFieldFocusReturn => {
   }, []);
 
   const focusFirstInvalidField = useCallback(async (
-    container?: HTMLElement, 
+    container?: HTMLElement,
     expandParent: boolean = true
   ): Promise<boolean> => {
     return await focusController.focusFirstInvalidField(container, expandParent);
@@ -152,7 +152,7 @@ export const useFieldFocus = (): UseFieldFocusReturn => {
   const triggerRHFValidation = useCallback(async (fieldName?: string): Promise<boolean> => {
     if (formContext) {
       try {
-        const result = fieldName 
+        const result = fieldName
           ? await formContext.trigger(fieldName as any)
           : await formContext.trigger();
         return result;
@@ -169,7 +169,7 @@ export const useFieldFocus = (): UseFieldFocusReturn => {
       const errors: { [fieldName: string]: string } = {};
       Object.entries(formContext.formState.errors).forEach(([key, error]) => {
         if (error?.message) {
-          errors[key] = error.message;
+          errors[key] = String(error.message);
         }
       });
       return errors;
@@ -196,7 +196,7 @@ export const useFieldFocus = (): UseFieldFocusReturn => {
 
   // Batch operations with parent expansion
   const focusFieldsInSequence = useCallback(async (
-    fieldIds: string[], 
+    fieldIds: string[],
     delay: number = 100,
     expandParent: boolean = true
   ): Promise<boolean[]> => {
@@ -204,7 +204,7 @@ export const useFieldFocus = (): UseFieldFocusReturn => {
   }, []);
 
   const scrollToFieldsInSequence = useCallback(async (
-    fieldIds: string[], 
+    fieldIds: string[],
     delay: number = 500,
     expandParent: boolean = true
   ): Promise<boolean[]> => {
@@ -242,37 +242,37 @@ export const useFieldFocus = (): UseFieldFocusReturn => {
     focusPreviousField,
     focusFirstField,
     focusLastField,
-    
+
     // Enhanced validation
     validateAllFields,
     validateRHFFields,
     getFieldErrors,
     focusFirstInvalidField,
-    
+
     // Smart form handling
     validateAndFocus,
     handleFormErrors,
-    
+
     // RHF integration
     triggerRHFValidation,
     getRHFErrors,
-    
+
     // Advanced navigation
     handleTabNavigation,
     focusFieldInGroup,
-    
+
     // Batch operations
     focusFieldsInSequence,
     scrollToFieldsInSequence,
-    
+
     // Utility methods
     getAllFields,
     isFieldRegistered,
     getRegisteredFieldCount,
-    
+
     // Enhanced statistics
     getValidationStats,
-    
+
     // Debug helpers
     getDebugInfo,
   };
@@ -301,12 +301,12 @@ export const useFormSubmission = () => {
       async (errors) => {
         // Focus first error field with parent expansion
         const focused = await fieldFocus.handleFormErrors(errors);
-        
+
         if (!focused) {
           // Fallback: try to focus first invalid field
           await fieldFocus.focusFirstInvalidField(undefined, true);
         }
-        
+
         onInvalid?.(errors);
       }
     );
@@ -343,7 +343,7 @@ export const useCardFieldFocus = (cardId?: string) => {
         }
       }
     }
-    
+
     return await fieldFocus.focusField(fieldId, true);
   }, [cardId, fieldFocus]);
 

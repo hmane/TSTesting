@@ -1,9 +1,10 @@
-import React, { useEffect, useCallback, useRef } from 'react';
-import { createPortal } from 'react-dom';
 import { IconButton } from '@fluentui/react/lib/Button';
-import { MaximizedViewProps } from '../types/Card.types';
-import { DEFAULT_ICONS, Z_INDEX } from '../utils/constants';
+import * as React from 'react';
+import { useCallback, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { MaximizedViewProps } from '../Card.types';
 import { getAnimationDuration } from '../utils/animations';
+import { DEFAULT_ICONS, Z_INDEX } from '../utils/constants';
 
 /**
  * Maximized view component that renders card content in a full-screen overlay
@@ -17,7 +18,7 @@ export const MaximizedView: React.FC<MaximizedViewProps> = ({
   backdrop = true,
   closeOnBackdropClick = true,
   closeOnEscape = true,
-  restoreIcon = DEFAULT_ICONS.RESTORE
+  restoreIcon = DEFAULT_ICONS.RESTORE,
 }) => {
   const backdropRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -26,7 +27,7 @@ export const MaximizedView: React.FC<MaximizedViewProps> = ({
   // Store previous focus element
   useEffect(() => {
     previousFocusRef.current = document.activeElement as HTMLElement;
-    
+
     return () => {
       // Restore focus when unmounting
       if (previousFocusRef.current && previousFocusRef.current.focus) {
@@ -36,19 +37,25 @@ export const MaximizedView: React.FC<MaximizedViewProps> = ({
   }, []);
 
   // Handle escape key
-  const handleKeyDown = useCallback((event: KeyboardEvent) => {
-    if (closeOnEscape && event.key === 'Escape') {
-      event.preventDefault();
-      onRestore();
-    }
-  }, [closeOnEscape, onRestore]);
+  const handleKeyDown = useCallback(
+    (event: KeyboardEvent) => {
+      if (closeOnEscape && event.key === 'Escape') {
+        event.preventDefault();
+        onRestore();
+      }
+    },
+    [closeOnEscape, onRestore]
+  );
 
   // Handle backdrop click
-  const handleBackdropClick = useCallback((event: React.MouseEvent) => {
-    if (closeOnBackdropClick && event.target === backdropRef.current) {
-      onRestore();
-    }
-  }, [closeOnBackdropClick, onRestore]);
+  const handleBackdropClick = useCallback(
+    (event: React.MouseEvent) => {
+      if (closeOnBackdropClick && event.target === backdropRef.current) {
+        onRestore();
+      }
+    },
+    [closeOnBackdropClick, onRestore]
+  );
 
   // Set up event listeners
   useEffect(() => {
@@ -69,7 +76,7 @@ export const MaximizedView: React.FC<MaximizedViewProps> = ({
       if (closeOnEscape) {
         document.removeEventListener('keydown', handleKeyDown);
       }
-      
+
       // Restore body scroll
       document.body.style.overflow = originalOverflow;
     };
@@ -81,14 +88,14 @@ export const MaximizedView: React.FC<MaximizedViewProps> = ({
     left: 0,
     right: 0,
     bottom: 0,
-    zIndex: Z_INDEX.MAXIMIZED,
+    zIndex: Z_INDEX.MAXIMIZED_CARD,
     backgroundColor: backdrop ? 'rgba(0, 0, 0, 0.5)' : 'transparent',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     padding: '0',
     backdropFilter: backdrop ? 'blur(2px)' : 'none',
-    animation: `fadeIn ${getAnimationDuration(300)}ms ease-out`
+    animation: `fadeIn ${getAnimationDuration(300)}ms ease-out`,
   };
 
   const contentStyle: React.CSSProperties = {
@@ -103,21 +110,21 @@ export const MaximizedView: React.FC<MaximizedViewProps> = ({
     overflow: 'hidden',
     outline: 'none',
     animation: `maximizeIn ${getAnimationDuration(350)}ms cubic-bezier(0.4, 0, 0.2, 1)`,
-    ...style
+    ...style,
   };
 
   const closeButtonStyle: React.CSSProperties = {
     position: 'absolute',
     top: '16px',
     right: '16px',
-    zIndex: Z_INDEX.MAXIMIZED + 1,
+    zIndex: Z_INDEX.MAXIMIZED_CARD + 1,
     backgroundColor: 'rgba(255, 255, 255, 0.9)',
     backdropFilter: 'blur(8px)',
     border: '1px solid var(--neutralLight, #edebe9)',
     borderRadius: '50%',
     width: '40px',
     height: '40px',
-    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
   };
 
   const maximizedContent = (
@@ -126,23 +133,23 @@ export const MaximizedView: React.FC<MaximizedViewProps> = ({
       className={`spfx-card-maximized-backdrop ${className}`}
       style={backdropStyle}
       onClick={handleBackdropClick}
-      role="dialog"
-      aria-modal="true"
+      role='dialog'
+      aria-modal='true'
       aria-labelledby={`card-header-${cardId}`}
       aria-describedby={`card-content-${cardId}`}
     >
       <div
         ref={contentRef}
-        className="spfx-card-maximized-content"
+        className='spfx-card-maximized-content'
         style={contentStyle}
         tabIndex={-1}
-        onClick={(e) => e.stopPropagation()} // Prevent backdrop click when clicking content
+        onClick={e => e.stopPropagation()} // Prevent backdrop click when clicking content
       >
         {/* Close Button */}
         <IconButton
           iconProps={{ iconName: restoreIcon }}
-          title="Restore card"
-          ariaLabel="Restore card to normal size"
+          title='Restore card'
+          ariaLabel='Restore card to normal size'
           onClick={onRestore}
           style={closeButtonStyle}
           styles={{
@@ -150,18 +157,18 @@ export const MaximizedView: React.FC<MaximizedViewProps> = ({
               selectors: {
                 ':hover': {
                   backgroundColor: 'rgba(255, 255, 255, 1)',
-                  transform: 'scale(1.05)'
+                  transform: 'scale(1.05)',
                 },
                 ':active': {
-                  transform: 'scale(0.95)'
-                }
-              }
-            }
+                  transform: 'scale(0.95)',
+                },
+              },
+            },
           }}
         />
-        
+
         {/* Card Content */}
-        <div className="spfx-card-maximized-body" style={{ flex: 1, overflow: 'auto' }}>
+        <div className='spfx-card-maximized-body' style={{ flex: 1, overflow: 'auto' }}>
           {children}
         </div>
       </div>
@@ -175,13 +182,15 @@ export const MaximizedView: React.FC<MaximizedViewProps> = ({
 /**
  * Alternative maximized view with custom positioning
  */
-export const CustomMaximizedView: React.FC<MaximizedViewProps & {
-  width?: string | number;
-  height?: string | number;
-  maxWidth?: string | number;
-  maxHeight?: string | number;
-  centered?: boolean;
-}> = ({
+export const CustomMaximizedView: React.FC<
+  MaximizedViewProps & {
+    width?: string | number;
+    height?: string | number;
+    maxWidth?: string | number;
+    maxHeight?: string | number;
+    centered?: boolean;
+  }
+> = ({
   cardId,
   children,
   onRestore,
@@ -195,20 +204,26 @@ export const CustomMaximizedView: React.FC<MaximizedViewProps & {
   height = '90vh',
   maxWidth = '1200px',
   maxHeight = '800px',
-  centered = true
+  centered = true,
 }) => {
-  const handleKeyDown = useCallback((event: KeyboardEvent) => {
-    if (closeOnEscape && event.key === 'Escape') {
-      event.preventDefault();
-      onRestore();
-    }
-  }, [closeOnEscape, onRestore]);
+  const handleKeyDown = useCallback(
+    (event: KeyboardEvent) => {
+      if (closeOnEscape && event.key === 'Escape') {
+        event.preventDefault();
+        onRestore();
+      }
+    },
+    [closeOnEscape, onRestore]
+  );
 
-  const handleBackdropClick = useCallback((event: React.MouseEvent) => {
-    if (closeOnBackdropClick && event.currentTarget === event.target) {
-      onRestore();
-    }
-  }, [closeOnBackdropClick, onRestore]);
+  const handleBackdropClick = useCallback(
+    (event: React.MouseEvent) => {
+      if (closeOnBackdropClick && event.currentTarget === event.target) {
+        onRestore();
+      }
+    },
+    [closeOnBackdropClick, onRestore]
+  );
 
   useEffect(() => {
     if (closeOnEscape) {
@@ -232,13 +247,13 @@ export const CustomMaximizedView: React.FC<MaximizedViewProps & {
     left: 0,
     right: 0,
     bottom: 0,
-    zIndex: Z_INDEX.MAXIMIZED,
+    zIndex: Z_INDEX.MAXIMIZED_CARD,
     backgroundColor: backdrop ? 'rgba(0, 0, 0, 0.5)' : 'transparent',
     display: 'flex',
     alignItems: centered ? 'center' : 'flex-start',
     justifyContent: centered ? 'center' : 'flex-start',
     padding: '20px',
-    backdropFilter: backdrop ? 'blur(2px)' : 'none'
+    backdropFilter: backdrop ? 'blur(2px)' : 'none',
   };
 
   const contentStyle: React.CSSProperties = {
@@ -254,7 +269,7 @@ export const CustomMaximizedView: React.FC<MaximizedViewProps & {
     flexDirection: 'column',
     overflow: 'hidden',
     outline: 'none',
-    ...style
+    ...style,
   };
 
   const maximizedContent = (
@@ -262,26 +277,28 @@ export const CustomMaximizedView: React.FC<MaximizedViewProps & {
       className={`spfx-card-custom-maximized-backdrop ${className}`}
       style={backdropStyle}
       onClick={handleBackdropClick}
-      role="dialog"
-      aria-modal="true"
+      role='dialog'
+      aria-modal='true'
       aria-labelledby={`card-header-${cardId}`}
     >
       <div
-        className="spfx-card-custom-maximized-content"
+        className='spfx-card-custom-maximized-content'
         style={contentStyle}
-        onClick={(e) => e.stopPropagation()}
+        onClick={e => e.stopPropagation()}
       >
         {/* Close Button */}
-        <div style={{ 
-          position: 'absolute', 
-          top: '16px', 
-          right: '16px', 
-          zIndex: 1 
-        }}>
+        <div
+          style={{
+            position: 'absolute',
+            top: '16px',
+            right: '16px',
+            zIndex: 1,
+          }}
+        >
           <IconButton
             iconProps={{ iconName: restoreIcon }}
-            title="Restore card"
-            ariaLabel="Restore card to normal size"
+            title='Restore card'
+            ariaLabel='Restore card to normal size'
             onClick={onRestore}
             styles={{
               root: {
@@ -289,16 +306,14 @@ export const CustomMaximizedView: React.FC<MaximizedViewProps & {
                 border: '1px solid var(--neutralLight, #edebe9)',
                 borderRadius: '50%',
                 width: '32px',
-                height: '32px'
-              }
+                height: '32px',
+              },
             }}
           />
         </div>
-        
+
         {/* Content */}
-        <div style={{ flex: 1, overflow: 'auto' }}>
-          {children}
-        </div>
+        <div style={{ flex: 1, overflow: 'auto' }}>{children}</div>
       </div>
     </div>
   );
@@ -387,7 +402,7 @@ const injectMaximizedAnimations = () => {
       }
     }
   `;
-  
+
   document.head.appendChild(style);
 };
 

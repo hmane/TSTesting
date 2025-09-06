@@ -1,6 +1,7 @@
-import { useMemo, useCallback, useRef, useEffect } from 'react';
+import * as React from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { CardControllerHook, CardState, ScrollOptions } from '../Card.types';
 import { cardController } from '../services/CardController';
-import { CardControllerHook, ScrollOptions, CardState } from '../types/Card.types';
 
 /**
  * Hook for accessing card controller functionality
@@ -88,7 +89,10 @@ export const useCardController = (): CardControllerHook => {
 
   const batchOperation = useCallback(
     async (
-      operations: Array<{ cardId: string; action: 'expand' | 'collapse' | 'toggle' | 'maximize' | 'restore' }>,
+      operations: Array<{
+        cardId: string;
+        action: 'expand' | 'collapse' | 'toggle' | 'maximize' | 'restore';
+      }>,
       highlight?: boolean
     ): Promise<boolean[]> => {
       return cardController.batchOperation(operations, highlight);
@@ -100,7 +104,7 @@ export const useCardController = (): CardControllerHook => {
     (cardId: string, callback: (action: string, data?: any) => void): (() => void) => {
       const unsubscribe = cardController.subscribe(cardId, callback);
       subscriptionsRef.current.push(unsubscribe);
-      
+
       // Return unsubscribe function that also removes from our tracking
       return () => {
         const index = subscriptionsRef.current.indexOf(unsubscribe);
@@ -117,7 +121,7 @@ export const useCardController = (): CardControllerHook => {
     (callback: (action: string, cardId: string, data?: any) => void): (() => void) => {
       const unsubscribe = cardController.subscribeGlobal(callback);
       subscriptionsRef.current.push(unsubscribe);
-      
+
       // Return unsubscribe function that also removes from our tracking
       return () => {
         const index = subscriptionsRef.current.indexOf(unsubscribe);
@@ -155,56 +159,59 @@ export const useCardController = (): CardControllerHook => {
   }, []);
 
   // Return memoized hook object
-  return useMemo((): CardControllerHook => ({
-    controller: cardController,
-    expandAll,
-    collapseAll,
-    toggleCard,
-    expandCard,
-    collapseCard,
-    maximizeCard,
-    restoreCard,
-    expandAndScrollTo,
-    getCardStates,
-    getCardState,
-    highlightCard,
-    scrollToCard,
-    toggleMaximize,
-    isCardMaximized,
-    batchOperation,
-    subscribe,
-    subscribeGlobal,
-    persistStates,
-    restoreStates,
-    clearStoredStates,
-    getStats,
-    getRegisteredCardIds,
-    isCardRegistered
-  }), [
-    expandAll,
-    collapseAll,
-    toggleCard,
-    expandCard,
-    collapseCard,
-    maximizeCard,
-    restoreCard,
-    expandAndScrollTo,
-    getCardStates,
-    getCardState,
-    highlightCard,
-    scrollToCard,
-    toggleMaximize,
-    isCardMaximized,
-    batchOperation,
-    subscribe,
-    subscribeGlobal,
-    persistStates,
-    restoreStates,
-    clearStoredStates,
-    getStats,
-    getRegisteredCardIds,
-    isCardRegistered
-  ]);
+  return useMemo(
+    (): CardControllerHook => ({
+      controller: cardController,
+      expandAll,
+      collapseAll,
+      toggleCard,
+      expandCard,
+      collapseCard,
+      maximizeCard,
+      restoreCard,
+      expandAndScrollTo,
+      getCardStates,
+      getCardState,
+      highlightCard,
+      scrollToCard,
+      toggleMaximize,
+      isCardMaximized,
+      batchOperation,
+      subscribe,
+      subscribeGlobal,
+      persistStates,
+      restoreStates,
+      clearStoredStates,
+      getStats,
+      getRegisteredCardIds,
+      isCardRegistered,
+    }),
+    [
+      expandAll,
+      collapseAll,
+      toggleCard,
+      expandCard,
+      collapseCard,
+      maximizeCard,
+      restoreCard,
+      expandAndScrollTo,
+      getCardStates,
+      getCardState,
+      highlightCard,
+      scrollToCard,
+      toggleMaximize,
+      isCardMaximized,
+      batchOperation,
+      subscribe,
+      subscribeGlobal,
+      persistStates,
+      restoreStates,
+      clearStoredStates,
+      getStats,
+      getRegisteredCardIds,
+      isCardRegistered,
+    ]
+  );
 };
 
 /**
@@ -252,7 +259,7 @@ export const useGlobalCardSubscription = (
  * Hook for tracking card state
  */
 export const useCardState = (cardId: string): CardState | null => {
-  const [state, setState] = React.useState<CardState | null>(() => 
+  const [state, setState] = React.useState<CardState | null>(() =>
     cardController.getCardState(cardId)
   );
 
@@ -275,9 +282,7 @@ export const useCardState = (cardId: string): CardState | null => {
  * Hook for tracking all card states
  */
 export const useAllCardStates = (): CardState[] => {
-  const [states, setStates] = React.useState<CardState[]>(() => 
-    cardController.getCardStates()
-  );
+  const [states, setStates] = React.useState<CardState[]>(() => cardController.getCardStates());
 
   useEffect(() => {
     // Initial states
@@ -302,10 +307,10 @@ export const useCardControllerStats = () => {
 
   useEffect(() => {
     const updateStats = () => setStats(cardController.getStats());
-    
+
     // Update stats on any card event
     const unsubscribe = cardController.subscribeGlobal(updateStats);
-    
+
     // Also update periodically
     const interval = setInterval(updateStats, 5000);
 
@@ -317,6 +322,3 @@ export const useCardControllerStats = () => {
 
   return stats;
 };
-
-// Fix React import
-import React from 'react';

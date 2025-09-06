@@ -1,15 +1,13 @@
-import type { 
-  FieldRegistration, 
-  ValidationResult, 
-  FieldValidationMap, 
-  FieldValidationState 
+import type {
+  FieldRegistration,
+  FieldValidationMap,
+  FieldValidationState,
+  ValidationResult,
 } from '../Field.types';
-import { 
-  findFieldElements, 
-  scanElementValidation, 
-  extractErrorMessage, 
-  focusFirstElement, 
-  scrollToElement 
+import {
+  extractErrorMessage,
+  findFieldElements,
+  scanElementValidation
 } from '../utils/fieldUtils';
 
 // Enhanced field registration with parent expansion capabilities
@@ -17,11 +15,11 @@ interface EnhancedFieldRegistration extends FieldRegistration {
   // Enhanced focus with parent expansion
   focusFn: () => Promise<boolean> | boolean;
   scrollFn: () => Promise<boolean> | boolean;
-  
+
   // Backward compatibility - simple focus/scroll without expansion
   simpleFocusFn?: () => boolean;
   simpleScrollFn?: () => boolean;
-  
+
   // RHF validation
   rhfValidationFn?: () => Promise<boolean>;
 }
@@ -58,7 +56,7 @@ class EnhancedFocusController {
     if (!field) return false;
 
     try {
-      const focusFunction = expandParent ? field.focusFn : (field.simpleFocusFn || field.focusFn);
+      const focusFunction = expandParent ? field.focusFn : field.simpleFocusFn || field.focusFn;
       const result = await Promise.resolve(focusFunction());
       return result;
     } catch (error) {
@@ -72,7 +70,7 @@ class EnhancedFocusController {
     if (!field) return false;
 
     try {
-      const scrollFunction = expandParent ? field.scrollFn : (field.simpleScrollFn || field.scrollFn);
+      const scrollFunction = expandParent ? field.scrollFn : field.simpleScrollFn || field.scrollFn;
       const result = await Promise.resolve(scrollFunction());
       return result;
     } catch (error) {
@@ -85,24 +83,24 @@ class EnhancedFocusController {
   async focusNextField(currentId: string, expandParent: boolean = true): Promise<boolean> {
     const fieldIds = Array.from(this.fields.keys());
     const currentIndex = fieldIds.indexOf(currentId);
-    
+
     if (currentIndex !== -1 && currentIndex < fieldIds.length - 1) {
       const nextFieldId = fieldIds[currentIndex + 1];
       return await this.focusField(nextFieldId, expandParent);
     }
-    
+
     return false;
   }
 
   async focusPreviousField(currentId: string, expandParent: boolean = true): Promise<boolean> {
     const fieldIds = Array.from(this.fields.keys());
     const currentIndex = fieldIds.indexOf(currentId);
-    
+
     if (currentIndex > 0) {
       const previousFieldId = fieldIds[currentIndex - 1];
       return await this.focusField(previousFieldId, expandParent);
     }
-    
+
     return false;
   }
 
@@ -124,57 +122,57 @@ class EnhancedFocusController {
 
   // Enhanced validation with smart focusing
   async focusFirstInvalidField(
-    container?: HTMLElement, 
+    container?: HTMLElement,
     expandParent: boolean = true
   ): Promise<boolean> {
     const fieldStates = this.scanFieldValidation(container);
-    
+
     for (const [fieldId, state] of fieldStates) {
       if (!state.isValid) {
         const success = await this.focusField(fieldId, expandParent);
         if (success) return true;
       }
     }
-    
+
     return false;
   }
 
   // Batch operations with parent expansion
   async focusFieldsInSequence(
-    fieldIds: string[], 
+    fieldIds: string[],
     delay: number = 100,
     expandParent: boolean = true
   ): Promise<boolean[]> {
     const results: boolean[] = [];
-    
+
     for (const fieldId of fieldIds) {
       const result = await this.focusField(fieldId, expandParent);
       results.push(result);
-      
+
       if (delay > 0 && fieldIds.indexOf(fieldId) < fieldIds.length - 1) {
         await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
-    
+
     return results;
   }
 
   async scrollToFieldsInSequence(
-    fieldIds: string[], 
+    fieldIds: string[],
     delay: number = 500,
     expandParent: boolean = true
   ): Promise<boolean[]> {
     const results: boolean[] = [];
-    
+
     for (const fieldId of fieldIds) {
       const result = await this.scrollToField(fieldId, expandParent);
       results.push(result);
-      
+
       if (delay > 0 && fieldIds.indexOf(fieldId) < fieldIds.length - 1) {
         await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
-    
+
     return results;
   }
 
@@ -185,18 +183,18 @@ class EnhancedFocusController {
     firstErrorFocused: boolean;
   }> {
     const validation = this.validateAllFields(container);
-    
+
     if (!validation.isValid) {
       const firstErrorFocused = await this.focusFirstInvalidField(container, true);
       return {
         ...validation,
-        firstErrorFocused
+        firstErrorFocused,
       };
     }
-    
+
     return {
       ...validation,
-      firstErrorFocused: false
+      firstErrorFocused: false,
     };
   }
 
@@ -212,12 +210,12 @@ class EnhancedFocusController {
     for (const fieldName of errorFieldNames) {
       // First try direct field ID
       let fieldId = fieldName;
-      
+
       // If we have a mapping, use it
       if (fieldNameToIdMap && fieldNameToIdMap[fieldName]) {
         fieldId = fieldNameToIdMap[fieldName];
       }
-      
+
       // Try to find field by name attribute
       if (!this.fields.has(fieldId)) {
         const fieldElement = document.querySelector(`[data-rhf-field="${fieldName}"]`);
@@ -228,7 +226,7 @@ class EnhancedFocusController {
           }
         }
       }
-      
+
       // Try to focus the field
       if (this.fields.has(fieldId)) {
         const success = await this.focusField(fieldId, true);
@@ -243,19 +241,19 @@ class EnhancedFocusController {
   scanFieldValidation(rootElement?: HTMLElement): FieldValidationMap {
     const fields = new Map<string, FieldValidationState>();
     const fieldElements = findFieldElements(rootElement);
-    
+
     fieldElements.forEach(fieldEl => {
       const fieldId = fieldEl.getAttribute('data-field-id');
       if (!fieldId) return;
-      
+
       // Check if this is an RHF field
       const rhfFieldName = fieldEl.getAttribute('data-rhf-field');
-      
+
       if (rhfFieldName) {
         // RHF field - check data attributes set by Controller
         const isValid = fieldEl.getAttribute('data-is-valid') === 'true';
         const error = fieldEl.getAttribute('data-validation-message') || '';
-        
+
         fields.set(fieldId, {
           isValid,
           error: error || (isValid ? '' : 'Validation failed'),
@@ -271,31 +269,31 @@ class EnhancedFocusController {
         // Non-RHF field - use existing validation scanning
         const validation = scanElementValidation(fieldEl);
         const error = extractErrorMessage(fieldEl) || validation.error;
-        
+
         fields.set(fieldId, {
           ...validation,
-          error: error || 'Validation failed'
+          error: error || 'Validation failed',
         });
       }
     });
-    
+
     return fields;
   }
 
   validateAllFields(container?: HTMLElement): ValidationResult {
     const fieldStates = this.scanFieldValidation(container);
     const errors: { [fieldId: string]: string } = {};
-    
+
     fieldStates.forEach((state, fieldId) => {
       if (!state.isValid) {
         errors[fieldId] = state.error;
       }
     });
-    
+
     return {
       isValid: Object.keys(errors).length === 0,
       errors,
-      fieldCount: fieldStates.size
+      fieldCount: fieldStates.size,
     };
   }
 
@@ -303,7 +301,7 @@ class EnhancedFocusController {
   async validateRHFFields(): Promise<ValidationResult> {
     const rhfValidationPromises: Promise<{ fieldId: string; isValid: boolean }>[] = [];
     const errors: { [fieldId: string]: string } = {};
-    
+
     // Trigger RHF validation for all registered fields
     this.fields.forEach((registration, fieldId) => {
       if (registration.rhfValidationFn) {
@@ -312,11 +310,11 @@ class EnhancedFocusController {
         );
       }
     });
-    
+
     if (rhfValidationPromises.length > 0) {
       try {
         const results = await Promise.all(rhfValidationPromises);
-        
+
         results.forEach(({ fieldId, isValid }) => {
           if (!isValid) {
             errors[fieldId] = 'RHF validation failed';
@@ -326,11 +324,11 @@ class EnhancedFocusController {
         console.warn('RHF validation batch failed:', error);
       }
     }
-    
+
     return {
       isValid: Object.keys(errors).length === 0,
       errors,
-      fieldCount: rhfValidationPromises.length
+      fieldCount: rhfValidationPromises.length,
     };
   }
 
@@ -376,7 +374,7 @@ class EnhancedFocusController {
       fieldsInCards: 0,
       fieldsInAccordions: 0,
       collapsedParents: 0,
-      validationSources: {} as { [source: string]: number }
+      validationSources: {} as { [source: string]: number },
     };
 
     fieldStates.forEach((state, fieldId) => {
@@ -391,8 +389,7 @@ class EnhancedFocusController {
       }
 
       // Count validation sources
-      stats.validationSources[state.source] = 
-        (stats.validationSources[state.source] || 0) + 1;
+      stats.validationSources[state.source] = (stats.validationSources[state.source] || 0) + 1;
 
       // Check parent context
       const element = state.element;
@@ -417,8 +414,8 @@ class EnhancedFocusController {
 
   // Advanced focus management for complex forms
   async focusFieldInGroup(
-    groupId: string, 
-    fieldIndex: number, 
+    groupId: string,
+    fieldIndex: number,
     expandParent: boolean = true
   ): Promise<boolean> {
     const groupElement = document.querySelector(`[data-field-group-id="${groupId}"]`);
@@ -429,7 +426,7 @@ class EnhancedFocusController {
 
     const fieldElement = fieldElements[fieldIndex] as HTMLElement;
     const fieldId = fieldElement.getAttribute('data-field-id');
-    
+
     if (fieldId) {
       return await this.focusField(fieldId, expandParent);
     }
@@ -439,7 +436,7 @@ class EnhancedFocusController {
 
   // Smart tab navigation that respects parent containers
   async handleTabNavigation(
-    currentFieldId: string, 
+    currentFieldId: string,
     direction: 'forward' | 'backward',
     expandParent: boolean = true
   ): Promise<boolean> {
@@ -457,7 +454,7 @@ class EnhancedFocusController {
     visibleFields.sort((a, b) => {
       const rectA = a.getBoundingClientRect();
       const rectB = b.getBoundingClientRect();
-      
+
       if (Math.abs(rectA.top - rectB.top) < 10) {
         return rectA.left - rectB.left;
       }
@@ -467,20 +464,18 @@ class EnhancedFocusController {
     // Find current field index
     const currentElement = currentField.element;
     const currentIndex = visibleFields.findIndex(el => el === currentElement);
-    
+
     if (currentIndex === -1) return false;
 
     // Calculate next field index
-    const nextIndex = direction === 'forward' 
-      ? currentIndex + 1 
-      : currentIndex - 1;
+    const nextIndex = direction === 'forward' ? currentIndex + 1 : currentIndex - 1;
 
     if (nextIndex < 0 || nextIndex >= visibleFields.length) return false;
 
     // Get next field ID and focus it
     const nextFieldElement = visibleFields[nextIndex];
     const nextFieldId = nextFieldElement.getAttribute('data-field-id');
-    
+
     if (nextFieldId) {
       return await this.focusField(nextFieldId, expandParent);
     }
@@ -519,7 +514,7 @@ class EnhancedFocusController {
       if (registration.element) {
         const cardParent = registration.element.closest('[data-card-id]');
         const accordionParent = registration.element.closest('[data-accordion-id]');
-        
+
         if (cardParent) {
           parentType = accordionParent ? 'accordion' : 'card';
           isParentExpanded = cardParent.getAttribute('data-card-expanded') === 'true';
@@ -531,13 +526,13 @@ class EnhancedFocusController {
         hasElement: !!registration.element,
         hasRHF: !!registration.rhfValidationFn,
         parentType,
-        isParentExpanded
+        isParentExpanded,
       };
     });
 
     return {
       registeredFields: this.getAllFields(),
-      fieldDetails
+      fieldDetails,
     };
   }
 }
