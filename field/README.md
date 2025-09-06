@@ -12,9 +12,10 @@ A powerful, intelligent form component system that combines responsive Field com
 
 ### **React Hook Form Integration**
 - 📋 **Zero Re-renders** - Uncontrolled inputs with optimal performance
-- ✅ **Advanced Validation** - Built-in and custom validation rules
+- ✅ **Advanced Validation** - Built-in and custom validation rules with smart error conversion
 - 🎛️ **Global Form Control** - Centralized state management with RHF
 - 🔗 **Control Propagation** - FieldGroup passes control to child fields automatically
+- 🔧 **Enhanced Error Handling** - Automatic conversion of complex FieldErrors to simple format
 
 ### **Responsive Design & Accessibility**
 - 📱 **Mobile First** - Auto-stacking layouts on mobile devices
@@ -24,15 +25,32 @@ A powerful, intelligent form component system that combines responsive Field com
 
 ### **Advanced Focus Management**
 - 🎯 **Smart Focus Controller** - Centralized field focus and validation management
-- 🔍 **Error Navigation** - Automatic focusing of validation errors
+- 🔍 **Error Navigation** - Automatic focusing of validation errors with parent expansion
 - ⌨️ **Keyboard Navigation** - Full keyboard accessibility with tab order
 - 📍 **Scroll Management** - Smart scrolling to focused elements
 
-## 📦 Installation
+## 📋 Requirements
 
+### **TypeScript Configuration**
+- TypeScript 4.5+ recommended
+- Target: ES2015 or higher (for Map iteration support)
+- Strict mode enabled for better type safety
+
+```json
+// tsconfig.json
+{
+  "compilerOptions": {
+    "target": "ES2015",
+    "downlevelIteration": true,
+    "strict": true
+  }
+}
+```
+
+### **Required Dependencies**
 ```bash
-# Required dependencies
-npm install react-hook-form
+# Core dependencies
+npm install react-hook-form @fluentui/react
 
 # Optional: For advanced state management
 npm install zustand
@@ -215,15 +233,15 @@ interface FieldGroupProps {
   labelWidth?: LabelWidthType;
   spacing?: 'compact' | 'normal' | 'relaxed';
   layout?: 'auto' | 'horizontal' | 'vertical';
-  
+
   // RHF Integration - NEW!
   control?: Control<any>;                   // Propagates to child fields
-  
+
   // Styling
   className?: string;
   style?: CSSProperties;
   disabled?: boolean;
-  
+
   children: ReactNode;
 }
 
@@ -234,7 +252,7 @@ interface FieldGroupProps {
     <Field.Label>First Name</Field.Label>
     {({ field }) => <input {...field} />}
   </Field>
-  
+
   <Field name="lastName" rules={{ required: true }}>
     <Field.Label>Last Name</Field.Label>
     {({ field }) => <input {...field} />}
@@ -252,7 +270,7 @@ interface CardProps {
   defaultExpanded?: boolean;
   allowExpand?: boolean;
   allowMaximize?: boolean;
-  
+
   // No form knowledge - stays pure!
   children: ReactNode;
 }
@@ -279,7 +297,7 @@ const MyForm = () => {
     console.log('Validation result:', result);
   };
 
-  // Handle form submission errors
+  // Handle form submission errors (now with enhanced error processing)
   const handleFormErrors = async (errors: any) => {
     const focused = await fieldController.handleFormErrors(errors);
     if (focused) {
@@ -304,9 +322,9 @@ focusField(id: string, expandParent?: boolean): Promise<boolean>
 scrollToField(id: string, expandParent?: boolean): Promise<boolean>
 focusFirstInvalidField(container?: HTMLElement, expandParent?: boolean): Promise<boolean>
 
-// Smart form validation
+// Smart form validation with enhanced error handling
 validateAndFocus(container?: HTMLElement): Promise<FormSubmissionResult>
-handleFormErrors(errors: {[fieldName: string]: string}): Promise<boolean>
+handleFormErrors(errors: FieldErrors<any> | {[fieldName: string]: string}): Promise<boolean>
 
 // Advanced navigation
 handleTabNavigation(currentId: string, direction: 'forward' | 'backward'): Promise<boolean>
@@ -318,6 +336,57 @@ focusFieldsInSequence(fieldIds: string[], delay?: number): Promise<boolean[]>
 // Statistics and debugging
 getValidationStats(): ValidationStats
 getDebugInfo(): FieldDebugInfo
+```
+
+## 🛠️ Enhanced Error Handling
+
+### **Smart RHF Error Processing**
+The system now automatically converts React Hook Form's complex `FieldErrors` to simple string maps:
+
+```typescript
+// ✅ Handles both error types automatically
+const { handleFormErrors } = useFieldFocus();
+
+// Works with RHF FieldErrors
+await handleFormErrors(formState.errors);
+
+// Also works with simple error objects
+await handleFormErrors({ email: "Invalid email", name: "Required" });
+```
+
+### **Nested Error Support**
+Supports complex form structures with nested objects and arrays:
+
+```typescript
+// Handles nested errors like: user.profile.email
+const errors = {
+  user: {
+    profile: {
+      email: { message: "Invalid email format" }
+    }
+  }
+};
+
+// Automatically flattened to: "user.profile.email": "Invalid email format"
+await handleFormErrors(errors);
+```
+
+### **Enhanced useFormSubmission Hook**
+
+```typescript
+const { handleSubmissionErrors } = useFormSubmission();
+
+const onSubmit = handleSubmissionErrors(
+  async (data) => {
+    // Success - form data is valid
+    await saveToDatabase(data);
+  },
+  (errors) => {
+    // Errors - automatically focuses first error with parent expansion
+    console.log('Form has validation errors');
+    // No need to manually handle focusing - it's automatic!
+  }
+);
 ```
 
 ## 🎨 Layout & Styling
@@ -363,7 +432,7 @@ getDebugInfo(): FieldDebugInfo
   <input />
 </Field>
 
-// Always vertical  
+// Always vertical
 <Field layout="vertical">
   <Field.Label>Vertical</Field.Label>
   <input />
@@ -378,12 +447,12 @@ getDebugInfo(): FieldDebugInfo
   --field-label-width-compact: 120px;
   --field-label-width-normal: 150px;
   --field-label-width-wide: 200px;
-  
+
   // Colors
   --field-theme-primary: #0078d4;
   --field-theme-error: #d13438;
   --field-theme-success: #107c10;
-  
+
   // Spacing
   --field-spacing-s: 8px;
   --field-spacing-m: 12px;
@@ -425,7 +494,7 @@ const MyField = () => {
 
   const handleFocus = async () => {
     const parentInfo = detectParent(fieldRef);
-    
+
     if (parentInfo && !parentInfo.isExpanded) {
       if (parentInfo.type === 'card') {
         await expandParentCard(parentInfo.id);
@@ -453,7 +522,7 @@ const MyField = () => {
 ### **Debounced Validation**
 
 ```typescript
-<Field 
+<Field
   name="email"
   rules={{
     validate: async (value) => {
@@ -473,6 +542,12 @@ const MyField = () => {
   <Field.Error />
 </Field>
 ```
+
+### **Memory Management**
+- ✅ **Automatic cleanup** - All refs and event listeners properly cleaned up
+- ✅ **Safe ref merging** - Lazy loading refs handled independently
+- ✅ **Error boundaries** - Graceful fallbacks for failed operations
+- ✅ **Performance optimized** - Efficient DOM traversal and validation
 
 ### **Batch Operations**
 
@@ -541,7 +616,7 @@ test('focus controller validates and focuses errors', async () => {
 
   // Validate and focus first error
   const result = await focusController.validateAndFocus();
-  
+
   expect(result.isValid).toBe(false);
   expect(result.firstErrorFocused).toBe(true);
 });
@@ -586,7 +661,7 @@ const SharePointForm: React.FC<{ sp: SPFI; listName: string }> = ({ sp, listName
             <Field.Group control={methods.control} labelWidth="wide">
               <Field
                 name="Title"
-                rules={{ 
+                rules={{
                   required: 'Title is required',
                   maxLength: { value: 255, message: 'Title too long' }
                 }}
@@ -642,8 +717,8 @@ const SharePointForm: React.FC<{ sp: SPFI; listName: string }> = ({ sp, listName
   <Content>
     <Field isValid={emailValid} error={emailError}>
       <Field.Label required>Email</Field.Label>
-      <input 
-        value={email} 
+      <input
+        value={email}
         onChange={(e) => {
           setEmail(e.target.value);
           validateEmail(e.target.value);
@@ -658,9 +733,9 @@ const SharePointForm: React.FC<{ sp: SPFI; listName: string }> = ({ sp, listName
 <Card id="my-card" defaultExpanded={false}>
   <Header>User Info</Header>
   <Content>
-    <Field 
-      name="email" 
-      control={control} 
+    <Field
+      name="email"
+      control={control}
       rules={{ required: 'Email required' }}
       expandParent={true} // Automatic card expansion!
     >
@@ -709,7 +784,7 @@ const SharePointForm: React.FC<{ sp: SPFI; listName: string }> = ({ sp, listName
       </Field.Group>
     </Content>
   </Card>
-  
+
   <Card id="contact-info">
     <Header>Contact Information</Header>
     <Content>
@@ -744,9 +819,9 @@ const SharePointForm: React.FC<{ sp: SPFI; listName: string }> = ({ sp, listName
     {({ field }) => <input type="password" {...field} />}
     <Field.Error />
   </Field>
-  
-  <Field 
-    name="confirmPassword" 
+
+  <Field
+    name="confirmPassword"
     rules={{
       required: true,
       validate: value => value === watch('password') || 'Passwords must match'
@@ -790,15 +865,44 @@ const handleCustomValidation = async () => {
 
 ## 📊 Browser Support
 
-| Browser | Minimum Version | Smart Expansion | RHF Integration |
-|---------|----------------|-----------------|-----------------|
-| Chrome | 88+ | ✅ Full | ✅ Full |
-| Edge | 88+ | ✅ Full | ✅ Full |
-| Firefox | 85+ | ✅ Full | ✅ Full |
-| Safari | 14+ | ✅ Full | ✅ Full |
-| IE 11 | ❌ | ❌ | ❌ |
+| Browser | Minimum Version | Smart Expansion | RHF Integration | Error Handling |
+|---------|----------------|-----------------|-----------------|----------------|
+| Chrome | 88+ | ✅ Full | ✅ Full | ✅ Enhanced |
+| Edge | 88+ | ✅ Full | ✅ Full | ✅ Enhanced |
+| Firefox | 85+ | ✅ Full | ✅ Full | ✅ Enhanced |
+| Safari | 14+ | ✅ Full | ✅ Full | ✅ Enhanced |
+| IE 11 | ❌ | ❌ | ❌ | ❌ |
 
 ## 🔧 Troubleshooting
+
+### **TypeScript Errors**
+
+1. **Map iteration errors** - Ensure your `tsconfig.json` has:
+   ```json
+   {
+     "compilerOptions": {
+       "target": "ES2015",
+       "downlevelIteration": true
+     }
+   }
+   ```
+
+2. **Readonly ref errors** - Make sure to use mutable refs:
+   ```typescript
+   const fieldRef = useRef<HTMLDivElement | null>(null);
+   ```
+
+3. **RHF error type mismatches** - The system auto-converts error types:
+   ```typescript
+   // ✅ This now works automatically
+   await handleFormErrors(formState.errors);
+   ```
+
+4. **Fluent UI TooltipHost errors** - Content must be string:
+   ```typescript
+   // ✅ Convert ReactNode to string
+   content: typeof children === 'string' ? children : String(children || '')
+   ```
 
 ### **Common Issues**
 
@@ -815,7 +919,7 @@ const handleCustomValidation = async () => {
    // ✅ Pass control to FieldGroup
    <Field.Group control={control}>
      <Field name="email"> {/* Inherits control */}
-   
+
    // ❌ Missing control
    <Field.Group>
      <Field name="email" control={control}> {/* Manual control needed */}
@@ -826,9 +930,18 @@ const handleCustomValidation = async () => {
    // ✅ Use handleSubmissionErrors
    const { handleSubmissionErrors } = useFormSubmission();
    const onSubmit = handleSubmissionErrors(successFn, errorFn);
-   
+
    // ❌ Manual handleSubmit
    const onSubmit = handleSubmit(successFn, errorFn); // No auto-focus
+   ```
+
+4. **Nested error handling**
+   ```typescript
+   // ✅ System automatically handles nested errors
+   const errors = {
+     user: { profile: { email: { message: "Invalid" } } }
+   };
+   await handleFormErrors(errors); // Converts to "user.profile.email": "Invalid"
    ```
 
 ### **Debug Tools**
@@ -842,6 +955,22 @@ console.log('Field registration:', debugInfo);
 // Validation statistics
 const stats = fieldController.getValidationStats();
 console.log('Validation stats:', stats);
+
+// Check RHF errors
+const rhfErrors = fieldController.getRHFErrors();
+console.log('Current RHF errors:', rhfErrors);
+```
+
+### **Performance Monitoring**
+
+```typescript
+// Monitor field registration
+const fieldCount = fieldController.getRegisteredFieldCount();
+console.log(`Registered fields: ${fieldCount}`);
+
+// Check validation performance
+const stats = fieldController.getValidationStats();
+console.log(`Valid: ${stats.validFields}, Invalid: ${stats.invalidFields}`);
 ```
 
 ## 📄 License
@@ -854,6 +983,7 @@ MIT License - Free for use in SharePoint Framework projects.
 2. **Add tests** - Include unit tests for new functionality
 3. **Update documentation** - Keep README and code comments current
 4. **Backward compatibility** - Ensure existing code continues to work
+5. **TypeScript compliance** - Ensure strict TypeScript compatibility
 
 ## 🔗 Related Documentation
 
@@ -861,7 +991,10 @@ MIT License - Free for use in SharePoint Framework projects.
 - [SharePoint Framework Documentation](https://docs.microsoft.com/en-us/sharepoint/dev/spfx/)
 - [Fluent UI React Documentation](https://developer.microsoft.com/en-us/fluentui)
 - [Accessibility Guidelines](https://www.w3.org/WAI/WCAG21/quickref/)
+- [TypeScript Handbook](https://www.typescriptlang.org/docs/)
 
 ---
 
 **Built with ❤️ for modern SharePoint development**
+
+*Version 2.0 - Enhanced with smart error handling, improved TypeScript support, and production-ready reliability.*

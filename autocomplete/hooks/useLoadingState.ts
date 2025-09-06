@@ -51,8 +51,10 @@ export const useLoadingState = (options: UseLoadingStateOptions): LoadingStateRe
     setManualLoading(loading);
 
     if (loading) {
+      // eslint-disable-next-line @typescript-eslint/no-use-before-define
       handleLoadingStart();
     } else {
+      // eslint-disable-next-line @typescript-eslint/no-use-before-define
       handleLoadingEnd();
     }
   }, []);
@@ -153,8 +155,8 @@ export const useLoadingState = (options: UseLoadingStateOptions): LoadingStateRe
     }
 
     // Loading start handler
-    const onLoadingChanged = (isLoading: boolean) => {
-      if (isLoading) {
+    const onLoadingChanged = (isLoadingValue: boolean) => {
+      if (isLoadingValue) {
         handleLoadingStart();
       } else {
         handleLoadingEnd();
@@ -163,7 +165,9 @@ export const useLoadingState = (options: UseLoadingStateOptions): LoadingStateRe
 
     // Load error handler
     const onLoadError = (error: any) => {
-      console.warn('DataSource load error:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('DataSource load error:', error);
+      }
       handleLoadingEnd();
     };
 
@@ -264,7 +268,7 @@ export const useManualLoadingState = (
 ) => {
   const [isLoading, setIsLoading] = useState(initialLoading);
   const loadingStartTimeRef = useRef<number | null>(null);
-  const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const loadingTimeoutRef = useRef<number | null>(null);
 
   const startLoading = useCallback(() => {
     loadingStartTimeRef.current = Date.now();

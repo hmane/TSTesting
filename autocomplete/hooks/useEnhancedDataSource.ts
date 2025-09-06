@@ -6,30 +6,15 @@ import {
   AUTOCOMPLETE_CONSTANTS,
   AutocompleteError,
   AutocompleteErrorType,
-  EnhancedDataSourceOptions,
+  type EnhancedDataSourceOptions,
+  type CacheHelpers,
 } from '../AutocompleteTypes';
-import { createCacheManager, RecentCacheManager } from '../utils/cacheUtils';
-
-interface DataSourceLoadOptions {
-  searchValue?: string;
-  searchExpr?: string | string[];
-  searchOperation?: string;
-  take?: number;
-  skip?: number;
-  filter?: any;
-  sort?: any;
-  userData?: any;
-}
+import { createCacheManager, type RecentCacheManager } from '../utils/cacheUtils';
 
 interface UseEnhancedDataSourceOptions extends EnhancedDataSourceOptions {
   onError?: (error: Error) => void;
   onLoadStart?: () => void;
   onLoadEnd?: () => void;
-}
-
-interface LoadResult {
-  data: any[];
-  totalCount?: number;
 }
 
 /**
@@ -58,7 +43,9 @@ export const useEnhancedDataSource = (options: UseEnhancedDataSourceOptions) => 
       try {
         cacheManagerRef.current = createCacheManager(recentCacheKey);
       } catch (error) {
-        console.warn('Failed to initialize recent cache:', error);
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('Failed to initialize recent cache:', error);
+        }
         if (onError) {
           onError(
             new AutocompleteError(
@@ -81,7 +68,7 @@ export const useEnhancedDataSource = (options: UseEnhancedDataSourceOptions) => 
 
   // Custom load function that integrates recent cache and excludes selected items
   const customLoad = useCallback(
-    async (loadOptions: DataSourceLoadOptions): Promise<LoadResult> => {
+    async (loadOptions: any): Promise<any> => {
       const requestId = `${Date.now()}-${Math.random()}`;
       lastRequestRef.current = requestId;
 
@@ -105,13 +92,27 @@ export const useEnhancedDataSource = (options: UseEnhancedDataSourceOptions) => 
               ? originalDataSourceRef.current
               : new DataSource({ store: originalDataSourceRef.current });
 
-          const loadResult = await dataSourceInstance.load(loadOptions);
+          // DevExtreme DataSource.load() doesn't take parameters directly
+          // We need to configure the DataSource with search parameters first
+          if (loadOptions.searchValue) {
+            dataSourceInstance.searchValue(loadOptions.searchValue);
+            dataSourceInstance.searchExpr(loadOptions.searchExpr || 'title');
+            dataSourceInstance.searchOperation(loadOptions.searchOperation || 'contains');
+          }
+
+          if (loadOptions.take) {
+            dataSourceInstance.pageSize(loadOptions.take);
+          }
+
+          if (loadOptions.skip) {
+            dataSourceInstance.pageIndex(Math.floor(loadOptions.skip / (loadOptions.take || 20)));
+          }
+
+          const loadResult = await dataSourceInstance.load();
 
           if (Array.isArray(loadResult)) {
             results = loadResult;
-          } else if (loadResult && typeof loadResult === 'object' && 'data' in loadResult) {
-            results = loadResult.data || [];
-            totalCount = loadResult.totalCount;
+            totalCount = dataSourceInstance.totalCount();
           } else {
             results = [];
           }
@@ -124,11 +125,13 @@ export const useEnhancedDataSource = (options: UseEnhancedDataSourceOptions) => 
           if (loadOptions.searchValue && loadOptions.searchExpr) {
             const searchValue = loadOptions.searchValue.toLowerCase();
             const searchFields = Array.isArray(loadOptions.searchExpr)
-              ? loadOptions.searchExpr
-              : [loadOptions.searchExpr];
+              ? loadOptions.searchExpr.filter((field: any) => typeof field === 'string')
+              : typeof loadOptions.searchExpr === 'string'
+              ? [loadOptions.searchExpr]
+              : [];
 
             results = results.filter(item => {
-              return searchFields.some(field => {
+              return searchFields.some((field: string) => {
                 const fieldValue = item[field];
                 if (fieldValue == null) return false;
 
@@ -208,17 +211,22 @@ export const useEnhancedDataSource = (options: UseEnhancedDataSourceOptions) => 
             // Prepend recent items
             results = [...recentDataItems, ...results];
           } catch (cacheError) {
-            console.warn('Failed to load recent items:', cacheError);
+            if (process.env.NODE_ENV === 'development') {
+              console.warn('Failed to load recent items:', cacheError);
+            }
             // Continue without recent items
           }
         }
 
+        // Return in the format DevExtreme expects
         return {
           data: results,
           totalCount: totalCount ?? results.length,
         };
       } catch (error) {
-        console.error('DataSource load error:', error);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('DataSource load error:', error);
+        }
 
         const autocompleteError = new AutocompleteError(
           AutocompleteErrorType.DATA_SOURCE_ERROR,
@@ -254,12 +262,16 @@ export const useEnhancedDataSource = (options: UseEnhancedDataSourceOptions) => 
           originalDataSourceRef.current instanceof DataSource ||
           originalDataSourceRef.current instanceof CustomStore
         ) {
-          const dataSourceInstance =
-            originalDataSourceRef.current instanceof DataSource
-              ? originalDataSourceRef.current
-              : new DataSource({ store: originalDataSourceRef.current });
-
-          result = await dataSourceInstance.byKey(key);
+          if (originalDataSourceRef.current instanceof DataSource) {
+            // For DataSource, we need to access the underlying store
+            const store = originalDataSourceRef.current.store();
+            if (store && typeof store.byKey === 'function') {
+              result = await store.byKey(key);
+            }
+          } else {
+            // For CustomStore, call byKey directly
+            result = await originalDataSourceRef.current.byKey(key);
+          }
         } else if (Array.isArray(originalDataSourceRef.current)) {
           // Find in static array
           result = originalDataSourceRef.current.find(item =>
@@ -275,19 +287,23 @@ export const useEnhancedDataSource = (options: UseEnhancedDataSourceOptions) => 
 
             if (recentItem) {
               result = {
-                [/*valueField*/ 'id']: recentItem.key,
-                [/*displayField*/ 'title']: recentItem.displayValue,
+                id: recentItem.key,
+                title: recentItem.displayValue,
                 _isRecentItem: true,
               };
             }
           } catch (cacheError) {
-            console.warn('Failed to get item from recent cache:', cacheError);
+            if (process.env.NODE_ENV === 'development') {
+              console.warn('Failed to get item from recent cache:', cacheError);
+            }
           }
         }
 
         return result;
       } catch (error) {
-        console.error('DataSource byKey error:', error);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('DataSource byKey error:', error);
+        }
 
         if (onError) {
           onError(
@@ -319,14 +335,16 @@ export const useEnhancedDataSource = (options: UseEnhancedDataSourceOptions) => 
   }, [customLoad, customByKey]);
 
   // Public methods for cache management
-  const cacheHelpers = useMemo(
+  const cacheHelpers: CacheHelpers = useMemo(
     () => ({
       addToRecentCache: (key: any, displayValue: string) => {
         if (cacheManagerRef.current) {
           try {
             cacheManagerRef.current.addRecentItem(key, displayValue);
           } catch (error) {
-            console.warn('Failed to add item to recent cache:', error);
+            if (process.env.NODE_ENV === 'development') {
+              console.warn('Failed to add item to recent cache:', error);
+            }
           }
         }
       },
@@ -336,7 +354,9 @@ export const useEnhancedDataSource = (options: UseEnhancedDataSourceOptions) => 
           try {
             cacheManagerRef.current.removeRecentItem(key);
           } catch (error) {
-            console.warn('Failed to remove item from recent cache:', error);
+            if (process.env.NODE_ENV === 'development') {
+              console.warn('Failed to remove item from recent cache:', error);
+            }
           }
         }
       },
@@ -346,7 +366,9 @@ export const useEnhancedDataSource = (options: UseEnhancedDataSourceOptions) => 
           try {
             cacheManagerRef.current.clearCache();
           } catch (error) {
-            console.warn('Failed to clear recent cache:', error);
+            if (process.env.NODE_ENV === 'development') {
+              console.warn('Failed to clear recent cache:', error);
+            }
           }
         }
       },

@@ -1,6 +1,6 @@
 // hooks/useKeyboardShortcuts.ts
 import { useCallback, useEffect, useRef } from 'react';
-import { KeyboardShortcutConfig } from '../AutocompleteTypes';
+import type { KeyboardShortcutConfig } from '../AutocompleteTypes';
 
 interface KeyboardShortcuts {
   'Ctrl+A': () => void;
@@ -20,11 +20,26 @@ interface UseKeyboardShortcutsOptions extends KeyboardShortcutConfig {
   onFocus?: () => void;
 }
 
+interface UseKeyboardShortcutsResult {
+  componentRef: React.MutableRefObject<HTMLElement | null>;
+  shortcuts: {
+    selectAll: () => void;
+    clearAll: () => void;
+    removeLast: () => void;
+    openDropdown: () => void;
+    closeDropdown: () => void;
+  };
+  isMultiSelect: boolean;
+  isFocused: boolean;
+}
+
 /**
  * Custom hook for handling keyboard shortcuts in autocomplete components
  * Supports multiple instances with scoped shortcuts
  */
-export const useKeyboardShortcuts = (options: UseKeyboardShortcutsOptions) => {
+export const useKeyboardShortcuts = (
+  options: UseKeyboardShortcutsOptions
+): UseKeyboardShortcutsResult => {
   const {
     enabled,
     scope,
@@ -39,7 +54,7 @@ export const useKeyboardShortcuts = (options: UseKeyboardShortcutsOptions) => {
     onFocus,
   } = options;
 
-  const componentRef = useRef<HTMLElement>(null);
+  const componentRef = useRef<HTMLElement | null>(null);
   const isFocusedRef = useRef<boolean>(false);
   const isMultiSelect = maxSelect > 1;
 
@@ -97,8 +112,11 @@ export const useKeyboardShortcuts = (options: UseKeyboardShortcutsOptions) => {
     // Focus the component if not already focused
     if (componentRef.current && !isFocusedRef.current) {
       const input = componentRef.current.querySelector('input, [role="combobox"]') as HTMLElement;
-      if (input && onFocus) {
-        onFocus();
+      if (input) {
+        input.focus();
+        if (onFocus) {
+          onFocus();
+        }
       }
     }
   }, [onOpenDropdown, onFocus]);
@@ -206,7 +224,9 @@ export const useKeyboardShortcuts = (options: UseKeyboardShortcutsOptions) => {
         try {
           shortcutHandler();
         } catch (error) {
-          console.warn(`Failed to execute keyboard shortcut ${keyCombo}:`, error);
+          if (process.env.NODE_ENV === 'development') {
+            console.warn(`Failed to execute keyboard shortcut ${keyCombo}:`, error);
+          }
         }
       }
     },
@@ -274,7 +294,9 @@ export const useKeyboardShortcutHelpers = (
   const selectAll = useCallback(() => {
     // This would need to be implemented by the parent component
     // as it requires access to the full dataset
-    console.warn('selectAll shortcut triggered - implement in parent component');
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('selectAll shortcut triggered - implement in parent component');
+    }
   }, []);
 
   const clearAll = useCallback(() => {
@@ -323,7 +345,6 @@ export const getAvailableShortcuts = (
     shortcuts.unshift({
       key: 'Ctrl+A',
       description: 'Select all available items',
-      condition: 'Multi-select mode only',
     });
   }
 

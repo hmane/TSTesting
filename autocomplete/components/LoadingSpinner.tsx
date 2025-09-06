@@ -39,11 +39,11 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = React.memo(
     // Handle delayed visibility
     React.useEffect(() => {
       if (delayTimeoutRef.current) {
-        clearTimeout(delayTimeoutRef.current);
+        window.clearTimeout(delayTimeoutRef.current);
       }
 
       if (visible && delay > 0) {
-        delayTimeoutRef.current = setTimeout(() => {
+        delayTimeoutRef.current = window.setTimeout(() => {
           setShouldShow(true);
         }, delay);
       } else {
@@ -52,7 +52,7 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = React.memo(
 
       return () => {
         if (delayTimeoutRef.current) {
-          clearTimeout(delayTimeoutRef.current);
+          window.clearTimeout(delayTimeoutRef.current);
         }
       };
     }, [visible, delay]);
@@ -61,7 +61,7 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = React.memo(
     React.useEffect(() => {
       return () => {
         if (delayTimeoutRef.current) {
-          clearTimeout(delayTimeoutRef.current);
+          window.clearTimeout(delayTimeoutRef.current);
         }
       };
     }, []);
