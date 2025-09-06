@@ -1,22 +1,22 @@
-import { ReactNode, CSSProperties, MouseEvent, KeyboardEvent } from 'react';
 import { ITooltipHostProps } from '@fluentui/react';
+import { CSSProperties, MouseEvent, ReactNode } from 'react';
 
 // ==================== Basic Types ====================
 
 export type CardVariant = 'success' | 'error' | 'warning' | 'info' | 'default';
 export type CardSize = 'compact' | 'regular' | 'large' | 'full-width';
 export type HeaderSize = 'compact' | 'regular' | 'large';
-
 export type LoadingType = 'none' | 'spinner' | 'skeleton' | 'shimmer' | 'overlay';
 
 export type ContentPadding =
-  | 'none'           // 0px
-  | 'compact'        // 8px
-  | 'comfortable'    // 16px - default
-  | 'spacious'       // 24px
-  | 'loose'          // 32px
-  | string           // custom like "12px 20px"
-  | {                // granular control
+  | 'none' // 0px
+  | 'compact' // 8px
+  | 'comfortable' // 16px - default
+  | 'spacious' // 24px
+  | 'loose' // 32px
+  | string // custom like "12px 20px"
+  | {
+      // granular control
       top?: string | number;
       right?: string | number;
       bottom?: string | number;
@@ -47,7 +47,7 @@ export interface CardEventData {
   isMaximized?: boolean;
   timestamp: number;
   source: 'user' | 'programmatic';
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export type CardEventType =
@@ -62,7 +62,7 @@ export type CardEventType =
 
 export interface AnimationConfig {
   duration?: number; // milliseconds
-  easing?: string;   // CSS easing function
+  easing?: string; // CSS easing function
   disabled?: boolean;
 }
 
@@ -366,7 +366,7 @@ export interface CardController {
 
   // State management
   getCardStates(): CardState[];
-  getCardState(id: string): CardState | null;
+  getCardState(id: string): CardState | undefined;
   highlightCard(id: string): boolean;
 
   // Persistence
@@ -375,11 +375,17 @@ export interface CardController {
   clearStoredStates(): void;
 
   // Subscriptions
-  subscribe(cardId: string, callback: (action: string, data?: any) => void): () => void;
-  subscribeGlobal(callback: (action: string, cardId: string, data?: any) => void): () => void;
+  subscribe(cardId: string, callback: (action: string, data?: unknown) => void): () => void;
+  subscribeGlobal(callback: (action: string, cardId: string, data?: unknown) => void): () => void;
 
   // Batch operations
-  batchOperation(operations: Array<{ cardId: string; action: 'expand' | 'collapse' | 'toggle' | 'maximize' | 'restore' }>, highlight?: boolean): Promise<boolean[]>;
+  batchOperation(
+    operations: Array<{
+      cardId: string;
+      action: 'expand' | 'collapse' | 'toggle' | 'maximize' | 'restore';
+    }>,
+    highlight?: boolean
+  ): Promise<boolean[]>;
 
   // Registration (internal use)
   registerCard(registration: CardRegistration): void;
@@ -425,14 +431,16 @@ export interface CardControllerHook {
     highlight?: boolean
   ) => Promise<boolean[]>;
   getCardStates: () => CardState[];
-  getCardState: (id: string) => CardState | null;
+  getCardState: (id: string) => CardState | undefined;
   highlightCard: (id: string) => boolean;
-  subscribe: (cardId: string, callback: (action: string, data?: any) => void) => () => void;
-  subscribeGlobal: (callback: (action: string, cardId: string, data?: any) => void) => () => void;
+  subscribe: (cardId: string, callback: (action: string, data?: unknown) => void) => () => void;
+  subscribeGlobal: (
+    callback: (action: string, cardId: string, data?: unknown) => void
+  ) => () => void;
   persistStates: () => void;
   restoreStates: () => void;
   clearStoredStates: () => void;
-  getStats: () => any;
+  getStats: () => unknown;
   getRegisteredCardIds: () => string[];
   isCardRegistered: (id: string) => boolean;
 }
@@ -461,6 +469,6 @@ export const CARD_CONSTANTS = {
   MAX_STORAGE_AGE: 7 * 24 * 60 * 60 * 1000, // 7 days
   Z_INDEX: {
     MAXIMIZED: 1000,
-    BACKDROP: 999
-  }
+    BACKDROP: 999,
+  },
 } as const;

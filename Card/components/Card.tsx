@@ -1,5 +1,14 @@
 import * as React from 'react';
-import { memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  memo,
+  ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   CardAction,
   CardContextType,
@@ -11,14 +20,14 @@ import { useMaximize } from '../hooks/useMaximize';
 import { usePersistence } from '../hooks/usePersistence';
 import { cardController } from '../services/CardController';
 import { initializeCardAnimations } from '../utils/animations';
-import { DEFAULT_ICONS, SIZE_CONFIG, THEME_COLORS } from '../utils/constants';
+import { DEFAULT_ICONS, SIZE_CONFIG } from '../utils/constants';
 import { MaximizedView } from './MaximizedView';
 
 // Create Card Context - ONLY CREATE ONCE HERE
-export const CardContext = React.createContext<CardContextType | null>(null);
+export const CardContext = React.createContext<CardContextType | undefined>(undefined);
 
 // Custom hook to use Card context
-export const useCardContext = () => {
+export const useCardContext = (): CardContextType => {
   const context = useContext(CardContext);
   if (!context) {
     throw new Error('Card components must be used within a Card component');
@@ -29,9 +38,8 @@ export const useCardContext = () => {
 /**
  * Performance utilities
  */
-const useDebounce = (callback: () => void, delay: number) => {
-  const timeoutRef = useRef<NodeJS.Timeout>();
-
+const useDebounce = (callback: () => void, delay: number): (() => void) => {
+  const timeoutRef = useRef<number | undefined>();
   return useCallback(() => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
@@ -39,6 +47,90 @@ const useDebounce = (callback: () => void, delay: number) => {
     timeoutRef.current = setTimeout(callback, delay);
   }, [callback, delay]);
 };
+
+/**
+ * Error boundary specifically for cards
+ */
+class CardErrorBoundary extends React.Component<
+  {
+    children: ReactNode;
+    fallback?: ReactNode;
+    onError?: (error: Error, errorInfo: React.ErrorInfo) => void;
+  },
+  { hasError: boolean; error?: Error }
+> {
+  constructor(props: {
+    children: ReactNode;
+    fallback?: ReactNode;
+    onError?: (error: Error, errorInfo: React.ErrorInfo) => void;
+  }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error): { hasError: boolean; error: Error } {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
+    console.error('[SpfxCard] Card Error Boundary:', error, errorInfo);
+    this.props.onError?.(error, errorInfo);
+  }
+
+  private handleRetry = (): void => {
+    this.setState({ hasError: false, error: undefined });
+  };
+
+  render(): ReactNode {
+    if (this.state.hasError) {
+      if (this.props.fallback) {
+        return this.props.fallback;
+      }
+
+      return (
+        <div className='spfx-card spfx-card-error'>
+          <div className='spfx-card-header error'>
+            <div className='spfx-card-header-content'>
+              <i className='ms-Icon ms-Icon--ErrorBadge' style={{ marginRight: '8px' }} />
+              Card Error
+            </div>
+          </div>
+          <div className='spfx-card-content expanded'>
+            <div className='spfx-card-body'>
+              <p>Something went wrong while loading this card.</p>
+              {this.state.error && (
+                <p
+                  style={{
+                    fontSize: '12px',
+                    color: 'var(--neutralSecondary, #605e5c)',
+                    marginBottom: '16px',
+                  }}
+                >
+                  {this.state.error.message}
+                </p>
+              )}
+              <button
+                onClick={this.handleRetry}
+                style={{
+                  padding: '8px 16px',
+                  border: '1px solid var(--themePrimary, #0078d4)',
+                  backgroundColor: 'var(--themePrimary, #0078d4)',
+                  color: 'var(--white, #ffffff)',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                }}
+              >
+                Try Again
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 /**
  * Main Card Component
@@ -89,7 +181,7 @@ export const Card: React.FC<CardProps> = memo(
 
     // Refs
     const cardRef = useRef<HTMLDivElement>(null);
-    const highlightTimeoutRef = useRef<NodeJS.Timeout>();
+    const highlightTimeoutRef = useRef<number | undefined>();
     const previousLoadingRef = useRef(loading);
     const renderCountRef = useRef(0);
 
@@ -99,7 +191,6 @@ export const Card: React.FC<CardProps> = memo(
       isAnimating: isMaximizeAnimating,
       maximize,
       restore,
-      toggle: toggleMaximize,
     } = useMaximize(
       id,
       allowMaximize,
@@ -181,13 +272,7 @@ export const Card: React.FC<CardProps> = memo(
       []
     );
 
-    // Debounced toggle function
-    const debouncedToggle = useDebounce(() => {
-      // eslint-disable-next-line @typescript-eslint/no-use-before-define
-      handleToggleExpand('user');
-    }, performance.debounceToggle || 0);
-
-    // Expand/Collapse functions
+    // Expand/Collapse functions - defined before they're used
     const expandFn = useCallback(
       (source: 'user' | 'programmatic' = 'programmatic') => {
         if (!isExpanded && allowExpand && !disabled) {
@@ -291,8 +376,7 @@ export const Card: React.FC<CardProps> = memo(
     const maximizeFn = useCallback(
       (source: 'user' | 'programmatic' = 'programmatic') => {
         if (allowMaximize && !isMaximized && !isMaximizeAnimating) {
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          maximize();
+          void maximize();
         }
       },
       [allowMaximize, isMaximized, isMaximizeAnimating, maximize]
@@ -301,12 +385,66 @@ export const Card: React.FC<CardProps> = memo(
     const restoreFn = useCallback(
       (source: 'user' | 'programmatic' = 'programmatic') => {
         if (allowMaximize && isMaximized && !isMaximizeAnimating) {
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          restore();
+          void restore();
         }
       },
       [allowMaximize, isMaximized, isMaximizeAnimating, restore]
     );
+
+    // Handle expand/collapse - defined before debounced toggle
+    const handleToggleExpand = useCallback(
+      (source: 'user' | 'programmatic' = 'user') => {
+        if (!allowExpand || disabled) return;
+        toggleFn(source);
+      },
+      [allowExpand, disabled, toggleFn]
+    );
+
+    // Debounced toggle function
+    const debouncedToggle = useDebounce(() => {
+      handleToggleExpand('user');
+    }, performance.debounceToggle || 0);
+
+    // Handle maximize/restore
+    const handleToggleMaximize = useCallback(
+      (source: 'user' | 'programmatic' = 'user') => {
+        if (!allowMaximize || disabled) return;
+
+        if (isMaximized) {
+          restoreFn(source);
+        } else {
+          maximizeFn(source);
+        }
+      },
+      [allowMaximize, disabled, isMaximized, maximizeFn, restoreFn]
+    );
+
+    // Handle action click
+    const handleActionClick = useCallback(
+      (action: CardAction, event: React.MouseEvent) => {
+        event.stopPropagation();
+        if (!action.disabled && !disabled) {
+          action.onClick(id);
+        }
+      },
+      [disabled, id]
+    );
+
+    // Handle content load callback
+    const handleContentLoad = useCallback(() => {
+      if (!hasContentLoaded) {
+        setHasContentLoaded(true);
+      }
+      const eventData: CardEventData = {
+        cardId: id,
+        isExpanded,
+        isMaximized,
+        timestamp: Date.now(),
+        source: 'user',
+      };
+      onContentLoad?.(eventData);
+      onCardEvent?.('contentLoad', eventData);
+    }, [id, isExpanded, isMaximized, hasContentLoaded, onContentLoad, onCardEvent]);
 
     // Register card with controller
     useEffect(() => {
@@ -392,60 +530,9 @@ export const Card: React.FC<CardProps> = memo(
       }
     }, [lazyLoad, isExpanded, hasContentLoaded, onContentLoad, onCardEvent, id, isMaximized]);
 
-    // Handle expand/collapse
-    const handleToggleExpand = useCallback(
-      (source: 'user' | 'programmatic' = 'user') => {
-        if (!allowExpand || disabled) return;
-        toggleFn(source);
-      },
-      [allowExpand, disabled, toggleFn]
-    );
-
-    // Handle maximize/restore
-    const handleToggleMaximize = useCallback(
-      (source: 'user' | 'programmatic' = 'user') => {
-        if (!allowMaximize || disabled) return;
-
-        if (isMaximized) {
-          restoreFn(source);
-        } else {
-          maximizeFn(source);
-        }
-      },
-      [allowMaximize, disabled, isMaximized, maximizeFn, restoreFn]
-    );
-
-    // Handle action click
-    const handleActionClick = useCallback(
-      (action: CardAction, event: React.MouseEvent) => {
-        event.stopPropagation();
-        if (!action.disabled && !disabled) {
-          action.onClick(id);
-        }
-      },
-      [disabled, id]
-    );
-
-    // Handle content load callback
-    const handleContentLoad = useCallback(() => {
-      if (!hasContentLoaded) {
-        setHasContentLoaded(true);
-      }
-      const eventData: CardEventData = {
-        cardId: id,
-        isExpanded,
-        isMaximized,
-        timestamp: Date.now(),
-        source: 'user',
-      };
-      onContentLoad?.(eventData);
-      onCardEvent?.('contentLoad', eventData);
-    }, [id, isExpanded, isMaximized, hasContentLoaded, onContentLoad, onCardEvent]);
-
     // Memoized styles and classes
     const cardStyle = useMemo(() => {
       const sizeConfig = SIZE_CONFIG[size];
-      const themeColors = THEME_COLORS[variant];
 
       return {
         ...sizeConfig,
@@ -459,7 +546,7 @@ export const Card: React.FC<CardProps> = memo(
           }),
         ...style,
       };
-    }, [size, variant, theme, highlightColor, isHighlighted, style]);
+    }, [size, theme, highlightColor, isHighlighted, style]);
 
     const cardClasses = useMemo(
       () =>
@@ -589,97 +676,16 @@ Card.displayName = 'SpfxCard';
  */
 export const SafeCard: React.FC<
   CardProps & {
-    errorFallback?: React.ReactNode;
+    errorFallback?: ReactNode;
     onError?: (error: Error, errorInfo: React.ErrorInfo) => void;
   }
 > = ({ errorFallback, onError, ...cardProps }) => {
   return (
-    // eslint-disable-next-line @typescript-eslint/no-use-before-define
     <CardErrorBoundary fallback={errorFallback} onError={onError}>
       <Card {...cardProps} />
     </CardErrorBoundary>
   );
 };
-
-/**
- * Error boundary specifically for cards
- */
-class CardErrorBoundary extends React.Component<
-  {
-    children: React.ReactNode;
-    fallback?: React.ReactNode;
-    onError?: (error: Error, errorInfo: React.ErrorInfo) => void;
-  },
-  { hasError: boolean; error?: Error }
-> {
-  constructor(props: any) {
-    super(props);
-    this.state = { hasError: false };
-  }
-
-  static getDerivedStateFromError(error: Error) {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('[SpfxCard] Card Error Boundary:', error, errorInfo);
-    this.props.onError?.(error, errorInfo);
-  }
-
-  private handleRetry = () => {
-    this.setState({ hasError: false, error: undefined });
-  };
-
-  render() {
-    if (this.state.hasError) {
-      if (this.props.fallback) {
-        return this.props.fallback;
-      }
-
-      return (
-        <div className='spfx-card spfx-card-error'>
-          <div className='spfx-card-header error'>
-            <div className='spfx-card-header-content'>
-              <i className='ms-Icon ms-Icon--ErrorBadge' style={{ marginRight: '8px' }} />
-              Card Error
-            </div>
-          </div>
-          <div className='spfx-card-content expanded'>
-            <div className='spfx-card-body'>
-              <p>Something went wrong while loading this card.</p>
-              {this.state.error && (
-                <p
-                  style={{
-                    fontSize: '12px',
-                    color: 'var(--neutralSecondary, #605e5c)',
-                    marginBottom: '16px',
-                  }}
-                >
-                  {this.state.error.message}
-                </p>
-              )}
-              <button
-                onClick={this.handleRetry}
-                style={{
-                  padding: '8px 16px',
-                  border: '1px solid var(--themePrimary, #0078d4)',
-                  backgroundColor: 'var(--themePrimary, #0078d4)',
-                  color: 'var(--white, #ffffff)',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                }}
-              >
-                Try Again
-              </button>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    return this.props.children;
-  }
-}
 
 /**
  * HOC for class components to access card controller
@@ -696,7 +702,7 @@ export function withCardController<P extends WithCardControllerProps>(
   };
 
   ComponentWithCardController.displayName = `withCardController(${
-    WrappedComponent.displayName || WrappedComponent.name
+    WrappedComponent.displayName || WrappedComponent.name || 'Component'
   })`;
 
   return ComponentWithCardController;
@@ -712,7 +718,10 @@ export abstract class CardControllerComponent extends React.Component {
   /**
    * Subscribe to card events
    */
-  protected subscribeToCard(cardId: string, callback: (action: string, data?: any) => void): void {
+  protected subscribeToCard(
+    cardId: string,
+    callback: (action: string, data?: unknown) => void
+  ): void {
     const unsubscribe = this.cardController.subscribe(cardId, callback);
     this.unsubscribers.push(unsubscribe);
   }
@@ -721,13 +730,13 @@ export abstract class CardControllerComponent extends React.Component {
    * Subscribe to all card events
    */
   protected subscribeToAllCards(
-    callback: (action: string, cardId: string, data?: any) => void
+    callback: (action: string, cardId: string, data?: unknown) => void
   ): void {
     const unsubscribe = this.cardController.subscribeGlobal(callback);
     this.unsubscribers.push(unsubscribe);
   }
 
-  componentWillUnmount() {
+  componentWillUnmount(): void {
     // Clean up subscriptions
     this.unsubscribers.forEach(unsubscribe => {
       try {

@@ -1,17 +1,32 @@
 import * as React from 'react';
-import { memo, useCallback, useMemo } from 'react';
+import { memo, useCallback, useContext, useMemo } from 'react';
 import { HeaderProps } from '../Card.types';
 import { SIZE_CONFIG } from '../utils/constants';
 import { HeaderLoadingShimmer } from './LoadingStates';
+
+// Import CardContext - this will be defined in Card.tsx
+const CardContext = React.createContext<
+  | {
+      variant: string;
+      customHeaderColor?: string;
+      allowExpand: boolean;
+      disabled: boolean;
+      loading: boolean;
+      onToggleExpand: (source?: 'user' | 'programmatic') => void;
+      isExpanded: boolean;
+      id: string;
+      headerSize: string;
+    }
+  | undefined
+>(undefined);
 
 /**
  * Card Header component with context integration
  */
 export const Header = memo<HeaderProps>(
   ({ children, className = '', style, clickable = true, showLoadingShimmer = true, size }) => {
-    // Get card context (assuming we'll have this from Card component)
-    // eslint-disable-next-line @typescript-eslint/no-use-before-define
-    const cardContext = React.useContext(CardContext);
+    // Get card context
+    const cardContext = useContext(CardContext);
 
     if (!cardContext) {
       console.warn('[SpfxCard] Header must be used within a Card component');
@@ -31,8 +46,8 @@ export const Header = memo<HeaderProps>(
     } = cardContext;
 
     const effectiveSize = size || headerSize;
-
-    const sizeConfig = SIZE_CONFIG[size as keyof typeof SIZE_CONFIG] || SIZE_CONFIG.regular;
+    const sizeConfig =
+      SIZE_CONFIG[effectiveSize as keyof typeof SIZE_CONFIG] || SIZE_CONFIG.regular;
 
     // Memoized styles
     const headerStyle = useMemo(
@@ -126,10 +141,6 @@ export const Header = memo<HeaderProps>(
 Header.displayName = 'CardHeader';
 
 /**
- * Specialized header variants
- */
-
-/**
  * Simple header without context dependency (for standalone use)
  */
 export const SimpleHeader: React.FC<{
@@ -151,6 +162,7 @@ export const SimpleHeader: React.FC<{
     loading = false,
   }) => {
     const sizeConfig = SIZE_CONFIG[size as keyof typeof SIZE_CONFIG] || SIZE_CONFIG.regular;
+
     const headerStyle = useMemo(
       () => ({
         padding: sizeConfig.headerPadding,
@@ -237,8 +249,6 @@ export const IconHeader: React.FC<{
     onClick,
     loading = false,
   }) => {
-    const sizeConfig = SIZE_CONFIG[size];
-
     // Icon size based on header size
     const iconSize = useMemo(() => {
       switch (size) {
@@ -395,6 +405,3 @@ export const SubtitleHeader: React.FC<{
 );
 
 SubtitleHeader.displayName = 'SubtitleCardHeader';
-
-// Create CardContext placeholder - this will be imported from Card component later
-const CardContext = React.createContext<any>(null);

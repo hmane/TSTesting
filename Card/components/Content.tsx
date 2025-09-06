@@ -1,35 +1,59 @@
 import * as React from 'react';
-import { memo, useCallback, useEffect, useMemo, useRef } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useContext, ReactNode } from 'react';
 import { ContentPadding, ContentProps } from '../Card.types';
 import { PADDING_CONFIG } from '../utils/constants';
 import { CardLoading, ContentLoadingPlaceholder } from './LoadingStates';
+
+// Import CardContext - this will be defined in Card.tsx
+const CardContext = React.createContext<
+  | {
+      isExpanded: boolean;
+      allowExpand: boolean;
+      id: string;
+      lazyLoad: boolean;
+      hasContentLoaded: boolean;
+      loading: boolean;
+      loadingType: string;
+      onContentLoad: () => void;
+      size: string;
+    }
+  | undefined
+>(undefined);
 
 /**
  * Error Boundary for Content component
  */
 class ContentErrorBoundary extends React.Component<
-  { children: React.ReactNode; fallback?: React.ReactNode; onError?: (error: Error) => void },
+  {
+    children: ReactNode;
+    fallback?: ReactNode;
+    onError?: (error: Error) => void;
+  },
   { hasError: boolean; error?: Error }
 > {
-  constructor(props: any) {
+  constructor(props: {
+    children: ReactNode;
+    fallback?: ReactNode;
+    onError?: (error: Error) => void;
+  }) {
     super(props);
     this.state = { hasError: false };
   }
 
-  static getDerivedStateFromError(error: Error) {
+  static getDerivedStateFromError(error: Error): { hasError: boolean; error: Error } {
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
     console.error('[SpfxCard] Content Error Boundary:', error, errorInfo);
     this.props.onError?.(error);
   }
 
-  private handleRetry = () => {
+  private handleRetry = (): void => {
     this.setState({ hasError: false, error: undefined });
   };
 
-  render() {
+  render(): ReactNode {
     if (this.state.hasError) {
       if (this.props.fallback) {
         return this.props.fallback;
@@ -72,7 +96,7 @@ const getPaddingValue = (padding: ContentPadding): string => {
     return PADDING_CONFIG[padding as keyof typeof PADDING_CONFIG] || padding;
   }
 
-  if (typeof padding === 'object') {
+  if (typeof padding === 'object' && padding !== null) {
     const { top = 0, right = 0, bottom = 0, left = 0 } = padding;
     return `${top}px ${right}px ${bottom}px ${left}px`;
   }
@@ -93,8 +117,7 @@ export const Content = memo<ContentProps>(
     errorBoundary = true,
   }) => {
     // Get card context
-    // eslint-disable-next-line @typescript-eslint/no-use-before-define
-    const cardContext = React.useContext(CardContext);
+    const cardContext = useContext(CardContext);
     const contentRef = useRef<HTMLDivElement>(null);
 
     if (!cardContext) {
@@ -168,13 +191,15 @@ export const Content = memo<ContentProps>(
       // If loading, show loading state or placeholder
       if (loading && loadingType !== 'none') {
         return (
-          loadingPlaceholder || <CardLoading type={loadingType} message='Loading content...' />
+          loadingPlaceholder || (
+            <CardLoading type={loadingType as any} message='Loading content...' />
+          )
         );
       }
 
       // If content should be rendered
       if (shouldRenderContent) {
-        return isContentFunction ? (children as () => React.ReactNode)() : children;
+        return isContentFunction ? (children as () => ReactNode)() : children;
       }
 
       // Fallback placeholder
@@ -201,7 +226,7 @@ export const Content = memo<ContentProps>(
 
     // Content wrapper component
     const ContentWrapper = useCallback(
-      ({ children: contentChildren }: { children: React.ReactNode }) => (
+      ({ children: contentChildren }: { children: ReactNode }) => (
         <div
           ref={contentRef}
           className={contentClasses}
@@ -262,12 +287,12 @@ export const ScrollableContent = memo<
         overflowY: 'auto' as const,
         overflowX: 'hidden' as const,
         // Use CSS variables for scrollbar control
-        ['--scrollbar-width' as any]: showScrollbar ? '6px' : '0px',
-        ['--scrollbar-display' as any]: showScrollbar ? 'block' : 'none',
-        ['--scrollbar-track-bg' as any]: showScrollbar
+        ['--scrollbar-width' as string]: showScrollbar ? '6px' : '0px',
+        ['--scrollbar-display' as string]: showScrollbar ? 'block' : 'none',
+        ['--scrollbar-track-bg' as string]: showScrollbar
           ? 'var(--neutralLighter, #f8f9fa)'
           : 'transparent',
-        ['--scrollbar-thumb-bg' as any]: showScrollbar
+        ['--scrollbar-thumb-bg' as string]: showScrollbar
           ? 'var(--neutralTertiary, #a19f9d)'
           : 'transparent',
         ...style,
@@ -298,7 +323,7 @@ export const TabbedContent = memo<{
   tabs: Array<{
     id: string;
     label: string;
-    content: React.ReactNode;
+    content: ReactNode;
     disabled?: boolean;
   }>;
   activeTab?: string;
@@ -403,7 +428,7 @@ TabbedContent.displayName = 'TabbedCardContent';
  */
 export const CollapsibleSection = memo<{
   title: string;
-  children: React.ReactNode;
+  children: ReactNode;
   defaultExpanded?: boolean;
   className?: string;
   style?: React.CSSProperties;
@@ -449,7 +474,7 @@ export const CollapsibleSection = memo<{
       >
         <span>{title}</span>
         <i
-          className={`ms-Icon ms-Icon--ChevronDown`}
+          className='ms-Icon ms-Icon--ChevronDown'
           style={{
             transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
             transition: 'transform 0.3s ease',
@@ -475,6 +500,3 @@ export const CollapsibleSection = memo<{
 });
 
 CollapsibleSection.displayName = 'CollapsibleSection';
-
-// Create CardContext placeholder - this will be imported from Card component later
-const CardContext = React.createContext<any>(null);
