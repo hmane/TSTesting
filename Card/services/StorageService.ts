@@ -1,5 +1,5 @@
 import { CardState, PersistedCardState, StorageConfig } from '../Card.types';
-import { STORAGE_KEYS, ERROR_MESSAGES, VALIDATION } from '../utils/constants';
+import { ERROR_MESSAGES, STORAGE_KEYS, VALIDATION } from '../utils/constants';
 
 /**
  * Storage service for persisting card states
@@ -15,7 +15,7 @@ export class StorageService {
     this.config = {
       prefix: config?.prefix || STORAGE_KEYS.PREFIX,
       namespace: config?.namespace || 'default',
-      expiration: config?.expiration || (7 * 24 * 60 * 60 * 1000) // 7 days
+      expiration: config?.expiration || 7 * 24 * 60 * 60 * 1000, // 7 days
     };
 
     this.initializeStorage();
@@ -88,7 +88,7 @@ export class StorageService {
       const persistedData: PersistedCardState = {
         cardStates: states,
         timestamp: Date.now(),
-        version: '1.0.0'
+        version: '1.0.0',
       };
 
       const key = this.generateKey(STORAGE_KEYS.CARD_STATES);
@@ -133,7 +133,6 @@ export class StorageService {
       }
 
       return persistedData.cardStates || {};
-
     } catch (error) {
       console.error('[SpfxCard] Failed to load card states:', error);
       return {};
@@ -153,7 +152,7 @@ export class StorageService {
       const data = {
         expandedCards,
         timestamp: Date.now(),
-        version: '1.0.0'
+        version: '1.0.0',
       };
 
       this.storage.setItem(key, JSON.stringify(data));
@@ -188,7 +187,6 @@ export class StorageService {
       }
 
       return data.expandedCards || [];
-
     } catch (error) {
       console.error('[SpfxCard] Failed to load accordion states:', error);
       return [];
@@ -208,7 +206,7 @@ export class StorageService {
       const wrappedData = {
         data,
         timestamp: Date.now(),
-        version: '1.0.0'
+        version: '1.0.0',
       };
 
       this.storage.setItem(storageKey, JSON.stringify(wrappedData));
@@ -243,7 +241,6 @@ export class StorageService {
       }
 
       return wrappedData.data;
-
     } catch (error) {
       console.error(`[SpfxCard] Failed to load data for key ${key}:`, error);
       return defaultValue;
@@ -377,7 +374,6 @@ export class StorageService {
       if (cleanedCount > 0) {
         console.log(`[SpfxCard] Cleaned up ${cleanedCount} expired storage items`);
       }
-
     } catch (error) {
       console.error('[SpfxCard] Error during cleanup:', error);
     }
@@ -432,7 +428,7 @@ export class StorageService {
       type,
       itemCount,
       totalSize,
-      namespace: this.config.namespace
+      namespace: this.config.namespace,
     };
   }
 
@@ -442,7 +438,7 @@ export class StorageService {
   public updateConfig(newConfig: Partial<StorageConfig>): void {
     this.config = {
       ...this.config,
-      ...newConfig
+      ...newConfig,
     };
   }
 

@@ -366,7 +366,7 @@ export interface CardController {
 
   // State management
   getCardStates(): CardState[];
-  getCardState(id: string): CardState | undefined;
+  getCardState(id: string): CardState | null;
   highlightCard(id: string): boolean;
 
   // Persistence
@@ -431,7 +431,7 @@ export interface CardControllerHook {
     highlight?: boolean
   ) => Promise<boolean[]>;
   getCardStates: () => CardState[];
-  getCardState: (id: string) => CardState | undefined;
+  getCardState: (id: string) => CardState | null;
   highlightCard: (id: string) => boolean;
   subscribe: (cardId: string, callback: (action: string, data?: unknown) => void) => () => void;
   subscribeGlobal: (

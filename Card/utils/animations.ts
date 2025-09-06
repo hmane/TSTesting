@@ -173,7 +173,7 @@ export const getAnimationStyle = (
   const {
     duration = ANIMATION.DURATION.NORMAL,
     easing = ANIMATION.EASING.EASE_OUT,
-    disabled = false
+    disabled = false,
   } = config;
 
   if (disabled) {
@@ -182,7 +182,7 @@ export const getAnimationStyle = (
 
   return {
     animation: `${animationName} ${duration}ms ${easing}`,
-    willChange: 'transform, opacity, max-height'
+    willChange: 'transform, opacity, max-height',
   };
 };
 
@@ -204,7 +204,7 @@ export const animateElement = (
       duration = ANIMATION.DURATION.NORMAL,
       easing = ANIMATION.EASING.EASE_OUT,
       delay = 0,
-      fillMode = 'both'
+      fillMode = 'both',
     } = options;
 
     // Set animation properties
@@ -252,7 +252,7 @@ export const getTransitionStyle = (
 ): React.CSSProperties => {
   return {
     transition: properties.map(prop => `${prop} ${duration}ms ${easing}`).join(', '),
-    willChange: properties.join(', ')
+    willChange: properties.join(', '),
   };
 };
 
@@ -275,7 +275,14 @@ export const getAnimationDuration = (duration: number): number => {
  */
 export const getAnimationClassName = (
   baseClass: string,
-  animationType: 'expand' | 'collapse' | 'maximize' | 'restore' | 'highlight' | 'fade-in' | 'fade-out',
+  animationType:
+    | 'expand'
+    | 'collapse'
+    | 'maximize'
+    | 'restore'
+    | 'highlight'
+    | 'fade-in'
+    | 'fade-out',
   isActive: boolean = false
 ): string => {
   const suffix = isActive ? `-${animationType}-active` : `-${animationType}`;
@@ -309,7 +316,7 @@ export const initializeCardAnimations = (): void => {
     { id: 'card-highlight-keyframes', content: createHighlightKeyframes() },
     { id: 'card-shimmer-keyframes', content: createShimmerKeyframes() },
     { id: 'card-fade-in-keyframes', content: createFadeInKeyframes() },
-    { id: 'card-fade-out-keyframes', content: createFadeOutKeyframes() }
+    { id: 'card-fade-out-keyframes', content: createFadeOutKeyframes() },
   ];
 
   keyframes.forEach(({ id, content }) => {
@@ -338,7 +345,7 @@ export class AnimationScheduler {
       const start = performance.now();
 
       // Process callbacks within frame budget (16ms)
-      while (this.queue.length > 0 && (performance.now() - start) < 14) {
+      while (this.queue.length > 0 && performance.now() - start < 14) {
         const callback = this.queue.shift();
         if (callback) {
           try {
@@ -376,7 +383,7 @@ export const debounceAnimation = (
   fn: () => void,
   delay: number = ANIMATION.DURATION.FAST
 ): (() => void) => {
-  let timeoutId: NodeJS.Timeout;
+  let timeoutId: number;
 
   return () => {
     clearTimeout(timeoutId);
@@ -389,7 +396,10 @@ export const debounceAnimation = (
 /**
  * Create CSS variables for dynamic animation properties
  */
-export const createAnimationVariables = (element: HTMLElement, variables: Record<string, string>): void => {
+export const createAnimationVariables = (
+  element: HTMLElement,
+  variables: Record<string, string>
+): void => {
   Object.entries(variables).forEach(([property, value]) => {
     element.style.setProperty(`--${property}`, value);
   });
@@ -403,7 +413,7 @@ export const smoothHeightTransition = (
   targetHeight: number | 'auto',
   duration: number = ANIMATION.DURATION.NORMAL
 ): Promise<void> => {
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     const startHeight = element.offsetHeight;
     const endHeight = targetHeight === 'auto' ? element.scrollHeight : targetHeight;
 
@@ -411,7 +421,6 @@ export const smoothHeightTransition = (
     element.style.transition = `height ${duration}ms ${ANIMATION.EASING.EASE_OUT}`;
 
     // Force reflow
-    // eslint-disable-next-line no-void
     void element.offsetHeight;
 
     element.style.height = `${endHeight}px`;

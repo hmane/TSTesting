@@ -165,7 +165,7 @@ export const useAutoPersistence = <T>(
   debounceMs: number = 1000
 ) => {
   const storageService = StorageService.getInstance();
-  const timeoutRef = useRef<NodeJS.Timeout>();
+  const timeoutRef = useRef<number>();
   const previousDataRef = useRef<T>();
 
   useEffect(() => {

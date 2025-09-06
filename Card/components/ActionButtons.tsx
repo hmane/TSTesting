@@ -28,6 +28,44 @@ const CardContext = React.createContext<
 >(undefined);
 
 /**
+ * Helper functions for button styling - defined before use
+ */
+const getButtonBackgroundColor = (variant?: string): string => {
+  switch (variant) {
+    case 'primary':
+      return 'var(--themePrimary, #0078d4)';
+    case 'danger':
+      return 'var(--red, #d13438)';
+    case 'secondary':
+    default:
+      return 'rgba(255, 255, 255, 0.15)';
+  }
+};
+
+const getButtonTextColor = (variant?: string): string => {
+  switch (variant) {
+    case 'primary':
+    case 'danger':
+      return 'var(--white, #ffffff)';
+    case 'secondary':
+    default:
+      return 'inherit';
+  }
+};
+
+const getButtonHoverColor = (variant?: string): string => {
+  switch (variant) {
+    case 'primary':
+      return 'var(--themeDark, #106ebe)';
+    case 'danger':
+      return 'var(--redDark, #b52c31)';
+    case 'secondary':
+    default:
+      return 'rgba(255, 255, 255, 0.25)';
+  }
+};
+
+/**
  * Action Buttons component for card headers
  */
 export const ActionButtons = memo<ActionButtonsProps>(
@@ -77,7 +115,7 @@ export const ActionButtons = memo<ActionButtonsProps>(
 
     // Handle action button click
     const handleActionClick = useCallback(
-      (action: CardAction) => (event: React.MouseEvent) => {
+      (action: CardAction) => (event: React.MouseEvent<HTMLButtonElement>) => {
         event.stopPropagation();
         if (!action.disabled && !disabled) {
           onActionClick(action, event);
@@ -88,7 +126,7 @@ export const ActionButtons = memo<ActionButtonsProps>(
 
     // Handle expand/collapse button click
     const handleExpandClick = useCallback(
-      (event: React.MouseEvent) => {
+      (event: React.MouseEvent<HTMLButtonElement>) => {
         event.stopPropagation();
         if (!disabled) {
           onToggleExpand('user');
@@ -99,7 +137,7 @@ export const ActionButtons = memo<ActionButtonsProps>(
 
     // Handle maximize/restore button click
     const handleMaximizeClick = useCallback(
-      (event: React.MouseEvent) => {
+      (event: React.MouseEvent<HTMLButtonElement>) => {
         event.stopPropagation();
         if (!disabled) {
           onToggleMaximize('user');
@@ -115,10 +153,7 @@ export const ActionButtons = memo<ActionButtonsProps>(
         const isDisabled = action.disabled || disabled;
 
         // Determine button component based on variant
-        let ButtonComponent = DefaultButton;
-        if (action.variant === 'primary') {
-          ButtonComponent = PrimaryButton;
-        }
+        const ButtonComponent = action.variant === 'primary' ? PrimaryButton : DefaultButton;
 
         // Button styles
         const buttonStyles = useMemo(
@@ -130,7 +165,6 @@ export const ActionButtons = memo<ActionButtonsProps>(
               border: '1px solid rgba(255, 255, 255, 0.2)',
               backgroundColor: getButtonBackgroundColor(action.variant),
               color: getButtonTextColor(action.variant),
-              ...(action.className && { className: action.className }),
             },
             rootHovered: {
               backgroundColor: getButtonHoverColor(action.variant),
@@ -144,7 +178,7 @@ export const ActionButtons = memo<ActionButtonsProps>(
               backgroundColor: 'rgba(255, 255, 255, 0.1)',
             },
           }),
-          [action.variant, action.className]
+          [action.variant]
         );
 
         // Check if we're on mobile
@@ -335,49 +369,11 @@ export const ActionButtons = memo<ActionButtonsProps>(
 ActionButtons.displayName = 'CardActionButtons';
 
 /**
- * Helper functions for button styling
- */
-const getButtonBackgroundColor = (variant?: string): string => {
-  switch (variant) {
-    case 'primary':
-      return 'var(--themePrimary, #0078d4)';
-    case 'danger':
-      return 'var(--red, #d13438)';
-    case 'secondary':
-    default:
-      return 'rgba(255, 255, 255, 0.15)';
-  }
-};
-
-const getButtonTextColor = (variant?: string): string => {
-  switch (variant) {
-    case 'primary':
-    case 'danger':
-      return 'var(--white, #ffffff)';
-    case 'secondary':
-    default:
-      return 'inherit';
-  }
-};
-
-const getButtonHoverColor = (variant?: string): string => {
-  switch (variant) {
-    case 'primary':
-      return 'var(--themeDark, #106ebe)';
-    case 'danger':
-      return 'var(--redDark, #b52c31)';
-    case 'secondary':
-    default:
-      return 'rgba(255, 255, 255, 0.25)';
-  }
-};
-
-/**
  * Standalone action buttons component (without card context)
  */
 export const StandaloneActionButtons: React.FC<{
   actions: CardAction[];
-  onActionClick: (action: CardAction, event: React.MouseEvent) => void;
+  onActionClick: (action: CardAction, event: React.MouseEvent<HTMLButtonElement>) => void;
   className?: string;
   style?: React.CSSProperties;
   showTooltips?: boolean;
@@ -385,7 +381,7 @@ export const StandaloneActionButtons: React.FC<{
 }> = memo(
   ({ actions, onActionClick, className = '', style, showTooltips = true, disabled = false }) => {
     const handleActionClick = useCallback(
-      (action: CardAction) => (event: React.MouseEvent) => {
+      (action: CardAction) => (event: React.MouseEvent<HTMLButtonElement>) => {
         event.stopPropagation();
         if (!action.disabled && !disabled) {
           onActionClick(action, event);
@@ -399,10 +395,7 @@ export const StandaloneActionButtons: React.FC<{
         const buttonId = getId('standalone-action-button');
         const isDisabled = action.disabled || disabled;
 
-        let ButtonComponent = DefaultButton;
-        if (action.variant === 'primary') {
-          ButtonComponent = PrimaryButton;
-        }
+        const ButtonComponent = action.variant === 'primary' ? PrimaryButton : DefaultButton;
 
         const buttonStyles = {
           root: {
@@ -471,7 +464,7 @@ StandaloneActionButtons.displayName = 'StandaloneActionButtons';
 export const CompactActionButtons: React.FC<{
   actions: CardAction[];
   maxVisible?: number;
-  onActionClick: (action: CardAction, event: React.MouseEvent) => void;
+  onActionClick: (action: CardAction, event: React.MouseEvent<HTMLButtonElement>) => void;
   className?: string;
   style?: React.CSSProperties;
   disabled?: boolean;
@@ -480,7 +473,7 @@ export const CompactActionButtons: React.FC<{
   const overflowActions = actions.slice(maxVisible);
 
   const handleActionClick = useCallback(
-    (action: CardAction) => (event: React.MouseEvent) => {
+    (action: CardAction) => (event: React.MouseEvent<HTMLButtonElement>) => {
       event.stopPropagation();
       if (!action.disabled && !disabled) {
         onActionClick(action, event);

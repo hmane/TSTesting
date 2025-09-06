@@ -1,159 +1,280 @@
-// ==================== Main Component Exports ====================
-// Core Card Components
-export { Card, SafeCard, CardContext, useCardContext } from './components/Card';
-export { Header, SimpleHeader, IconHeader, BadgeHeader, SubtitleHeader } from './components/Header';
-export { Content, ScrollableContent, TabbedContent, CollapsibleSection } from './components/Content';
-export { Footer, ActionFooter, StatusFooter, ProgressFooter, ExpandableFooter, MultiColumnFooter } from './components/Footer';
-export { ActionButtons, StandaloneActionButtons, CompactActionButtons } from './components/ActionButtons';
-export { MaximizedView, CustomMaximizedView } from './components/MaximizedView';
+// ==================== Import All Dependencies ====================
+import { Card, SafeCard, CardContext, useCardContext } from './components/Card';
+import { Header, SimpleHeader, IconHeader, BadgeHeader, SubtitleHeader } from './components/Header';
+import {
+  Content,
+  ScrollableContent,
+  TabbedContent,
+  CollapsibleSection,
+} from './components/Content';
+import {
+  Footer,
+  ActionFooter,
+  StatusFooter,
+  ProgressFooter,
+  ExpandableFooter,
+  MultiColumnFooter,
+} from './components/Footer';
+import {
+  ActionButtons,
+  StandaloneActionButtons,
+  CompactActionButtons,
+} from './components/ActionButtons';
+import { MaximizedView, CustomMaximizedView } from './components/MaximizedView';
 
 // Accordion Components
-export { 
-  default as Accordion, 
-  ControlledAccordion, 
-  SearchableAccordion, 
-  KeyboardAccordion, 
-  useAccordion 
+import Accordion, {
+  ControlledAccordion,
+  SearchableAccordion,
+  KeyboardAccordion,
+  useAccordion,
+  type AccordionHandle,
 } from './Accordion';
 
 // Loading Components
-export { 
-  CardLoading, 
-  SpinnerLoading, 
-  SkeletonLoading, 
-  ShimmerLoading, 
-  OverlayLoading, 
-  HeaderLoadingShimmer, 
-  CustomLoading, 
-  ContentLoadingPlaceholder, 
-  LoadingDots, 
-  ProgressLoading, 
-  LoadingErrorBoundary 
+import {
+  CardLoading,
+  SpinnerLoading,
+  SkeletonLoading,
+  ShimmerLoading,
+  OverlayLoading,
+  HeaderLoadingShimmer,
+  CustomLoading,
+  ContentLoadingPlaceholder,
+  LoadingDots,
+  ProgressLoading,
+  LoadingErrorBoundary,
 } from './components/LoadingStates';
 
-// ==================== Services ====================
-export { cardController } from './services/CardController';
-export { StorageService } from './services/StorageService';
+// Services
+import { cardController } from './services/CardController';
+import { StorageService } from './services/StorageService';
 
-// ==================== Hooks ====================
-export { 
-  useCardController, 
-  useCardSubscription, 
-  useGlobalCardSubscription, 
-  useCardState, 
-  useAllCardStates, 
-  useCardControllerStats 
+// Hooks
+import {
+  useCardController,
+  useCardSubscription,
+  useGlobalCardSubscription,
+  useCardState,
+  useAllCardStates,
+  useCardControllerStats,
 } from './hooks/useCardController';
 
-export { 
-  usePersistence, 
-  useAccordionPersistence, 
-  useAutoPersistence, 
-  useStorageCleanup, 
-  useStorageStats, 
-  useBulkPersistence, 
-  useCrossTabSync, 
-  useValidatedPersistence 
+import {
+  usePersistence,
+  useAccordionPersistence,
+  useAutoPersistence,
+  useStorageCleanup,
+  useStorageStats,
+  useBulkPersistence,
+  useCrossTabSync,
+  useValidatedPersistence,
 } from './hooks/usePersistence';
 
-export { useMaximize, useMaximizePortal } from './hooks/useMaximize';
+import { useMaximize, useMaximizePortal } from './hooks/useMaximize';
 
-// ==================== Utilities ====================
-export { 
-  initializeCardAnimations, 
-  getAnimationStyle, 
-  animateElement, 
-  getTransitionStyle, 
-  prefersReducedMotion, 
-  getAnimationDuration, 
-  getAnimationClassName, 
-  injectKeyframes, 
-  animationScheduler, 
-  debounceAnimation, 
-  createAnimationVariables, 
-  smoothHeightTransition, 
-  AnimationScheduler 
+// Utilities
+import {
+  initializeCardAnimations,
+  getAnimationStyle,
+  animateElement,
+  getTransitionStyle,
+  prefersReducedMotion,
+  getAnimationDuration,
+  getAnimationClassName,
+  injectKeyframes,
+  animationScheduler,
+  debounceAnimation,
+  createAnimationVariables,
+  smoothHeightTransition,
+  AnimationScheduler,
 } from './utils/animations';
 
-export { 
-  STORAGE_KEYS, 
-  ANIMATION, 
-  BREAKPOINTS, 
-  DEFAULT_ICONS, 
-  SIZE_CONFIG, 
-  PADDING_CONFIG, 
-  THEME_COLORS, 
-  Z_INDEX, 
-  LOADING_TEMPLATES, 
-  A11Y, 
-  PERFORMANCE, 
-  ERROR_MESSAGES, 
-  VALIDATION 
+import {
+  STORAGE_KEYS,
+  ANIMATION,
+  BREAKPOINTS,
+  DEFAULT_ICONS,
+  SIZE_CONFIG,
+  PADDING_CONFIG,
+  THEME_COLORS,
+  Z_INDEX,
+  LOADING_TEMPLATES,
+  A11Y,
+  PERFORMANCE,
+  ERROR_MESSAGES,
+  VALIDATION,
 } from './utils/constants';
 
-// ==================== Types ====================
-export type { 
-  // Core types
-  CardProps, 
-  CardVariant, 
-  CardSize, 
-  HeaderSize, 
-  LoadingType, 
+// Types
+import type {
+  CardProps,
+  CardVariant,
+  CardSize,
+  HeaderSize,
+  LoadingType,
   ContentPadding,
-  
-  // Component props
-  HeaderProps, 
-  ContentProps, 
-  FooterProps, 
-  ActionButtonsProps, 
-  MaximizedViewProps, 
+  HeaderProps,
+  ContentProps,
+  FooterProps,
+  ActionButtonsProps,
+  MaximizedViewProps,
   LoadingStateProps,
-  
-  // Accordion types
   AccordionProps,
-  
-  // Action and event types
-  CardAction, 
-  CardEventData, 
+  CardAction,
+  CardEventData,
   CardEventType,
-  
-  // State and context types
-  CardState, 
-  CardRegistration, 
+  CardState,
+  CardRegistration,
   CardContextType,
-  
-  // Controller types
-  CardController, 
+  CardController,
   CardControllerHook,
-  
-  // Storage types
-  StorageConfig, 
+  StorageConfig,
   PersistedCardState,
-  
-  // Animation types
-  AnimationConfig, 
+  AnimationConfig,
   ScrollOptions,
-  
-  // Utility types
-  CardError, 
-  WithCardControllerProps 
-} from './types/Card.types';
+  CardError,
+  WithCardControllerProps,
+} from './Card.types';
 
-// ==================== Class Component Support ====================
-export { 
-  CardControllerComponent, 
-  withCardController 
-} from './components/Card';
+import { CardControllerComponent, withCardController } from './components/Card';
+
+// ==================== Re-Export All Components ====================
+// Core Card Components
+export { Card, SafeCard, CardContext, useCardContext };
+export { Header, SimpleHeader, IconHeader, BadgeHeader, SubtitleHeader };
+export { Content, ScrollableContent, TabbedContent, CollapsibleSection };
+export { Footer, ActionFooter, StatusFooter, ProgressFooter, ExpandableFooter, MultiColumnFooter };
+export { ActionButtons, StandaloneActionButtons, CompactActionButtons };
+export { MaximizedView, CustomMaximizedView };
+
+// Accordion Components
+export {
+  Accordion,
+  ControlledAccordion,
+  SearchableAccordion,
+  KeyboardAccordion,
+  useAccordion,
+  type AccordionHandle,
+};
+
+// Loading Components
+export {
+  CardLoading,
+  SpinnerLoading,
+  SkeletonLoading,
+  ShimmerLoading,
+  OverlayLoading,
+  HeaderLoadingShimmer,
+  CustomLoading,
+  ContentLoadingPlaceholder,
+  LoadingDots,
+  ProgressLoading,
+  LoadingErrorBoundary,
+};
+
+// Services
+export { cardController, StorageService };
+
+// Hooks
+export {
+  useCardController,
+  useCardSubscription,
+  useGlobalCardSubscription,
+  useCardState,
+  useAllCardStates,
+  useCardControllerStats,
+};
+
+export {
+  usePersistence,
+  useAccordionPersistence,
+  useAutoPersistence,
+  useStorageCleanup,
+  useStorageStats,
+  useBulkPersistence,
+  useCrossTabSync,
+  useValidatedPersistence,
+};
+
+export { useMaximize, useMaximizePortal };
+
+// Utilities
+export {
+  initializeCardAnimations,
+  getAnimationStyle,
+  animateElement,
+  getTransitionStyle,
+  prefersReducedMotion,
+  getAnimationDuration,
+  getAnimationClassName,
+  injectKeyframes,
+  animationScheduler,
+  debounceAnimation,
+  createAnimationVariables,
+  smoothHeightTransition,
+  AnimationScheduler,
+};
+
+export {
+  STORAGE_KEYS,
+  ANIMATION,
+  BREAKPOINTS,
+  DEFAULT_ICONS,
+  SIZE_CONFIG,
+  PADDING_CONFIG,
+  THEME_COLORS,
+  Z_INDEX,
+  LOADING_TEMPLATES,
+  A11Y,
+  PERFORMANCE,
+  ERROR_MESSAGES,
+  VALIDATION,
+};
+
+// Types
+export type {
+  CardProps,
+  CardVariant,
+  CardSize,
+  HeaderSize,
+  LoadingType,
+  ContentPadding,
+  HeaderProps,
+  ContentProps,
+  FooterProps,
+  ActionButtonsProps,
+  MaximizedViewProps,
+  LoadingStateProps,
+  AccordionProps,
+  CardAction,
+  CardEventData,
+  CardEventType,
+  CardState,
+  CardRegistration,
+  CardContextType,
+  CardController,
+  CardControllerHook,
+  StorageConfig,
+  PersistedCardState,
+  AnimationConfig,
+  ScrollOptions,
+  CardError,
+  WithCardControllerProps,
+};
+
+// Class Component Support
+export { CardControllerComponent, withCardController };
 
 // ==================== Constants for External Use ====================
 export const CARD_VERSION = '1.0.0';
 
 export const CARD_DEFAULTS = {
-  size: 'regular' as CardSize,
-  variant: 'default' as CardVariant,
-  headerSize: 'regular' as HeaderSize,
-  loadingType: 'none' as LoadingType,
-  contentPadding: 'comfortable' as ContentPadding,
+  size: 'regular' as const,
+  variant: 'default' as const,
+  headerSize: 'regular' as const,
+  loadingType: 'none' as const,
+  contentPadding: 'comfortable' as const,
   elevation: 2 as const,
   allowExpand: true,
   allowMaximize: false,
@@ -164,8 +285,8 @@ export const CARD_DEFAULTS = {
   animation: {
     duration: 350,
     easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
-    disabled: false
-  }
+    disabled: false,
+  },
 } as const;
 
 // ==================== Utility Functions ====================
@@ -175,7 +296,7 @@ export const CARD_DEFAULTS = {
  */
 export const createCardConfig = (overrides?: Partial<CardProps>) => ({
   ...CARD_DEFAULTS,
-  ...overrides
+  ...overrides,
 });
 
 /**
@@ -205,14 +326,15 @@ export const checkBrowserSupport = (): {
 } => {
   const hasStorage = typeof Storage !== 'undefined';
   const hasAnimations = 'animate' in document.createElement('div');
-  const hasCustomProperties = CSS.supports('--test', 'value');
+  const hasCustomProperties =
+    typeof CSS !== 'undefined' && CSS.supports && CSS.supports('--test', 'value');
   const hasIntersectionObserver = 'IntersectionObserver' in window;
 
   return {
     storage: hasStorage,
     animations: hasAnimations,
     customProperties: hasCustomProperties,
-    intersectionObserver: hasIntersectionObserver
+    intersectionObserver: hasIntersectionObserver,
   };
 };
 
@@ -224,15 +346,15 @@ export const initializeCardSystem = (config?: {
   storagePrefix?: string;
   debugMode?: boolean;
 }) => {
-  const { 
-    globalAnimation = true, 
-    storagePrefix = 'spfx-cards',
-    debugMode = false 
-  } = config || {};
+  const { globalAnimation = true, storagePrefix = 'spfx-cards', debugMode = false } = config || {};
 
   // Initialize animations if enabled
   if (globalAnimation) {
-    initializeCardAnimations();
+    try {
+      initializeCardAnimations();
+    } catch (error) {
+      console.warn('[SpfxCard] Animation initialization failed:', error);
+    }
   }
 
   // Set global debug mode
@@ -253,8 +375,8 @@ export const initializeCardSystem = (config?: {
     config: {
       globalAnimation,
       storagePrefix,
-      debugMode
-    }
+      debugMode,
+    },
   };
 };
 
@@ -262,57 +384,60 @@ export const initializeCardSystem = (config?: {
  * Cleanup card system resources
  */
 export const cleanupCardSystem = () => {
-  // Clear animation scheduler
-  animationScheduler.clear();
-  
-  // Cleanup card controller
-  cardController.cleanup();
-  
-  // Remove debug classes
-  if (typeof document !== 'undefined') {
-    document.documentElement.classList.remove('spfx-debug-animations');
-  }
-  
-  console.log('[SpfxCard] System cleanup completed');
-};
+  try {
+    // Clear animation scheduler
+    animationScheduler.clear();
 
-// ==================== React DevTools Support ====================
-if (typeof window !== 'undefined' && window.__REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  window.__REACT_DEVTOOLS_GLOBAL_HOOK__.onCommitFiberRoot = (id, root) => {
-    // Add card system info to React DevTools
-    if (root && root._debugRootType) {
-      root._debugInfo = {
-        cardSystemVersion: CARD_VERSION,
-        registeredCards: cardController.getRegisteredCardIds().length,
-        ...checkBrowserSupport()
-      };
+    // Cleanup card controller
+    cardController.cleanup();
+
+    // Remove debug classes
+    if (typeof document !== 'undefined') {
+      document.documentElement.classList.remove('spfx-debug-animations');
     }
-  };
-}
+
+    console.log('[SpfxCard] System cleanup completed');
+  } catch (error) {
+    console.warn('[SpfxCard] Cleanup failed:', error);
+  }
+};
 
 // ==================== Performance Monitoring ====================
 export const getPerformanceMetrics = () => {
-  const stats = cardController.getStats();
-  const storageService = StorageService.getInstance();
-  const storageStats = storageService.getStats();
-  
-  return {
-    cards: stats,
-    storage: storageStats,
-    timestamp: Date.now(),
-    memory: typeof performance !== 'undefined' && performance.memory ? {
-      usedJSHeapSize: performance.memory.usedJSHeapSize,
-      totalJSHeapSize: performance.memory.totalJSHeapSize,
-      jsHeapSizeLimit: performance.memory.jsHeapSizeLimit
-    } : null
-  };
+  try {
+    const stats = cardController.getStats();
+    const storageService = StorageService.getInstance();
+    const storageStats = storageService.getStats();
+
+    return {
+      cards: stats,
+      storage: storageStats,
+      timestamp: Date.now(),
+      memory:
+        typeof performance !== 'undefined' && (performance as any).memory
+          ? {
+              usedJSHeapSize: (performance as any).memory.usedJSHeapSize,
+              totalJSHeapSize: (performance as any).memory.totalJSHeapSize,
+              jsHeapSizeLimit: (performance as any).memory.jsHeapSizeLimit,
+            }
+          : null,
+    };
+  } catch (error) {
+    console.warn('[SpfxCard] Performance metrics failed:', error);
+    return {
+      cards: {},
+      storage: {},
+      timestamp: Date.now(),
+      memory: null,
+    };
+  }
 };
 
 // ==================== Error Reporting ====================
 export const reportCardError = (error: CardError | Error, context?: string) => {
   const errorReport = {
-    message: error.message,
-    stack: error.stack,
+    message: error.message || 'Unknown error',
+    stack: error.stack || 'No stack trace',
     context: context || 'unknown',
     timestamp: Date.now(),
     cardId: 'cardId' in error ? error.cardId : null,
@@ -320,12 +445,12 @@ export const reportCardError = (error: CardError | Error, context?: string) => {
     browserInfo: {
       userAgent: navigator.userAgent,
       url: window.location.href,
-      ...checkBrowserSupport()
+      ...checkBrowserSupport(),
     },
     cardSystemInfo: {
       version: CARD_VERSION,
-      ...getPerformanceMetrics()
-    }
+      ...getPerformanceMetrics(),
+    },
   };
 
   // Log to console in development
@@ -343,11 +468,11 @@ export const getVersionInfo = () => ({
   buildDate: new Date().toISOString(),
   dependencies: {
     react: '>=16.8.0',
-    fluentui: '>=8.0.0'
+    fluentui: '>=8.0.0',
   },
   features: [
     'Card expand/collapse',
-    'Card maximize/restore', 
+    'Card maximize/restore',
     'Accordion support',
     'Multiple loading states',
     'Persistence with localStorage',
@@ -358,10 +483,24 @@ export const getVersionInfo = () => ({
     'Class component support',
     'Performance optimizations',
     'Animation system',
-    'Error boundaries'
+    'Error boundaries',
   ],
-  browser: checkBrowserSupport()
+  browser: checkBrowserSupport(),
 });
+
+// ==================== React DevTools Support ====================
+if (typeof window !== 'undefined' && (window as any).__REACT_DEVTOOLS_GLOBAL_HOOK__) {
+  (window as any).__REACT_DEVTOOLS_GLOBAL_HOOK__.onCommitFiberRoot = (id: any, root: any) => {
+    // Add card system info to React DevTools
+    if (root && root._debugRootType) {
+      root._debugInfo = {
+        cardSystemVersion: CARD_VERSION,
+        registeredCards: cardController.getRegisteredCardIds().length,
+        ...checkBrowserSupport(),
+      };
+    }
+  };
+}
 
 // ==================== Default Export ====================
 const SpfxCard = {
@@ -373,15 +512,15 @@ const SpfxCard = {
   Footer,
   ActionButtons,
   Accordion,
-  
+
   // Hooks
   useCardController,
   useMaximize,
   usePersistence,
-  
+
   // Services
   cardController,
-  
+
   // Utilities
   initializeCardSystem,
   cleanupCardSystem,
@@ -392,10 +531,10 @@ const SpfxCard = {
   getPerformanceMetrics,
   getVersionInfo,
   reportCardError,
-  
+
   // Constants
   VERSION: CARD_VERSION,
-  DEFAULTS: CARD_DEFAULTS
+  DEFAULTS: CARD_DEFAULTS,
 };
 
 export default SpfxCard;

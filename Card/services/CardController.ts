@@ -9,7 +9,7 @@ import {
 import { ERROR_MESSAGES } from '../utils/constants';
 import { StorageService } from './StorageService';
 
-/**
+/**∏
  * Singleton Card Controller Service
  * Manages all card instances and their states
  */

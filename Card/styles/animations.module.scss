@@ -666,7 +666,6 @@
     border: 1px solid #000 !important;
   }
 }
-
 // ==================== High Contrast: Simplify Animations ====================
 @media (forced-colors: active) {
   // Simplify animations for high contrast mode
@@ -682,10 +681,28 @@
     }
   }
 
-  // Remove complex visual effects
-  @keyframes cardHighlight,
-  @keyframes cardGlow,
-  @keyframes shimmer,
+  // Remove complex visual effects - redefine individual keyframes
+  @keyframes cardHighlight {
+    from, to {
+      border-color: Highlight;
+      outline: 1px solid Highlight;
+    }
+  }
+
+  @keyframes cardGlow {
+    from, to {
+      border-color: Highlight;
+      outline: 1px solid Highlight;
+    }
+  }
+
+  @keyframes shimmer {
+    from, to {
+      border-color: Highlight;
+      outline: 1px solid Highlight;
+    }
+  }
+
   @keyframes shimmerWave {
     from, to {
       border-color: Highlight;
@@ -693,7 +710,6 @@
     }
   }
 }
-
 // ==================== Performance Optimizations ====================
 
 // Use will-change for elements that will be animated
