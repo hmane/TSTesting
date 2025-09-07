@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { memo, useCallback, useContext, useMemo } from 'react';
+import { memo, useCallback, useContext, useMemo, useRef, useEffect } from 'react';
 import { HeaderProps, CardAction } from '../Card.types';
 import { HeaderLoadingShimmer } from './LoadingStates';
 import { CardContext } from './Card';
@@ -8,20 +8,16 @@ import { TooltipHost } from '@fluentui/react/lib/Tooltip';
 import { getId } from '@fluentui/react/lib/Utilities';
 import { DEFAULT_ICONS } from '../utils/constants';
 
-/**
- * FIXED Enhanced Header Props with strict typing for variant
- */
 export interface EnhancedHeaderProps extends HeaderProps {
   actions?: CardAction[];
   hideExpandButton?: boolean;
   hideMaximizeButton?: boolean;
   showTooltips?: boolean;
-  variant?: 'success' | 'error' | 'warning' | 'info' | 'default'; // FIXED: Strict typing
+  variant?: 'success' | 'error' | 'warning' | 'info' | 'default';
+  allowWrap?: boolean;
+  showTooltipOnOverflow?: boolean;
 }
 
-/**
- * FIXED Header component - Removed focus outline on click, hide buttons in maximized view
- */
 export const Header = memo<EnhancedHeaderProps>(
   ({
     children,
@@ -35,9 +31,15 @@ export const Header = memo<EnhancedHeaderProps>(
     hideMaximizeButton = false,
     showTooltips = true,
     variant,
+    allowWrap = false,
+    showTooltipOnOverflow = true,
   }) => {
-    // Get card context
     const cardContext = useContext(CardContext);
+    const headerRef = useRef<HTMLDivElement>(null);
+    const headerContentRef = useRef<HTMLDivElement>(null);
+    const [isOverflowing, setIsOverflowing] = React.useState(false);
+    const [isKeyboardFocus, setIsKeyboardFocus] = React.useState(false);
+
     if (!cardContext) {
       console.warn('[SpfxCard] Header must be used within a Card component');
       return null;
@@ -63,7 +65,41 @@ export const Header = memo<EnhancedHeaderProps>(
     const effectiveSize = size || headerSize;
     const effectiveVariant = variant || contextVariant;
 
-    // Improved size configurations
+    // FIXED: Check for text overflow
+    useEffect(() => {
+      if (headerContentRef.current && showTooltipOnOverflow) {
+        const element = headerContentRef.current;
+        const checkOverflow = () => {
+          setIsOverflowing(element.scrollWidth > element.clientWidth);
+        };
+
+        checkOverflow();
+        window.addEventListener('resize', checkOverflow);
+        return () => window.removeEventListener('resize', checkOverflow);
+      }
+    }, [showTooltipOnOverflow, children]);
+
+    // COMPLETE FIX: Track keyboard vs mouse interaction
+    useEffect(() => {
+      const handleGlobalKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Tab') {
+          setIsKeyboardFocus(true);
+        }
+      };
+
+      const handleGlobalMouseDown = () => {
+        setIsKeyboardFocus(false);
+      };
+
+      document.addEventListener('keydown', handleGlobalKeyDown);
+      document.addEventListener('mousedown', handleGlobalMouseDown);
+
+      return () => {
+        document.removeEventListener('keydown', handleGlobalKeyDown);
+        document.removeEventListener('mousedown', handleGlobalMouseDown);
+      };
+    }, []);
+
     const sizeConfig = useMemo(() => {
       switch (effectiveSize) {
         case 'compact':
@@ -82,7 +118,7 @@ export const Header = memo<EnhancedHeaderProps>(
             buttonSize: 36,
             iconSize: 18,
           };
-        default: // regular
+        default:
           return {
             padding: '12px 16px',
             minHeight: '48px',
@@ -93,7 +129,6 @@ export const Header = memo<EnhancedHeaderProps>(
       }
     }, [effectiveSize]);
 
-    // Header styles
     const headerStyle = useMemo(
       () => ({
         padding: sizeConfig.padding,
@@ -105,15 +140,15 @@ export const Header = memo<EnhancedHeaderProps>(
       [sizeConfig, customHeaderColor, style]
     );
 
-    // Header classes
     const headerClasses = useMemo(
       () =>
         [
           'spfx-card-header-fixed',
           effectiveVariant || 'default',
           `size-${effectiveSize}`,
-          clickable && allowExpand && !disabled && !isMaximized ? 'clickable' : '', // FIXED: Not clickable when maximized
+          clickable && allowExpand && !disabled && !isMaximized ? 'clickable' : '',
           loading ? 'loading' : '',
+          isKeyboardFocus ? 'keyboard-focus' : 'mouse-focus', // FIXED: Add focus method class
           className,
         ]
           .filter(Boolean)
@@ -125,12 +160,13 @@ export const Header = memo<EnhancedHeaderProps>(
         allowExpand,
         disabled,
         loading,
+        isKeyboardFocus, // FIXED: Include in dependencies
         className,
         isMaximized,
       ]
     );
 
-    // Click handler for header - FIXED: Don't toggle when maximized
+    // COMPLETE FIX: Header click handler
     const handleHeaderClick = useCallback(
       (event: React.MouseEvent<HTMLDivElement>) => {
         // Don't trigger if clicking on buttons
@@ -138,20 +174,40 @@ export const Header = memo<EnhancedHeaderProps>(
           return;
         }
 
-        // FIXED: Don't toggle when maximized
         if (clickable && allowExpand && !disabled && !loading && !isMaximized) {
+          // COMPLETE FIX: Prevent any focus on mouse click
+          event.preventDefault();
+          event.stopPropagation();
+
+          // Remove focus immediately
+          if (headerRef.current) {
+            headerRef.current.blur();
+          }
+
           onToggleExpand('user');
+
+          // Additional cleanup - remove focus after state change
+          setTimeout(() => {
+            if (headerRef.current) {
+              headerRef.current.blur();
+              // Remove any lingering focus
+              if (document.activeElement === headerRef.current) {
+                (document.activeElement as HTMLElement).blur();
+              }
+            }
+          }, 0);
         }
       },
       [clickable, allowExpand, disabled, loading, onToggleExpand, isMaximized]
     );
 
-    // FIXED: Keyboard handler - prevent when maximized
+    // FIXED: Only show focus for keyboard navigation
     const handleKeyDown = useCallback(
       (event: React.KeyboardEvent<HTMLDivElement>) => {
         if (clickable && allowExpand && !disabled && !loading && !isMaximized) {
           if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault();
+            setIsKeyboardFocus(true); // Ensure keyboard focus is set
             onToggleExpand('user');
           }
         }
@@ -159,7 +215,23 @@ export const Header = memo<EnhancedHeaderProps>(
       [clickable, allowExpand, disabled, loading, onToggleExpand, isMaximized]
     );
 
-    // Action button click handler
+    // COMPLETE FIX: Focus and blur handlers
+    const handleFocus = useCallback(
+      (event: React.FocusEvent<HTMLDivElement>) => {
+        // Only allow focus ring for keyboard navigation
+        if (!isKeyboardFocus) {
+          event.currentTarget.blur();
+        }
+      },
+      [isKeyboardFocus]
+    );
+
+    const handleBlur = useCallback(() => {
+      // Clear keyboard focus state when blurring
+      setIsKeyboardFocus(false);
+    }, []);
+
+    // Rest of the component logic remains the same...
     const handleActionClick = useCallback(
       (action: CardAction) => (event: React.MouseEvent<HTMLButtonElement>) => {
         event.stopPropagation();
@@ -170,7 +242,6 @@ export const Header = memo<EnhancedHeaderProps>(
       [disabled, onActionClick]
     );
 
-    // Expand button click handler - FIXED: Don't show when maximized
     const handleExpandClick = useCallback(
       (event: React.MouseEvent<HTMLButtonElement>) => {
         event.stopPropagation();
@@ -181,7 +252,6 @@ export const Header = memo<EnhancedHeaderProps>(
       [disabled, onToggleExpand, isMaximized]
     );
 
-    // Maximize button click handler
     const handleMaximizeClick = useCallback(
       (event: React.MouseEvent<HTMLButtonElement>) => {
         event.stopPropagation();
@@ -192,7 +262,6 @@ export const Header = memo<EnhancedHeaderProps>(
       [disabled, onToggleMaximize]
     );
 
-    // Button styles
     const buttonStyles = useMemo(
       () => ({
         root: {
@@ -221,7 +290,6 @@ export const Header = memo<EnhancedHeaderProps>(
       [sizeConfig]
     );
 
-    // Render action buttons
     const renderActionButtons = useMemo(() => {
       if (actions.length === 0) return null;
 
@@ -250,9 +318,8 @@ export const Header = memo<EnhancedHeaderProps>(
       });
     }, [actions, handleActionClick, disabled, showTooltips, buttonStyles]);
 
-    // FIXED: Render maximize button - hide when maximized (will use overlay button instead)
     const renderMaximizeButton = useMemo(() => {
-      if (!allowMaximize || hideMaximizeButton || isMaximized) return null; // FIXED: Hide when maximized
+      if (!allowMaximize || hideMaximizeButton || isMaximized) return null;
 
       const maximizeIcon = DEFAULT_ICONS.MAXIMIZE;
       const maximizeLabel = accessibility.maximizeButtonLabel || 'Maximize';
@@ -288,9 +355,8 @@ export const Header = memo<EnhancedHeaderProps>(
       buttonStyles,
     ]);
 
-    // FIXED: Render expand button - hide when maximized
     const renderExpandButton = useMemo(() => {
-      if (!allowExpand || hideExpandButton || isMaximized) return null; // FIXED: Hide when maximized
+      if (!allowExpand || hideExpandButton || isMaximized) return null;
 
       const expandIcon = isExpanded ? DEFAULT_ICONS.COLLAPSE : DEFAULT_ICONS.EXPAND;
       const expandLabel = isExpanded
@@ -338,7 +404,7 @@ export const Header = memo<EnhancedHeaderProps>(
       buttonStyles,
     ]);
 
-    // FIXED: Accessibility props - remove focus outline for mouse users
+    // COMPLETE FIX: Accessibility props with proper focus management
     const accessibilityProps = useMemo(() => {
       if (!clickable || !allowExpand || isMaximized) {
         return {};
@@ -354,21 +420,53 @@ export const Header = memo<EnhancedHeaderProps>(
       };
     }, [clickable, allowExpand, isMaximized, isExpanded, id, disabled, loading]);
 
+    // Header content with overflow handling
+    const headerContent = (
+      <div
+        ref={headerContentRef}
+        className={`spfx-header-content ${allowWrap ? 'wrap' : 'nowrap'}`}
+        style={{
+          flex: 1,
+          minWidth: 0,
+          overflow: allowWrap ? 'visible' : 'hidden',
+          textOverflow: allowWrap ? 'initial' : 'ellipsis',
+          whiteSpace: allowWrap ? 'normal' : 'nowrap',
+          wordWrap: allowWrap ? 'break-word' : 'normal',
+        }}
+      >
+        {children}
+      </div>
+    );
+
+    const renderHeaderContent = () => {
+      if (showTooltipOnOverflow && isOverflowing && !allowWrap) {
+        return (
+          <TooltipHost
+            content={typeof children === 'string' ? children : 'Header content'}
+            id={getId('header-overflow-tooltip')}
+          >
+            {headerContent}
+          </TooltipHost>
+        );
+      }
+      return headerContent;
+    };
+
     return (
       <div
+        ref={headerRef}
         className={headerClasses}
         style={headerStyle}
         onClick={handleHeaderClick}
         onKeyDown={handleKeyDown}
+        onFocus={handleFocus} // COMPLETE FIX: Add focus handler
+        onBlur={handleBlur} // COMPLETE FIX: Add blur handler
         {...accessibilityProps}
       >
-        {/* Loading shimmer */}
         {loading && showLoadingShimmer && <HeaderLoadingShimmer style={{ marginRight: '8px' }} />}
 
-        {/* Header content */}
-        <div className='spfx-header-content'>{children}</div>
+        {renderHeaderContent()}
 
-        {/* Header buttons container - FIXED: Hide buttons when maximized */}
         {!isMaximized && (
           <div className='spfx-header-buttons'>
             {renderActionButtons}
@@ -382,7 +480,6 @@ export const Header = memo<EnhancedHeaderProps>(
 );
 
 Header.displayName = 'FixedCardHeader';
-
 // Keep all other header variants for compatibility
 export const SimpleHeader = Header;
 export const IconHeader = Header;

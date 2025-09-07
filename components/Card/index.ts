@@ -9,6 +9,7 @@ import {
   withCardController,
 } from './components/Card';
 import { Content, Footer } from './components/Content';
+import { ActionFooter, ProgressFooter, StatusFooter } from './components/Footer';
 import {
   BadgeHeader,
   Header,
@@ -143,18 +144,36 @@ export { Card, CardContext, SafeCard, useCardContext };
   export { BadgeHeader, Header, IconHeader, SimpleHeader, SubtitleHeader, type EnhancedHeaderProps };
 
 // Content and Layout Components
-  export { ActionButtons, Content, CustomMaximizedView, Footer, MaximizedView };
+  export {
+    ActionButtons, ActionFooter, Content,
+    CustomMaximizedView,
+    Footer, MaximizedView, ProgressFooter,
+    StatusFooter
+  };
 
 // Accordion Components
   export {
     Accordion,
-    ControlledAccordion, KeyboardAccordion, SearchableAccordion, useAccordion,
+    ControlledAccordion,
+    KeyboardAccordion,
+    SearchableAccordion,
+    useAccordion,
     type AccordionHandle
   };
 
 // Loading Components
   export {
-    CardLoading, ContentLoadingPlaceholder, CustomLoading, HeaderLoadingShimmer, LoadingDots, LoadingErrorBoundary, OverlayLoading, ProgressLoading, ShimmerLoading, SkeletonLoading, SpinnerLoading
+    CardLoading,
+    ContentLoadingPlaceholder,
+    CustomLoading,
+    HeaderLoadingShimmer,
+    LoadingDots,
+    LoadingErrorBoundary,
+    OverlayLoading,
+    ProgressLoading,
+    ShimmerLoading,
+    SkeletonLoading,
+    SpinnerLoading
   };
 
 // Services
@@ -162,39 +181,89 @@ export { Card, CardContext, SafeCard, useCardContext };
 
 // Hooks
   export {
-    useAllCardStates, useCardController, useCardControllerStats, useCardState, useCardSubscription,
+    useAllCardStates,
+    useCardController,
+    useCardControllerStats,
+    useCardState,
+    useCardSubscription,
     useGlobalCardSubscription
   };
 
   export {
     useAccordionPersistence,
-    useAutoPersistence, useBulkPersistence,
-    useCrossTabSync, usePersistence, useStorageCleanup,
-    useStorageStats, useValidatedPersistence
+    useAutoPersistence,
+    useBulkPersistence,
+    useCrossTabSync,
+    usePersistence,
+    useStorageCleanup,
+    useStorageStats,
+    useValidatedPersistence
   };
 
   export { useMaximize, useMaximizePortal };
 
 // Utilities
   export {
-    animateElement, animationScheduler, AnimationScheduler, createAnimationVariables, debounceAnimation, getAnimationClassName, getAnimationDuration, getAnimationStyle, getTransitionStyle, initializeCardAnimations, injectKeyframes, prefersReducedMotion, smoothHeightTransition
+    animateElement,
+    animationScheduler,
+    AnimationScheduler,
+    createAnimationVariables,
+    debounceAnimation,
+    getAnimationClassName,
+    getAnimationDuration,
+    getAnimationStyle,
+    getTransitionStyle,
+    initializeCardAnimations,
+    injectKeyframes,
+    prefersReducedMotion,
+    smoothHeightTransition
   };
 
   export {
-    A11Y, ANIMATION,
+    A11Y,
+    ANIMATION,
     BREAKPOINTS,
-    DEFAULT_ICONS, ERROR_MESSAGES, LOADING_TEMPLATES, PADDING_CONFIG, PERFORMANCE, SIZE_CONFIG, STORAGE_KEYS, THEME_COLORS, VALIDATION, Z_INDEX
+    DEFAULT_ICONS,
+    ERROR_MESSAGES,
+    LOADING_TEMPLATES,
+    PADDING_CONFIG,
+    PERFORMANCE,
+    SIZE_CONFIG,
+    STORAGE_KEYS,
+    THEME_COLORS,
+    VALIDATION,
+    Z_INDEX
   };
 
 // FIXED: Updated Types Export
   export type {
-    AccordionProps, ActionButtonsProps, AnimationConfig, CardAction, CardContextType,
+    AccordionProps,
+    ActionButtonsProps,
+    AnimationConfig,
+    CardAction,
+    CardContextType,
     CardController,
-    CardControllerHook, CardError, CardEventData,
-    CardEventType, CardProps, CardRegistration, // Still available for header usage
-    CardSize, CardState, // FIXED: No longer includes variant prop
-    CardVariant, ContentPadding, ContentProps,
-    FooterProps, HeaderProps, HeaderSize, LoadingStateProps, LoadingType, MaximizedViewProps, PersistedCardState, ScrollOptions, StorageConfig, WithCardControllerProps
+    CardControllerHook,
+    CardError,
+    CardEventData,
+    CardEventType,
+    CardProps,
+    CardRegistration, // Still available for header usage
+    CardSize,
+    CardState, // FIXED: No longer includes variant prop
+    CardVariant,
+    ContentPadding,
+    ContentProps,
+    FooterProps,
+    HeaderProps,
+    HeaderSize,
+    LoadingStateProps,
+    LoadingType,
+    MaximizedViewProps,
+    PersistedCardState,
+    ScrollOptions,
+    StorageConfig,
+    WithCardControllerProps
   };
 
 // Class Component Support

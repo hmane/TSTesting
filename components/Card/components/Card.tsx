@@ -324,6 +324,7 @@ export const Card: React.FC<CardProps> = memo(
       onCardEvent?.('contentLoad', eventData);
     }, [id, isExpanded, isMaximized, hasContentLoaded, onContentLoad, onCardEvent]);
 
+
     // Register card with controller
     useEffect(() => {
       const registration: CardRegistration = {
@@ -331,9 +332,18 @@ export const Card: React.FC<CardProps> = memo(
         isExpanded,
         isMaximized,
         hasContentLoaded,
-        toggleFn,
-        expandFn,
-        collapseFn,
+        toggleFn: (source = 'programmatic') => {
+          console.log(`[Card] ${id}: toggleFn called with source: ${source}`);
+          toggleFn(source);
+        },
+        expandFn: (source = 'programmatic') => {
+          console.log(`[Card] ${id}: expandFn called with source: ${source}`);
+          expandFn(source);
+        },
+        collapseFn: (source = 'programmatic') => {
+          console.log(`[Card] ${id}: collapseFn called with source: ${source}`);
+          collapseFn(source);
+        },
         maximizeFn: allowMaximize ? maximizeFn : undefined,
         restoreFn: allowMaximize ? restoreFn : undefined,
         highlightFn: highlightCard,
