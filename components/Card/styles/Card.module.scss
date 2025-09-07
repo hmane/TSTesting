@@ -1,6 +1,6 @@
-// ==================== Enhanced Card Component Styles ====================
+// ==================== FIXED Card Component Styles ====================
 :global {
-  // Core Card Variables
+  // Core Card Variables (unchanged)
   :root {
     --spfx-card-border-radius: 8px;
     --spfx-card-transition-duration: 300ms;
@@ -27,7 +27,7 @@
     --spfx-card-info-light: var(--themeLight, #c7e0f4);
   }
 
-  // ==================== Base Card Styles ====================
+  // ==================== Base Card Styles (unchanged) ====================
   .spfx-card {
     display: flex;
     flex-direction: column;
@@ -45,7 +45,7 @@
       transform: translateY(-1px);
     }
 
-    // Size variants
+    // Size variants (unchanged)
     &.spfx-card-compact {
       .spfx-card-header-fixed {
         padding: 8px 12px;
@@ -116,7 +116,7 @@
     }
   }
 
-  // ==================== Enhanced Header Styles with Variants ====================
+  // ==================== FIXED Header Styles ====================
   .spfx-card-header-fixed {
     display: flex;
     align-items: center;
@@ -147,7 +147,7 @@
       margin-left: 12px;
     }
 
-    // Clickable behavior
+    // FIXED: Clickable behavior - removed annoying focus outline
     &.clickable {
       cursor: pointer;
       user-select: none;
@@ -156,13 +156,19 @@
         background-color: rgba(0, 0, 0, 0.05);
       }
 
-      &:focus {
+      // FIXED: Only show focus outline for keyboard users, not mouse users
+      &:focus-visible {
         outline: 2px solid var(--spfx-card-theme-primary);
         outline-offset: -2px;
       }
+
+      // FIXED: Remove focus outline for mouse users
+      &:focus:not(:focus-visible) {
+        outline: none;
+      }
     }
 
-    // ==================== FIXED VARIANT STYLES ====================
+    // Variant styles (unchanged - these work correctly)
     &.success {
       background: linear-gradient(135deg, var(--spfx-card-success) 0%, #0e6e0e 100%);
       color: var(--spfx-card-theme-white);
@@ -236,7 +242,7 @@
     }
   }
 
-  // ==================== Content Styles with Proper Padding ====================
+  // ==================== Content Styles (unchanged) ====================
   .spfx-card-content {
     overflow: hidden;
     transition: max-height var(--spfx-card-transition-duration) ease-out,
@@ -253,11 +259,9 @@
       opacity: 1;
     }
 
-    // Content body with proper padding
     .spfx-card-body {
-      padding: 16px; // Default padding
+      padding: 16px;
 
-      // Padding variants
       &.padding-none {
         padding: 0;
       }
@@ -284,16 +288,15 @@
     }
   }
 
-  // ==================== Footer Styles - Only Show When Expanded ====================
+  // ==================== Footer Styles (unchanged) ====================
   .spfx-card-footer {
     border-top: 1px solid var(--spfx-card-neutral-light);
     background: var(--spfx-card-neutral-lighter);
     padding: 12px 16px;
     font-size: 14px;
     color: var(--spfx-card-neutral-secondary);
-    margin-top: auto; // Push to bottom
+    margin-top: auto;
 
-    // Default text alignment
     &.text-left {
       text-align: left;
     }
@@ -306,12 +309,10 @@
       text-align: right;
     }
 
-    // Remove border if specified
     &.no-border {
       border-top: none;
     }
 
-    // Size-specific padding
     .spfx-card-compact & {
       padding: 6px 12px;
       font-size: 12px;
@@ -329,7 +330,7 @@
     display: none !important;
   }
 
-  // ==================== Enhanced Maximized View ====================
+  // ==================== Enhanced Maximized View (unchanged) ====================
   .spfx-card-maximized-backdrop {
     position: fixed;
     top: 0;
@@ -357,35 +358,31 @@
     overflow: hidden;
     position: relative;
 
-    // Ensure header shows properly
     .spfx-card-header-fixed {
       flex-shrink: 0;
       border-bottom: 1px solid var(--spfx-card-neutral-light);
     }
 
-    // Maximized content should expand
     .spfx-card-content {
       flex: 1;
       overflow: auto;
-      max-height: none !important; // Override collapsed state
-      opacity: 1 !important; // Override collapsed state
+      max-height: none !important;
+      opacity: 1 !important;
 
       .spfx-card-body {
         height: 100%;
-        min-height: calc(100vh - 200px); // Account for header/footer
+        min-height: calc(100vh - 200px);
         display: flex;
         flex-direction: column;
       }
     }
 
-    // Footer at bottom in maximized view
     .spfx-card-footer {
       flex-shrink: 0;
       margin-top: auto;
-      display: block !important; // Override collapsed state hiding
+      display: block !important;
     }
 
-    // Close button positioning
     .spfx-card-close-btn {
       position: absolute;
       top: 16px;
@@ -416,7 +413,7 @@
     }
   }
 
-  // ==================== Header Button Styles ====================
+  // ==================== Header Button Styles (unchanged) ====================
   .spfx-header-action-btn,
   .spfx-header-maximize-btn,
   .spfx-header-expand-btn {
@@ -453,13 +450,11 @@
       transform: none;
     }
 
-    // Icon styles
     i {
       font-size: 16px;
       transition: transform 200ms ease;
     }
 
-    // Special styling for expand button icon rotation
     &.spfx-header-expand-btn i {
       transform: rotate(0deg);
     }
@@ -499,7 +494,7 @@
     }
   }
 
-  // ==================== Responsive Design ====================
+  // ==================== Responsive Design (unchanged) ====================
   @media (max-width: 768px) {
     .spfx-card {
       margin: 0 8px;
@@ -535,7 +530,7 @@
     }
   }
 
-  // ==================== High Contrast Mode ====================
+  // ==================== High Contrast Mode (unchanged) ====================
   @media (forced-colors: active) {
     .spfx-card {
       border: 2px solid ButtonBorder;
@@ -582,7 +577,7 @@
     }
   }
 
-  // ==================== Reduced Motion ====================
+  // ==================== Reduced Motion (unchanged) ====================
   @media (prefers-reduced-motion: reduce) {
     .spfx-card,
     .spfx-card *,
@@ -601,7 +596,7 @@
     }
   }
 
-  // ==================== Print Styles ====================
+  // ==================== Print Styles (unchanged) ====================
   @media print {
     .spfx-card {
       break-inside: avoid;
@@ -632,7 +627,7 @@
     }
   }
 
-  // ==================== Animation Keyframes ====================
+  // ==================== Animation Keyframes (unchanged) ====================
   @keyframes fadeIn {
     from {
       opacity: 0;
@@ -664,7 +659,7 @@
     }
   }
 
-  // ==================== Focus Management ====================
+  // ==================== Focus Management (unchanged) ====================
   .spfx-card {
     &:focus-within {
       .spfx-card-header-fixed {
@@ -674,7 +669,7 @@
     }
   }
 
-  // ==================== Loading States ====================
+  // ==================== Loading States (unchanged) ====================
   .spfx-card.loading {
     .spfx-card-header-fixed {
       position: relative;

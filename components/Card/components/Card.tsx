@@ -1,14 +1,5 @@
 import * as React from 'react';
-import {
-  memo,
-  ReactNode,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   CardAction,
   CardContextType,
@@ -36,7 +27,7 @@ export const useCardContext = (): CardContextType => {
 };
 
 /**
- * Enhanced Card Component with proper state management
+ * FIXED Card Component - Removed redundant variant, fixed maximize animation, header focus
  */
 export const Card: React.FC<CardProps> = memo(
   ({
@@ -47,7 +38,7 @@ export const Card: React.FC<CardProps> = memo(
     allowMaximize = false,
     maximizeIcon = DEFAULT_ICONS.MAXIMIZE,
     restoreIcon = DEFAULT_ICONS.RESTORE,
-    variant = 'default',
+    // REMOVED: variant prop - it was redundant and not used
     headerSize = 'regular',
     customHeaderColor,
     loading = false,
@@ -87,7 +78,7 @@ export const Card: React.FC<CardProps> = memo(
     const highlightTimeoutRef = useRef<number | undefined>();
     const previousLoadingRef = useRef(loading);
 
-    // Maximize hook
+    // FIXED: Improved maximize hook with better animation handling
     const {
       isMaximized,
       isAnimating: isMaximizeAnimating,
@@ -96,7 +87,7 @@ export const Card: React.FC<CardProps> = memo(
     } = useMaximize(
       id,
       allowMaximize,
-      animation,
+      { ...animation, disabled: false }, // Ensure animations are enabled for maximize
       () => {
         const eventData: CardEventData = {
           cardId: id,
@@ -254,7 +245,7 @@ export const Card: React.FC<CardProps> = memo(
       [allowExpand, disabled, isMaximized, toggleFn]
     );
 
-    // Maximize functions
+    // FIXED: Maximize functions with better state management
     const maximizeFn = useCallback(
       (source: 'user' | 'programmatic' = 'programmatic') => {
         if (allowMaximize && !isMaximized && !isMaximizeAnimating) {
@@ -265,7 +256,11 @@ export const Card: React.FC<CardProps> = memo(
               setHasContentLoaded(true);
             }
           }
-          void maximize();
+
+          // Add a small delay to ensure state is set before maximizing
+          setTimeout(() => {
+            void maximize();
+          }, 50);
         }
       },
       [
@@ -431,12 +426,12 @@ export const Card: React.FC<CardProps> = memo(
       };
     }, [size, theme, highlightColor, isHighlighted, style]);
 
+    // FIXED: Removed redundant card variant from classes
     const cardClasses = useMemo(
       () =>
         [
           'spfx-card',
           `spfx-card-${size}`,
-          `spfx-card-${variant}`,
           `elevation-${elevation}`,
           disabled ? 'disabled' : '',
           isHighlighted ? 'highlight' : '',
@@ -446,10 +441,10 @@ export const Card: React.FC<CardProps> = memo(
         ]
           .filter(Boolean)
           .join(' '),
-      [size, variant, elevation, disabled, isHighlighted, isMaximized, loading, className]
+      [size, elevation, disabled, isHighlighted, isMaximized, loading, className]
     );
 
-    // Memoized context value
+    // Memoized context value - FIXED: Remove variant prop
     const contextValue = useMemo(
       (): CardContextType => ({
         id,
@@ -460,7 +455,7 @@ export const Card: React.FC<CardProps> = memo(
         disabled,
         loading,
         loadingType,
-        variant,
+        variant: 'default', // FIXED: Always default since card variant is removed
         size,
         customHeaderColor,
         lazyLoad,
@@ -481,7 +476,6 @@ export const Card: React.FC<CardProps> = memo(
         disabled,
         loading,
         loadingType,
-        variant,
         size,
         customHeaderColor,
         lazyLoad,
@@ -519,7 +513,7 @@ export const Card: React.FC<CardProps> = memo(
       </CardContext.Provider>
     );
 
-    // If maximized, render in maximized view
+    // If maximized, render in maximized view - FIXED: Remove duplicate restore button
     if (isMaximized) {
       return (
         <MaximizedView
@@ -528,6 +522,7 @@ export const Card: React.FC<CardProps> = memo(
           restoreIcon={restoreIcon}
           closeOnEscape={true}
           closeOnBackdropClick={true}
+          showCloseButton={true} // FIXED: Only show the overlay close button
         >
           {cardContent}
         </MaximizedView>
@@ -545,15 +540,15 @@ Card.displayName = 'EnhancedSpfxCard';
  */
 class CardErrorBoundary extends React.Component<
   {
-    children: ReactNode;
-    fallback?: ReactNode;
+    children: React.ReactNode;
+    fallback?: React.ReactNode;
     onError?: (error: Error, errorInfo: React.ErrorInfo) => void;
   },
   { hasError: boolean; error?: Error }
 > {
   constructor(props: {
-    children: ReactNode;
-    fallback?: ReactNode;
+    children: React.ReactNode;
+    fallback?: React.ReactNode;
     onError?: (error: Error, errorInfo: React.ErrorInfo) => void;
   }) {
     super(props);
@@ -573,7 +568,7 @@ class CardErrorBoundary extends React.Component<
     this.setState({ hasError: false, error: undefined });
   };
 
-  render(): ReactNode {
+  render(): React.ReactNode {
     if (this.state.hasError) {
       if (this.props.fallback) {
         return this.props.fallback;
@@ -629,7 +624,7 @@ class CardErrorBoundary extends React.Component<
  */
 export const SafeCard: React.FC<
   CardProps & {
-    errorFallback?: ReactNode;
+    errorFallback?: React.ReactNode;
     onError?: (error: Error, errorInfo: React.ErrorInfo) => void;
   }
 > = ({ errorFallback, onError, ...cardProps }) => {

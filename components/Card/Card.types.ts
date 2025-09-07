@@ -151,8 +151,8 @@ export interface CardProps {
   /** Icon for restore button */
   restoreIcon?: string;
 
-  /** Card header background variant */
-  variant?: CardVariant;
+  // REMOVED: Card variant is redundant, only header variant is used
+  // variant?: CardVariant;
 
   /** Header size - affects padding and font size */
   headerSize?: HeaderSize;
@@ -262,6 +262,11 @@ export interface HeaderProps {
   clickable?: boolean;
   showLoadingShimmer?: boolean;
   size?: HeaderSize;
+  actions?: CardAction[];
+  hideExpandButton?: boolean;
+  hideMaximizeButton?: boolean;
+  showTooltips?: boolean;
+  variant?: 'success' | 'error' | 'warning' | 'info' | 'default'; // FIXED: Strict typing instead of string
 }
 
 export interface ActionButtonsProps {
@@ -314,7 +319,6 @@ export interface LoadingStateProps {
 }
 
 // ==================== Accordion Types ====================
-
 export interface AccordionProps {
   /** Unique identifier for the accordion */
   id: string;
@@ -328,7 +332,12 @@ export interface AccordionProps {
   /** Remove spacing between cards */
   spacing?: 'none' | 'compact' | 'regular';
 
-  /** Visual connection between cards */
+  /**
+   * Visual connection between cards:
+   * - 'default': Normal spacing with individual card shadows
+   * - 'connected': Cards are visually connected with overlapping borders
+   * - 'outlined': Cards are contained within a single border container
+   */
   variant?: 'default' | 'connected' | 'outlined';
 
   /** Enable persistence of accordion state */

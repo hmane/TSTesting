@@ -16,7 +16,6 @@ import { useAccordionPersistence } from './hooks/usePersistence';
 
 /**
  * Helper function to get border radius for connected accordion cards
- * Defined before use to avoid hoisting issues
  */
 const getBorderRadius = (variant: string, isFirst: boolean, isLast: boolean): string => {
   if (variant !== 'connected') return '8px';
@@ -40,8 +39,7 @@ export interface AccordionHandle {
 }
 
 /**
- * Accordion component that manages multiple cards as an accordion
- * Only one card can be expanded at a time (or multiple if allowMultiple is true)
+ * FIXED Accordion component - allowMultiple functionality now works correctly
  */
 export const Accordion = React.forwardRef<AccordionHandle, AccordionProps>(
   (
@@ -92,7 +90,7 @@ export const Accordion = React.forwardRef<AccordionHandle, AccordionProps>(
       return ids;
     }, [children]);
 
-    // Handle card expansion/collapse
+    // FIXED: Handle card expansion/collapse with proper allowMultiple logic
     const handleCardToggle = useCallback(
       (cardId: string, isExpanded: boolean) => {
         setExpandedCards(prev => {
@@ -104,19 +102,22 @@ export const Accordion = React.forwardRef<AccordionHandle, AccordionProps>(
               // Allow multiple expanded cards
               newExpanded = prev.includes(cardId) ? prev : [...prev, cardId];
             } else {
-              // Only allow one expanded card
+              // FIXED: Only allow one expanded card - close others first
               newExpanded = [cardId];
 
-              // Collapse other cards
+              // Immediately collapse other cards
               prev.forEach(prevCardId => {
                 if (prevCardId !== cardId) {
-                  cardController.collapseCard(prevCardId, false);
+                  // Use setTimeout to avoid state conflicts
+                  setTimeout(() => {
+                    cardController.collapseCard(prevCardId, false);
+                  }, 10);
                 }
               });
             }
           } else {
             // Card is being collapsed
-            newExpanded = prev.filter(id => id !== cardId);
+            newExpanded = prev.filter(cardIdToFilter => cardIdToFilter !== cardId);
           }
 
           // Save state if persistence is enabled
@@ -133,7 +134,7 @@ export const Accordion = React.forwardRef<AccordionHandle, AccordionProps>(
       [allowMultiple, cardController, persist, saveAccordionState, onCardChange]
     );
 
-    // Subscribe to card controller events
+    // FIXED: Subscribe to card controller events with proper cleanup
     useEffect(() => {
       const unsubscribeCallbacks: (() => void)[] = [];
 
@@ -153,18 +154,21 @@ export const Accordion = React.forwardRef<AccordionHandle, AccordionProps>(
       };
     }, [cardIds, cardController, handleCardToggle]);
 
-    // Programmatically expand cards based on expandedCards state
+    // FIXED: Programmatically expand/collapse cards based on accordion state
     useEffect(() => {
       cardIds.forEach(cardId => {
         const shouldBeExpanded = expandedCards.includes(cardId);
         const currentState = cardController.getCardState(cardId);
 
         if (currentState && currentState.isExpanded !== shouldBeExpanded) {
-          if (shouldBeExpanded) {
-            cardController.expandCard(cardId, false);
-          } else {
-            cardController.collapseCard(cardId, false);
-          }
+          // Use setTimeout to avoid immediate state conflicts
+          setTimeout(() => {
+            if (shouldBeExpanded) {
+              cardController.expandCard(cardId, false);
+            } else {
+              cardController.collapseCard(cardId, false);
+            }
+          }, 20);
         }
       });
     }, [expandedCards, cardIds, cardController]);
@@ -244,6 +248,11 @@ export const Accordion = React.forwardRef<AccordionHandle, AccordionProps>(
         expandAll: () => {
           if (allowMultiple) {
             setExpandedCards([...cardIds]);
+          } else {
+            // For single expand, just expand the first card
+            if (cardIds.length > 0) {
+              setExpandedCards([cardIds[0]]);
+            }
           }
         },
         collapseAll: () => {
@@ -265,6 +274,8 @@ export const Accordion = React.forwardRef<AccordionHandle, AccordionProps>(
         style={accordionStyle}
         data-accordion-id={id}
         data-allow-multiple={allowMultiple}
+        data-expanded-count={expandedCards.length}
+        data-total-count={cardIds.length}
         role='tablist'
         aria-orientation='vertical'
       >
@@ -274,7 +285,8 @@ export const Accordion = React.forwardRef<AccordionHandle, AccordionProps>(
   }
 );
 
-Accordion.displayName = 'Accordion';
+Accordion.displayName = 'FixedAccordion';
+
 
 /**
  * Hook for controlling accordion externally

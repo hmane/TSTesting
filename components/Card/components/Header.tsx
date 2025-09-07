@@ -9,18 +9,18 @@ import { getId } from '@fluentui/react/lib/Utilities';
 import { DEFAULT_ICONS } from '../utils/constants';
 
 /**
- * Enhanced Header Props that includes action buttons
+ * FIXED Enhanced Header Props with strict typing for variant
  */
 export interface EnhancedHeaderProps extends HeaderProps {
   actions?: CardAction[];
   hideExpandButton?: boolean;
   hideMaximizeButton?: boolean;
   showTooltips?: boolean;
-  variant?: string;
+  variant?: 'success' | 'error' | 'warning' | 'info' | 'default'; // FIXED: Strict typing
 }
 
 /**
- * Fixed Header component with properly integrated action buttons
+ * FIXED Header component - Removed focus outline on click, hide buttons in maximized view
  */
 export const Header = memo<EnhancedHeaderProps>(
   ({
@@ -109,19 +109,28 @@ export const Header = memo<EnhancedHeaderProps>(
     const headerClasses = useMemo(
       () =>
         [
-          'spfx-card-header-fixed', // New fixed class
+          'spfx-card-header-fixed',
           effectiveVariant || 'default',
           `size-${effectiveSize}`,
-          clickable && allowExpand && !disabled ? 'clickable' : '',
+          clickable && allowExpand && !disabled && !isMaximized ? 'clickable' : '', // FIXED: Not clickable when maximized
           loading ? 'loading' : '',
           className,
         ]
           .filter(Boolean)
           .join(' '),
-      [effectiveVariant, effectiveSize, clickable, allowExpand, disabled, loading, className]
+      [
+        effectiveVariant,
+        effectiveSize,
+        clickable,
+        allowExpand,
+        disabled,
+        loading,
+        className,
+        isMaximized,
+      ]
     );
 
-    // Click handler for header
+    // Click handler for header - FIXED: Don't toggle when maximized
     const handleHeaderClick = useCallback(
       (event: React.MouseEvent<HTMLDivElement>) => {
         // Don't trigger if clicking on buttons
@@ -129,24 +138,25 @@ export const Header = memo<EnhancedHeaderProps>(
           return;
         }
 
-        if (clickable && allowExpand && !disabled && !loading) {
+        // FIXED: Don't toggle when maximized
+        if (clickable && allowExpand && !disabled && !loading && !isMaximized) {
           onToggleExpand('user');
         }
       },
-      [clickable, allowExpand, disabled, loading, onToggleExpand]
+      [clickable, allowExpand, disabled, loading, onToggleExpand, isMaximized]
     );
 
-    // Keyboard handler
+    // FIXED: Keyboard handler - prevent when maximized
     const handleKeyDown = useCallback(
       (event: React.KeyboardEvent<HTMLDivElement>) => {
-        if (clickable && allowExpand && !disabled && !loading) {
+        if (clickable && allowExpand && !disabled && !loading && !isMaximized) {
           if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault();
             onToggleExpand('user');
           }
         }
       },
-      [clickable, allowExpand, disabled, loading, onToggleExpand]
+      [clickable, allowExpand, disabled, loading, onToggleExpand, isMaximized]
     );
 
     // Action button click handler
@@ -160,15 +170,15 @@ export const Header = memo<EnhancedHeaderProps>(
       [disabled, onActionClick]
     );
 
-    // Expand button click handler
+    // Expand button click handler - FIXED: Don't show when maximized
     const handleExpandClick = useCallback(
       (event: React.MouseEvent<HTMLButtonElement>) => {
         event.stopPropagation();
-        if (!disabled) {
+        if (!disabled && !isMaximized) {
           onToggleExpand('user');
         }
       },
-      [disabled, onToggleExpand]
+      [disabled, onToggleExpand, isMaximized]
     );
 
     // Maximize button click handler
@@ -240,14 +250,12 @@ export const Header = memo<EnhancedHeaderProps>(
       });
     }, [actions, handleActionClick, disabled, showTooltips, buttonStyles]);
 
-    // Render maximize button
+    // FIXED: Render maximize button - hide when maximized (will use overlay button instead)
     const renderMaximizeButton = useMemo(() => {
-      if (!allowMaximize || hideMaximizeButton) return null;
+      if (!allowMaximize || hideMaximizeButton || isMaximized) return null; // FIXED: Hide when maximized
 
-      const maximizeIcon = isMaximized ? DEFAULT_ICONS.RESTORE : DEFAULT_ICONS.MAXIMIZE;
-      const maximizeLabel = isMaximized
-        ? accessibility.restoreButtonLabel || 'Restore'
-        : accessibility.maximizeButtonLabel || 'Maximize';
+      const maximizeIcon = DEFAULT_ICONS.MAXIMIZE;
+      const maximizeLabel = accessibility.maximizeButtonLabel || 'Maximize';
 
       const button = (
         <IconButton
@@ -280,9 +288,9 @@ export const Header = memo<EnhancedHeaderProps>(
       buttonStyles,
     ]);
 
-    // Render expand button
+    // FIXED: Render expand button - hide when maximized
     const renderExpandButton = useMemo(() => {
-      if (!allowExpand || hideExpandButton) return null;
+      if (!allowExpand || hideExpandButton || isMaximized) return null; // FIXED: Hide when maximized
 
       const expandIcon = isExpanded ? DEFAULT_ICONS.COLLAPSE : DEFAULT_ICONS.EXPAND;
       const expandLabel = isExpanded
@@ -321,6 +329,7 @@ export const Header = memo<EnhancedHeaderProps>(
     }, [
       allowExpand,
       hideExpandButton,
+      isMaximized,
       isExpanded,
       accessibility,
       handleExpandClick,
@@ -329,9 +338,9 @@ export const Header = memo<EnhancedHeaderProps>(
       buttonStyles,
     ]);
 
-    // Accessibility props
+    // FIXED: Accessibility props - remove focus outline for mouse users
     const accessibilityProps = useMemo(() => {
-      if (!clickable || !allowExpand) {
+      if (!clickable || !allowExpand || isMaximized) {
         return {};
       }
 
@@ -343,7 +352,7 @@ export const Header = memo<EnhancedHeaderProps>(
         'aria-disabled': disabled || loading,
         'aria-label': `${isExpanded ? 'Collapse' : 'Expand'} card`,
       };
-    }, [clickable, allowExpand, isExpanded, id, disabled, loading]);
+    }, [clickable, allowExpand, isMaximized, isExpanded, id, disabled, loading]);
 
     return (
       <div
@@ -359,12 +368,14 @@ export const Header = memo<EnhancedHeaderProps>(
         {/* Header content */}
         <div className='spfx-header-content'>{children}</div>
 
-        {/* Header buttons container */}
-        <div className='spfx-header-buttons'>
-          {renderActionButtons}
-          {renderMaximizeButton}
-          {renderExpandButton}
-        </div>
+        {/* Header buttons container - FIXED: Hide buttons when maximized */}
+        {!isMaximized && (
+          <div className='spfx-header-buttons'>
+            {renderActionButtons}
+            {renderMaximizeButton}
+            {renderExpandButton}
+          </div>
+        )}
       </div>
     );
   }

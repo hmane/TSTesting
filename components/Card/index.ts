@@ -1,29 +1,29 @@
 // ==================== Import All Dependencies ====================
+import { ActionButtons } from './components/ActionButtons';
 import {
   Card,
-  SafeCard,
   CardContext,
-  useCardContext,
   CardControllerComponent,
+  SafeCard,
+  useCardContext,
   withCardController,
 } from './components/Card';
+import { Content, Footer } from './components/Content';
 import {
-  Header,
-  SimpleHeader,
-  IconHeader,
   BadgeHeader,
+  Header,
+  IconHeader,
+  SimpleHeader,
   SubtitleHeader,
   type EnhancedHeaderProps,
 } from './components/Header';
-import { Content, Footer } from './components/Content';
-import { ActionButtons } from './components/ActionButtons';
-import { MaximizedView, CustomMaximizedView } from './components/MaximizedView';
+import { CustomMaximizedView, MaximizedView } from './components/MaximizedView';
 
 // Accordion Components
 import Accordion, {
   ControlledAccordion,
-  SearchableAccordion,
   KeyboardAccordion,
+  SearchableAccordion,
   useAccordion,
   type AccordionHandle,
 } from './Accordion';
@@ -31,16 +31,16 @@ import Accordion, {
 // Loading Components
 import {
   CardLoading,
-  SpinnerLoading,
-  SkeletonLoading,
-  ShimmerLoading,
-  OverlayLoading,
-  HeaderLoadingShimmer,
-  CustomLoading,
   ContentLoadingPlaceholder,
+  CustomLoading,
+  HeaderLoadingShimmer,
   LoadingDots,
-  ProgressLoading,
   LoadingErrorBoundary,
+  OverlayLoading,
+  ProgressLoading,
+  ShimmerLoading,
+  SkeletonLoading,
+  SpinnerLoading,
 } from './components/LoadingStates';
 
 // Services
@@ -49,22 +49,22 @@ import { StorageService } from './services/StorageService';
 
 // Hooks
 import {
+  useAllCardStates,
   useCardController,
+  useCardControllerStats,
+  useCardState,
   useCardSubscription,
   useGlobalCardSubscription,
-  useCardState,
-  useAllCardStates,
-  useCardControllerStats,
 } from './hooks/useCardController';
 
 import {
-  usePersistence,
   useAccordionPersistence,
   useAutoPersistence,
-  useStorageCleanup,
-  useStorageStats,
   useBulkPersistence,
   useCrossTabSync,
+  usePersistence,
+  useStorageCleanup,
+  useStorageStats,
   useValidatedPersistence,
 } from './hooks/usePersistence';
 
@@ -72,204 +72,141 @@ import { useMaximize, useMaximizePortal } from './hooks/useMaximize';
 
 // Utilities
 import {
-  initializeCardAnimations,
-  getAnimationStyle,
   animateElement,
-  getTransitionStyle,
-  prefersReducedMotion,
-  getAnimationDuration,
-  getAnimationClassName,
-  injectKeyframes,
   animationScheduler,
-  debounceAnimation,
-  createAnimationVariables,
-  smoothHeightTransition,
   AnimationScheduler,
+  createAnimationVariables,
+  debounceAnimation,
+  getAnimationClassName,
+  getAnimationDuration,
+  getAnimationStyle,
+  getTransitionStyle,
+  initializeCardAnimations,
+  injectKeyframes,
+  prefersReducedMotion,
+  smoothHeightTransition,
 } from './utils/animations';
 
 import {
-  STORAGE_KEYS,
+  A11Y,
   ANIMATION,
   BREAKPOINTS,
   DEFAULT_ICONS,
-  SIZE_CONFIG,
-  PADDING_CONFIG,
-  THEME_COLORS,
-  Z_INDEX,
-  LOADING_TEMPLATES,
-  A11Y,
-  PERFORMANCE,
   ERROR_MESSAGES,
+  LOADING_TEMPLATES,
+  PADDING_CONFIG,
+  PERFORMANCE,
+  SIZE_CONFIG,
+  STORAGE_KEYS,
+  THEME_COLORS,
   VALIDATION,
+  Z_INDEX,
 } from './utils/constants';
 
-// Types
+// FIXED: Updated Types - Removed redundant CardVariant from CardProps
 import type {
-  CardProps,
-  CardVariant,
-  CardSize,
-  HeaderSize,
-  LoadingType,
-  ContentPadding,
-  HeaderProps,
-  ContentProps,
-  FooterProps,
-  ActionButtonsProps,
-  MaximizedViewProps,
-  LoadingStateProps,
   AccordionProps,
+  ActionButtonsProps,
+  AnimationConfig,
   CardAction,
-  CardEventData,
-  CardEventType,
-  CardState,
-  CardRegistration,
   CardContextType,
   CardController,
   CardControllerHook,
-  StorageConfig,
-  PersistedCardState,
-  AnimationConfig,
-  ScrollOptions,
   CardError,
+  CardEventData,
+  CardEventType,
+  CardProps,
+  CardRegistration,
+  CardSize,
+  CardState,
+  // REMOVED: CardVariant is no longer used in CardProps
+  CardVariant,
+  ContentPadding,
+  ContentProps,
+  FooterProps,
+  HeaderProps,
+  HeaderSize,
+  LoadingStateProps,
+  LoadingType,
+  MaximizedViewProps,
+  PersistedCardState,
+  ScrollOptions,
+  StorageConfig,
   WithCardControllerProps,
 } from './Card.types';
 
 // ==================== Re-Export All Components ====================
 // Core Card Components
-export { Card, SafeCard, CardContext, useCardContext };
+export { Card, CardContext, SafeCard, useCardContext };
 
 // Header Components
-export { Header, SimpleHeader, IconHeader, BadgeHeader, SubtitleHeader, type EnhancedHeaderProps };
+  export { BadgeHeader, Header, IconHeader, SimpleHeader, SubtitleHeader, type EnhancedHeaderProps };
 
 // Content and Layout Components
-export { Content, Footer };
-export { ActionButtons };
-export { MaximizedView, CustomMaximizedView };
+  export { ActionButtons, Content, CustomMaximizedView, Footer, MaximizedView };
 
 // Accordion Components
-export {
-  Accordion,
-  ControlledAccordion,
-  SearchableAccordion,
-  KeyboardAccordion,
-  useAccordion,
-  type AccordionHandle,
-};
+  export {
+    Accordion,
+    ControlledAccordion, KeyboardAccordion, SearchableAccordion, useAccordion,
+    type AccordionHandle
+  };
 
 // Loading Components
-export {
-  CardLoading,
-  SpinnerLoading,
-  SkeletonLoading,
-  ShimmerLoading,
-  OverlayLoading,
-  HeaderLoadingShimmer,
-  CustomLoading,
-  ContentLoadingPlaceholder,
-  LoadingDots,
-  ProgressLoading,
-  LoadingErrorBoundary,
-};
+  export {
+    CardLoading, ContentLoadingPlaceholder, CustomLoading, HeaderLoadingShimmer, LoadingDots, LoadingErrorBoundary, OverlayLoading, ProgressLoading, ShimmerLoading, SkeletonLoading, SpinnerLoading
+  };
 
 // Services
-export { cardController, StorageService };
+  export { cardController, StorageService };
 
 // Hooks
-export {
-  useCardController,
-  useCardSubscription,
-  useGlobalCardSubscription,
-  useCardState,
-  useAllCardStates,
-  useCardControllerStats,
-};
+  export {
+    useAllCardStates, useCardController, useCardControllerStats, useCardState, useCardSubscription,
+    useGlobalCardSubscription
+  };
 
-export {
-  usePersistence,
-  useAccordionPersistence,
-  useAutoPersistence,
-  useStorageCleanup,
-  useStorageStats,
-  useBulkPersistence,
-  useCrossTabSync,
-  useValidatedPersistence,
-};
+  export {
+    useAccordionPersistence,
+    useAutoPersistence, useBulkPersistence,
+    useCrossTabSync, usePersistence, useStorageCleanup,
+    useStorageStats, useValidatedPersistence
+  };
 
-export { useMaximize, useMaximizePortal };
+  export { useMaximize, useMaximizePortal };
 
 // Utilities
-export {
-  initializeCardAnimations,
-  getAnimationStyle,
-  animateElement,
-  getTransitionStyle,
-  prefersReducedMotion,
-  getAnimationDuration,
-  getAnimationClassName,
-  injectKeyframes,
-  animationScheduler,
-  debounceAnimation,
-  createAnimationVariables,
-  smoothHeightTransition,
-  AnimationScheduler,
-};
+  export {
+    animateElement, animationScheduler, AnimationScheduler, createAnimationVariables, debounceAnimation, getAnimationClassName, getAnimationDuration, getAnimationStyle, getTransitionStyle, initializeCardAnimations, injectKeyframes, prefersReducedMotion, smoothHeightTransition
+  };
 
-export {
-  STORAGE_KEYS,
-  ANIMATION,
-  BREAKPOINTS,
-  DEFAULT_ICONS,
-  SIZE_CONFIG,
-  PADDING_CONFIG,
-  THEME_COLORS,
-  Z_INDEX,
-  LOADING_TEMPLATES,
-  A11Y,
-  PERFORMANCE,
-  ERROR_MESSAGES,
-  VALIDATION,
-};
+  export {
+    A11Y, ANIMATION,
+    BREAKPOINTS,
+    DEFAULT_ICONS, ERROR_MESSAGES, LOADING_TEMPLATES, PADDING_CONFIG, PERFORMANCE, SIZE_CONFIG, STORAGE_KEYS, THEME_COLORS, VALIDATION, Z_INDEX
+  };
 
-// Types
-export type {
-  CardProps,
-  CardVariant,
-  CardSize,
-  HeaderSize,
-  LoadingType,
-  ContentPadding,
-  HeaderProps,
-  ContentProps,
-  FooterProps,
-  ActionButtonsProps,
-  MaximizedViewProps,
-  LoadingStateProps,
-  AccordionProps,
-  CardAction,
-  CardEventData,
-  CardEventType,
-  CardState,
-  CardRegistration,
-  CardContextType,
-  CardController,
-  CardControllerHook,
-  StorageConfig,
-  PersistedCardState,
-  AnimationConfig,
-  ScrollOptions,
-  CardError,
-  WithCardControllerProps,
-};
+// FIXED: Updated Types Export
+  export type {
+    AccordionProps, ActionButtonsProps, AnimationConfig, CardAction, CardContextType,
+    CardController,
+    CardControllerHook, CardError, CardEventData,
+    CardEventType, CardProps, CardRegistration, // Still available for header usage
+    CardSize, CardState, // FIXED: No longer includes variant prop
+    CardVariant, ContentPadding, ContentProps,
+    FooterProps, HeaderProps, HeaderSize, LoadingStateProps, LoadingType, MaximizedViewProps, PersistedCardState, ScrollOptions, StorageConfig, WithCardControllerProps
+  };
 
 // Class Component Support
-export { CardControllerComponent, withCardController };
+  export { CardControllerComponent, withCardController };
 
 // ==================== Constants for External Use ====================
-export const CARD_VERSION = '1.0.2'; // Updated version
+export const CARD_VERSION = '1.0.3'; // Updated version for fixes
 
+// FIXED: Updated defaults - removed variant from card defaults
 export const CARD_DEFAULTS = {
   size: 'regular' as const,
-  variant: 'default' as const,
+  // REMOVED: variant: 'default' as const, // No longer needed for Card
   headerSize: 'regular' as const,
   loadingType: 'none' as const,
   contentPadding: 'comfortable' as const,
@@ -290,7 +227,7 @@ export const CARD_DEFAULTS = {
 // ==================== Utility Functions ====================
 
 /**
- * Create a card configuration object with defaults
+ * FIXED: Create a card configuration object with defaults (removed variant)
  */
 export const createCardConfig = (overrides?: Partial<CardProps>) => ({
   ...CARD_DEFAULTS,
@@ -432,12 +369,12 @@ export const getPerformanceMetrics = () => {
 };
 
 /**
- * Simple helper to create header props with actions
+ * FIXED: Simple helper to create header props with actions (supports variant)
  */
 export const createHeaderProps = (
   actions: CardAction[],
   options?: {
-    variant?: string;
+    variant?: 'success' | 'error' | 'warning' | 'info' | 'default'; // FIXED: Strict typing
     size?: 'compact' | 'regular' | 'large';
     hideExpandButton?: boolean;
     hideMaximizeButton?: boolean;
@@ -482,8 +419,19 @@ export const getVersionInfo = () => ({
     'Proper content padding',
     'Fixed footer visibility',
     'Improved maximized view',
+    'Fixed focus management', // NEW
+    'Enhanced accordion variants', // NEW
   ],
   browser: checkBrowserSupport(),
+  fixes: [
+    'Removed redundant card variant property',
+    'Fixed maximize animation timing',
+    'Removed duplicate restore button',
+    'Hide header buttons in maximized view',
+    'Fixed annoying header focus outline',
+    'Fixed accordion allowMultiple functionality',
+    'Enhanced accordion variant visual differences',
+  ],
 });
 
 // ==================== Default Export ====================
