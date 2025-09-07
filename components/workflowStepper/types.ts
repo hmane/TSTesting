@@ -1,6 +1,8 @@
+import * as React from 'react';
+
 export type StepStatus = 'completed' | 'current' | 'pending' | 'warning' | 'error' | 'blocked';
 
-export type StepperMode = 'fullSteps' | 'progress';
+export type StepperMode = 'fullSteps' | 'progress' | 'compact';
 
 export interface StepData {
   id: string;
@@ -12,44 +14,32 @@ export interface StepData {
   isClickable?: boolean;
 }
 
-export interface StepColorConfig {
-  background: string;
-  selectedBackground: string;
-  text: string;
-  selectedText: string;
-  border?: string;
-  selectedBorder?: string;
-}
-
-export interface CustomColors {
-  completed?: StepColorConfig;
-  current?: StepColorConfig;
-  pending?: StepColorConfig;
-  warning?: StepColorConfig;
-  error?: StepColorConfig;
-  blocked?: StepColorConfig;
+export interface StepDescriptionStyles {
+  description1?: React.CSSProperties;
+  description2?: React.CSSProperties;
 }
 
 export interface WorkflowStepperProps {
   steps: StepData[];
-  mode: StepperMode;
-  fullWidth?: boolean;
-  showStepNumbers?: boolean;
+  mode?: StepperMode;
   selectedStepId?: string;
-  autoSelectCurrent?: boolean;
-  customColors?: CustomColors;
   onStepClick?: (step: StepData) => void;
+  fullWidth?: boolean;
+  minStepWidth?: number;
+  descriptionStyles?: StepDescriptionStyles;
   className?: string;
+  showScrollHint?: boolean;
 }
 
 export interface StepItemProps {
   step: StepData;
-  stepNumber: number;
   isSelected: boolean;
   isClickable: boolean;
-  showStepNumbers: boolean;
-  customColors?: CustomColors;
   onStepClick: (step: StepData) => void;
+  isLast: boolean;
+  minWidth?: number;
+  descriptionStyles?: StepDescriptionStyles;
+  mode: StepperMode;
 }
 
 export interface ContentAreaProps {
@@ -57,7 +47,18 @@ export interface ContentAreaProps {
   isVisible: boolean;
 }
 
+export interface StepColors {
+  background: string;
+  selectedBackground: string;
+  text: string;
+  selectedText: string;
+  border: string;
+  selectedBorder: string;
+}
+
 export interface StepperStyleProps {
   fullWidth: boolean;
   stepCount: number;
+  minStepWidth?: number;
+  mode: StepperMode;
 }

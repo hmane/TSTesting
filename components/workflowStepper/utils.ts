@@ -1,4 +1,4 @@
-import { StepData, StepStatus } from './types';
+import { StepData, StepStatus, StepperMode } from './types';
 
 /**
  * Finds the first step with 'current' status, or the last completed step if none are current
@@ -27,15 +27,33 @@ export const findAutoSelectStep = (steps: StepData[]): StepData | null => {
 
 /**
  * Determines if a step should be clickable based on mode and status
+ * Enhanced logic: pending, blocked steps are generally not clickable unless explicitly set
  */
-export const isStepClickable = (step: StepData, mode: 'fullSteps' | 'progress'): boolean => {
-  // In progress mode, only allow clicking on completed and current steps
-  if (mode === 'progress') {
+export const isStepClickable = (step: StepData, mode: StepperMode): boolean => {
+  // Custom clickability override always takes precedence
+  if (step.isClickable !== undefined) {
+    return step.isClickable;
+  }
+
+  // In progress and compact mode, only allow clicking on completed and current steps
+  if (mode === 'progress' || mode === 'compact') {
     return step.status === 'completed' || step.status === 'current';
   }
 
-  // In fullSteps mode, respect the step's isClickable property, defaulting to true
-  return step.isClickable !== false;
+  // In fullSteps mode, enhanced clickability logic
+  switch (step.status) {
+    case 'completed':
+    case 'current':
+      return true; // Always clickable
+    case 'warning':
+    case 'error':
+      return true; // Clickable to view error details
+    case 'pending':
+    case 'blocked':
+      return false; // Not clickable by default (pending tasks logic)
+    default:
+      return true;
+  }
 };
 
 /**
@@ -55,11 +73,10 @@ export const validateStepIds = (steps: StepData[]): boolean => {
 };
 
 /**
- * Gets the step number (1-based index) for a given step ID
+ * Gets the step index (0-based) for a given step ID
  */
-export const getStepNumber = (steps: StepData[], stepId: string): number => {
-  const index = steps.findIndex(step => step.id === stepId);
-  return index >= 0 ? index + 1 : 0;
+export const getStepIndex = (steps: StepData[], stepId: string): number => {
+  return steps.findIndex(step => step.id === stepId);
 };
 
 /**
@@ -68,7 +85,7 @@ export const getStepNumber = (steps: StepData[], stepId: string): number => {
 export const getNextClickableStepId = (
   steps: StepData[],
   currentStepId: string,
-  mode: 'fullSteps' | 'progress'
+  mode: StepperMode
 ): string | null => {
   const currentIndex = steps.findIndex(step => step.id === currentStepId);
   if (currentIndex === -1) return null;
@@ -89,7 +106,7 @@ export const getNextClickableStepId = (
 export const getPrevClickableStepId = (
   steps: StepData[],
   currentStepId: string,
-  mode: 'fullSteps' | 'progress'
+  mode: StepperMode
 ): string | null => {
   const currentIndex = steps.findIndex(step => step.id === currentStepId);
   if (currentIndex === -1) return null;
@@ -102,6 +119,22 @@ export const getPrevClickableStepId = (
   }
 
   return null;
+};
+
+/**
+ * Gets the first clickable step ID
+ */
+export const getFirstClickableStepId = (steps: StepData[], mode: StepperMode): string | null => {
+  const clickableStep = steps.find(step => isStepClickable(step, mode));
+  return clickableStep ? clickableStep.id : null;
+};
+
+/**
+ * Gets the last clickable step ID
+ */
+export const getLastClickableStepId = (steps: StepData[], mode: StepperMode): string | null => {
+  const clickableSteps = steps.filter(step => isStepClickable(step, mode));
+  return clickableSteps.length > 0 ? clickableSteps[clickableSteps.length - 1].id : null;
 };
 
 /**
@@ -121,13 +154,101 @@ export const getStatusDescription = (status: StepStatus): string => {
   const statusMap: Record<StepStatus, string> = {
     completed: 'This step has been completed successfully',
     current: 'This step is currently in progress',
-    pending: 'This step is waiting to be started',
-    warning: 'This step requires attention',
-    error: 'This step has encountered an error',
-    blocked: 'This step is blocked and cannot proceed',
+    pending: 'This step is waiting to be started and is not yet available',
+    warning: 'This step requires attention before proceeding',
+    error: 'This step has encountered an error that needs to be resolved',
+    blocked: 'This step is blocked and cannot proceed until dependencies are resolved',
   };
 
   return statusMap[status] || 'Unknown status';
+};
+
+/**
+ * Gets a human-readable status label
+ */
+export const getStatusLabel = (status: StepStatus): string => {
+  const statusMap: Record<StepStatus, string> = {
+    completed: 'Completed',
+    current: 'In Progress',
+    pending: 'Pending',
+    warning: 'Needs Attention',
+    error: 'Error',
+    blocked: 'Blocked',
+  };
+
+  return statusMap[status] || 'Unknown';
+};
+
+/**
+ * Gets step statistics for analytics
+ */
+export const getStepStatistics = (steps: StepData[]) => {
+  const stats = {
+    total: steps.length,
+    completed: 0,
+    current: 0,
+    pending: 0,
+    warning: 0,
+    error: 0,
+    blocked: 0,
+    completionPercentage: 0,
+    currentStepIndex: -1,
+    clickableSteps: 0,
+  };
+
+  steps.forEach((step, index) => {
+    stats[step.status]++;
+    if (step.status === 'current') {
+      stats.currentStepIndex = index;
+    }
+  });
+
+  stats.completionPercentage = calculateCompletionPercentage(steps);
+  stats.clickableSteps = steps.filter(
+    step =>
+      step.status === 'completed' ||
+      step.status === 'current' ||
+      step.status === 'warning' ||
+      step.status === 'error'
+  ).length;
+
+  return stats;
+};
+
+/**
+ * Determines if a status represents an actionable state
+ */
+export const isActionableStatus = (status: StepStatus): boolean => {
+  return ['current', 'warning', 'error'].includes(status);
+};
+
+/**
+ * Determines if a status represents a completed state
+ */
+export const isCompletedStatus = (status: StepStatus): boolean => {
+  return status === 'completed';
+};
+
+/**
+ * Determines if a status represents a blocked/unavailable state
+ */
+export const isBlockedStatus = (status: StepStatus): boolean => {
+  return ['pending', 'blocked'].includes(status);
+};
+
+/**
+ * Gets appropriate cursor style for a step based on clickability
+ */
+export const getStepCursor = (step: StepData, mode: StepperMode): string => {
+  return isStepClickable(step, mode) ? 'pointer' : 'not-allowed';
+};
+
+/**
+ * Truncates text to a specified length with ellipsis
+ */
+export const truncateText = (text: string, maxLength: number): string => {
+  if (!text || text.length <= maxLength) return text;
+  return text.substring(0, maxLength - 3) + '...';
 };
 
 /**
@@ -143,37 +264,38 @@ export const debounce = <T extends (...args: any[]) => any>(
     if (timeout) {
       clearTimeout(timeout);
     }
-    timeout = setTimeout(() => func(...args), wait);
+    timeout = window.setTimeout(() => func(...args), wait);
   };
 };
 
 /**
- * Truncates text to a specified length with ellipsis
+ * Validates step data completeness
  */
-export const truncateText = (text: string, maxLength: number): string => {
-  if (text.length <= maxLength) return text;
-  return text.substring(0, maxLength - 3) + '...';
-};
+export const validateStepData = (steps: StepData[]): { isValid: boolean; errors: string[] } => {
+  const errors: string[] = [];
 
-/**
- * Checks if the browser supports the clipboard API
- */
-export const supportsClipboard = (): boolean => {
-  return navigator && navigator.clipboard && typeof navigator.clipboard.writeText === 'function';
-};
-
-/**
- * Generates a simple hash for step content (useful for caching)
- */
-export const hashStepContent = (step: StepData): string => {
-  const content = `${step.id}-${step.title}-${step.status}-${step.description1 || ''}-${
-    step.description2 || ''
-  }`;
-  let hash = 0;
-  for (let i = 0; i < content.length; i++) {
-    const char = content.charCodeAt(i);
-    hash = (hash << 5) - hash + char;
-    hash = hash & hash; // Convert to 32-bit integer
+  if (!steps || steps.length === 0) {
+    errors.push('Steps array is empty or undefined');
+    return { isValid: false, errors };
   }
-  return Math.abs(hash).toString(36);
+
+  // Check for unique IDs
+  if (!validateStepIds(steps)) {
+    errors.push('Duplicate step IDs found');
+  }
+
+  // Check for required fields
+  steps.forEach((step, index) => {
+    if (!step.id) {
+      errors.push(`Step at index ${index} is missing required 'id' field`);
+    }
+    if (!step.title) {
+      errors.push(`Step at index ${index} is missing required 'title' field`);
+    }
+    if (!step.status) {
+      errors.push(`Step at index ${index} is missing required 'status' field`);
+    }
+  });
+
+  return { isValid: errors.length === 0, errors };
 };
