@@ -7,15 +7,36 @@ const slideIn = keyframes({
   '100%': { opacity: 1, transform: 'translateY(0)' },
 });
 
-const scrollHintPulse = keyframes({
-  '0%': { opacity: 0.4, transform: 'translateX(0px)' },
-  '50%': { opacity: 0.8, transform: 'translateX(3px)' },
-  '100%': { opacity: 0.4, transform: 'translateX(0px)' },
-});
-
 export const getStepperStyles = (theme: ITheme, props: StepperStyleProps) => {
-  const { fullWidth, minStepWidth, mode } = props;
+  const { minStepWidth, mode } = props;
+  // Add keyframes for animations
+  const buttonPulse = keyframes({
+    '0%': {
+      transform: 'translateY(-50%) scale(1)',
+      boxShadow: '0 4px 12px rgba(0, 188, 212, 0.3), 0 2px 4px rgba(0, 0, 0, 0.1)',
+    },
+    '50%': {
+      transform: 'translateY(-50%) scale(1.05)',
+      boxShadow: '0 6px 16px rgba(0, 188, 212, 0.4), 0 3px 6px rgba(0, 0, 0, 0.15)',
+    },
+    '100%': {
+      transform: 'translateY(-50%) scale(1)',
+      boxShadow: '0 4px 12px rgba(0, 188, 212, 0.3), 0 2px 4px rgba(0, 0, 0, 0.1)',
+    },
+  });
 
+  const iconGlow = keyframes({
+    '0%': {
+      filter: 'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3))',
+    },
+    '50%': {
+      filter:
+        'drop-shadow(0 1px 4px rgba(0, 0, 0, 0.4)) drop-shadow(0 0 8px rgba(255, 255, 255, 0.3))',
+    },
+    '100%': {
+      filter: 'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3))',
+    },
+  });
   return {
     container: mergeStyles({
       width: '100%',
@@ -28,123 +49,256 @@ export const getStepperStyles = (theme: ITheme, props: StepperStyleProps) => {
         WebkitPrintColorAdjust: 'exact',
       },
     }),
+    stepperContainer: mergeStyles({
+      position: 'relative',
+      width: '100%',
+
+      // Hide arrows by default
+      '& .scroll-arrow': {
+        opacity: 0,
+        transform: 'translateX(-10px)', // Slide in effect
+        transition: 'all 0.3s ease',
+        pointerEvents: 'none', // Prevent interaction when hidden
+      },
+
+      '& .scroll-arrow-right': {
+        transform: 'translateX(10px)', // Slide in from right
+      },
+
+      // Show arrows on hover
+      ':hover': {
+        '& .scroll-arrow': {
+          opacity: 1,
+          transform: 'translateX(0)',
+          pointerEvents: 'auto', // Enable interaction on hover
+        },
+      },
+
+      '@media (max-width: 768px)': {
+        position: 'static',
+
+        // Always hide arrows on mobile
+        '& .scroll-arrow': {
+          display: 'none !important',
+        },
+      },
+    }),
+
+    stepsWrapper: mergeStyles({
+      width: '100%',
+      backgroundColor: theme.palette.neutralLighterAlt,
+      border: `1px solid ${theme.palette.neutralLight}`,
+      borderRadius: '8px 8px 0 0',
+      padding: '0px',
+      position: 'relative',
+      overflowX: 'auto',
+      overflowY: 'hidden',
+      boxShadow: 'none',
+
+      // Add bottom border when content area exists
+      '&[data-has-content="true"]': {
+        borderBottom: `1px solid ${theme.palette.neutralTertiary}`,
+      },
+
+      // Special styling when used alone (no content area)
+      '&[data-standalone="true"]': {
+        borderRadius: '8px',
+        marginBottom: mode === 'compact' ? '8px' : '20px',
+        boxShadow: theme.effects.elevation4,
+      },
+
+      // Mobile
+      '@media (max-width: 768px)': {
+        border: 'none',
+        borderRadius: '0px',
+        padding: '0px',
+        backgroundColor: 'transparent',
+        overflowX: 'auto',
+        '&[data-has-content="true"]': {
+          borderBottom: 'none',
+        },
+      },
+    }),
 
     stepsContainer: mergeStyles({
       display: 'flex',
       alignItems: 'center',
-      width: '100%',
-      marginBottom: mode === 'compact' ? '8px' : '20px',
-      overflowX: 'auto',
-      overflowY: 'hidden',
+      // CRITICAL: Remove any width constraints that prevent overflow
+      width: 'auto', // Changed from 'max-content'
+      minWidth: 'max-content', // This ensures content determines minimum width
+      gap: mode === 'compact' ? '4px' : '6px',
       position: 'relative',
-
-      // No gaps when fullWidth is true - steps should connect seamlessly
-      gap: fullWidth ? '0px' : '2px',
-
-      // Modern scrollbar styling for desktop
-      '@media (min-width: 769px)': {
-        scrollbarWidth: 'thin',
-        scrollbarColor: `${theme.palette.neutralTertiary} ${theme.palette.neutralLighter}`,
-
-        '::-webkit-scrollbar': {
-          height: mode === 'compact' ? '6px' : '8px',
-        },
-        '::-webkit-scrollbar-track': {
-          backgroundColor: theme.palette.neutralLighter,
-          borderRadius: '4px',
-        },
-        '::-webkit-scrollbar-thumb': {
-          backgroundColor: theme.palette.neutralTertiary,
-          borderRadius: '4px',
-          transition: 'background-color 0.2s ease',
-        },
-        '::-webkit-scrollbar-thumb:hover': {
-          backgroundColor: theme.palette.neutralSecondary,
-        },
-      },
+      flexShrink: 0, // Prevent shrinking
+      // Add explicit flex properties
+      flexWrap: 'nowrap',
 
       // Mobile: Stack vertically
       '@media (max-width: 768px)': {
         flexDirection: 'column',
         alignItems: 'stretch',
+        width: '100%',
+        minWidth: 'auto',
         gap: mode === 'compact' ? '4px' : '8px',
-        overflowX: 'visible',
       },
     }),
+    // Cyan buttons with subtle pulse animation for better visibility
 
     scrollHintLeft: mergeStyles({
       position: 'absolute',
-      left: '0',
+      left: '12px',
       top: '50%',
       transform: 'translateY(-50%)',
-      width: '20px',
-      height: '100%',
-      background: `linear-gradient(to right, ${theme.palette.white}, transparent)`,
+      width: '36px',
+      height: '36px',
+      backgroundColor: '#00bcd4',
+      backdropFilter: 'blur(4px)',
+      border: '2px solid rgba(255, 255, 255, 0.9)',
+      borderRadius: '8px',
       display: 'flex',
       alignItems: 'center',
-      justifyContent: 'flex-start',
-      paddingLeft: '4px',
-      zIndex: 10,
-      pointerEvents: 'none',
+      justifyContent: 'center',
+      zIndex: 15,
+      cursor: 'pointer',
+      outline: 'none !important',
+      '-webkit-appearance': 'none',
+      '-moz-appearance': 'none',
+      appearance: 'none',
 
-      '@media (max-width: 768px)': {
-        display: 'none',
+      // ANIMATED: Subtle pulse animation when visible
+      animation: `${buttonPulse} 2.5s ease-in-out infinite`,
+
+      boxShadow: '0 4px 12px rgba(0, 188, 212, 0.3), 0 2px 4px rgba(0, 0, 0, 0.1)',
+
+      ':hover': {
+        backgroundColor: '#0097a7',
+        borderColor: 'rgba(255, 255, 255, 1)',
+        transform: 'translateY(-50%) translateX(-2px) scale(1.1)', // Slightly larger on hover
+        boxShadow: '0 6px 20px rgba(0, 188, 212, 0.4), 0 3px 8px rgba(0, 0, 0, 0.2)',
+        outline: 'none !important',
+        // PAUSE ANIMATION on hover for better interaction
+        animationPlayState: 'paused',
+
+        '& i': {
+          color: 'rgba(255, 255, 255, 1) !important',
+          transform: 'scale(1.1)',
+        },
+      },
+
+      ':active': {
+        transform: 'translateY(-50%) scale(0.95)',
+        backgroundColor: '#00838f',
+        outline: 'none !important',
+        border: '2px solid rgba(255, 255, 255, 1)',
+        animationPlayState: 'paused',
+      },
+
+      ':focus': {
+        outline: 'none !important',
+        boxShadow:
+          '0 4px 12px rgba(0, 188, 212, 0.3), 0 2px 4px rgba(0, 0, 0, 0.1), 0 0 0 3px rgba(0, 188, 212, 0.3)',
+      },
+
+      ':focus-visible': {
+        outline: 'none !important',
+        boxShadow:
+          '0 4px 12px rgba(0, 188, 212, 0.3), 0 2px 4px rgba(0, 0, 0, 0.1), 0 0 0 3px rgba(0, 188, 212, 0.4)',
       },
     }),
 
     scrollHintRight: mergeStyles({
       position: 'absolute',
-      right: '0',
+      right: '12px',
       top: '50%',
       transform: 'translateY(-50%)',
-      width: '30px',
-      height: '100%',
-      background: `linear-gradient(to left, ${theme.palette.white}, transparent)`,
+      width: '36px',
+      height: '36px',
+      backgroundColor: '#00bcd4',
+      backdropFilter: 'blur(4px)',
+      border: '2px solid rgba(255, 255, 255, 0.9)',
+      borderRadius: '8px',
       display: 'flex',
       alignItems: 'center',
-      justifyContent: 'flex-end',
-      paddingRight: '8px',
-      zIndex: 10,
-      pointerEvents: 'none',
+      justifyContent: 'center',
+      zIndex: 15,
+      cursor: 'pointer',
+      outline: 'none !important',
+      '-webkit-appearance': 'none',
+      '-moz-appearance': 'none',
+      appearance: 'none',
 
-      '@media (max-width: 768px)': {
-        display: 'none',
+      // ANIMATED: Subtle pulse animation when visible (slight delay for alternating effect)
+      animation: `${buttonPulse} 2.5s ease-in-out infinite 0.3s`,
+
+      boxShadow: '0 4px 12px rgba(0, 188, 212, 0.3), 0 2px 4px rgba(0, 0, 0, 0.1)',
+
+      ':hover': {
+        backgroundColor: '#0097a7',
+        borderColor: 'rgba(255, 255, 255, 1)',
+        transform: 'translateY(-50%) translateX(2px) scale(1.1)',
+        boxShadow: '0 6px 20px rgba(0, 188, 212, 0.4), 0 3px 8px rgba(0, 0, 0, 0.2)',
+        outline: 'none !important',
+        animationPlayState: 'paused',
+
+        '& i': {
+          color: 'rgba(255, 255, 255, 1) !important',
+          transform: 'scale(1.1)',
+        },
+      },
+
+      ':active': {
+        transform: 'translateY(-50%) scale(0.95)',
+        backgroundColor: '#00838f',
+        outline: 'none !important',
+        border: '2px solid rgba(255, 255, 255, 1)',
+        animationPlayState: 'paused',
+      },
+
+      ':focus': {
+        outline: 'none !important',
+        boxShadow:
+          '0 4px 12px rgba(0, 188, 212, 0.3), 0 2px 4px rgba(0, 0, 0, 0.1), 0 0 0 3px rgba(0, 188, 212, 0.3)',
+      },
+
+      ':focus-visible': {
+        outline: 'none !important',
+        boxShadow:
+          '0 4px 12px rgba(0, 188, 212, 0.3), 0 2px 4px rgba(0, 0, 0, 0.1), 0 0 0 3px rgba(0, 188, 212, 0.4)',
       },
     }),
 
     scrollIcon: mergeStyles({
-      fontSize: '14px',
-      color: theme.palette.neutralSecondary,
-      animation: scrollHintPulse,
-      animationDuration: '2s',
-      animationIterationCount: 'infinite',
+      fontSize: '16px',
+      color: 'rgba(255, 255, 255, 0.95)',
+      transition: 'all 0.2s ease',
+      // ANIMATED: Subtle glow animation on the icon
+      animation: `${iconGlow} 2.5s ease-in-out infinite`,
     }),
-
+    '@keyframes subtle-pulse': {
+      '0%, 100%': {
+        opacity: 0.7,
+        transform: 'scale(1)',
+      },
+      '50%': {
+        opacity: 1,
+        transform: 'scale(1.05)',
+      },
+    },
     stepItem: mergeStyles({
       position: 'relative',
       display: 'flex',
       alignItems: 'center',
-      // CRITICAL FIX: When fullWidth is true, don't set minWidth, let flex handle it
-      minWidth: fullWidth
-        ? 'auto'
-        : minStepWidth
-        ? `${minStepWidth}px`
-        : mode === 'compact'
-        ? '100px'
-        : '150px',
-      // When fullWidth is true, also set width to ensure equal distribution
-      width: fullWidth ? '100%' : 'auto',
+      minWidth: minStepWidth ? `${minStepWidth}px` : mode === 'compact' ? '120px' : '160px',
       height: mode === 'compact' ? '50px' : '70px',
-      // CRITICAL FIX: Use flex grow/shrink/basis properly
-      flex: fullWidth ? '1 1 0px' : 'none',
+      flex: '0 0 auto',
       transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
       outline: 'none',
       userSelect: 'none',
+      margin: '0',
 
       // Mobile: Full width, normal rectangle
       '@media (max-width: 768px)': {
-        minWidth: 'auto',
         width: '100%',
+        minWidth: 'auto',
         height: 'auto',
         minHeight: mode === 'compact' ? '45px' : '60px',
         flex: 'none',
@@ -161,14 +315,6 @@ export const getStepperStyles = (theme: ITheme, props: StepperStyleProps) => {
       padding: mode === 'compact' ? '0 20px 0 15px' : '0 30px 0 20px',
       transition: 'all 0.3s ease',
 
-      // Arrow shape for desktop - seamless connection
-      '@media (min-width: 769px)': {
-        clipPath:
-          mode === 'compact'
-            ? 'polygon(0 0, calc(100% - 15px) 0, 100% 50%, calc(100% - 15px) 100%, 0 100%, 12px 50%)'
-            : 'polygon(0 0, calc(100% - 25px) 0, 100% 50%, calc(100% - 25px) 100%, 0 100%, 20px 50%)',
-      },
-
       // Mobile: Normal rectangle with rounded corners
       '@media (max-width: 768px)': {
         borderRadius: mode === 'compact' ? '6px' : '8px',
@@ -180,6 +326,47 @@ export const getStepperStyles = (theme: ITheme, props: StepperStyleProps) => {
         clipPath: 'none',
         borderRadius: '4px',
         border: '1px solid #000',
+      },
+    }),
+
+    // Arrow styles - same as before
+    stepContentFirst: mergeStyles({
+      '@media (min-width: 769px)': {
+        clipPath:
+          mode === 'compact'
+            ? 'polygon(0 0, calc(100% - 15px) 0, 100% 50%, calc(100% - 15px) 100%, 0 100%)'
+            : 'polygon(0 0, calc(100% - 25px) 0, 100% 50%, calc(100% - 25px) 100%, 0 100%)',
+        paddingLeft: mode === 'compact' ? '15px' : '20px',
+        paddingRight: mode === 'compact' ? '20px' : '30px',
+      },
+    }),
+
+    stepContentMiddle: mergeStyles({
+      '@media (min-width: 769px)': {
+        clipPath:
+          mode === 'compact'
+            ? 'polygon(0 0, calc(100% - 15px) 0, 100% 50%, calc(100% - 15px) 100%, 0 100%, 12px 50%)'
+            : 'polygon(0 0, calc(100% - 25px) 0, 100% 50%, calc(100% - 25px) 100%, 0 100%, 20px 50%)',
+        paddingLeft: mode === 'compact' ? '18px' : '26px',
+        paddingRight: mode === 'compact' ? '20px' : '30px',
+      },
+    }),
+
+    stepContentLast: mergeStyles({
+      '@media (min-width: 769px)': {
+        clipPath:
+          mode === 'compact'
+            ? 'polygon(0 0, calc(100% - 15px) 0, 100% 50%, calc(100% - 15px) 100%, 0 100%, 12px 50%)'
+            : 'polygon(0 0, calc(100% - 25px) 0, 100% 50%, calc(100% - 25px) 100%, 0 100%, 20px 50%)',
+        paddingLeft: mode === 'compact' ? '18px' : '26px',
+        paddingRight: mode === 'compact' ? '20px' : '30px',
+      },
+    }),
+
+    stepContentSingle: mergeStyles({
+      '@media (min-width: 769px)': {
+        clipPath: 'polygon(0 0, 100% 0, 100% 100%, 0 100%)',
+        padding: mode === 'compact' ? '0 15px' : '0 20px',
       },
     }),
 
@@ -238,16 +425,27 @@ export const getStepperStyles = (theme: ITheme, props: StepperStyleProps) => {
       },
     }),
 
+    // FIXED: Content area with proper padding to match wrapper
     contentArea: mergeStyles({
       minHeight: '120px',
       padding: '24px',
       backgroundColor: theme.palette.neutralLighterAlt,
       border: `1px solid ${theme.palette.neutralLight}`,
-      borderRadius: '8px',
+      borderTop: 'none',
+      borderRadius: '0 0 8px 8px',
       animation: slideIn,
       animationDuration: '0.4s',
       animationFillMode: 'forwards',
       boxShadow: theme.effects.elevation4,
+
+      // FIXED: Mobile - match full width with no borders
+      '@media (max-width: 768px)': {
+        border: 'none',
+        borderRadius: '0px',
+        backgroundColor: 'transparent',
+        boxShadow: 'none',
+        padding: '16px 0px',
+      },
 
       '@media print': {
         border: `1px solid #000`,
@@ -295,7 +493,6 @@ export const getStepperStyles = (theme: ITheme, props: StepperStyleProps) => {
       },
     }),
 
-    // Mobile summary
     mobileSummary: mergeStyles({
       display: 'none',
 
@@ -311,7 +508,6 @@ export const getStepperStyles = (theme: ITheme, props: StepperStyleProps) => {
       },
     }),
 
-    // Screen reader only content
     srOnly: mergeStyles({
       position: 'absolute',
       left: '-10000px',
@@ -324,10 +520,11 @@ export const getStepperStyles = (theme: ITheme, props: StepperStyleProps) => {
   };
 };
 
+// getStepColors and getStepItemStyles remain exactly the same
 export const getStepColors = (theme: ITheme): Record<StepStatus, StepColors> => {
   return {
     completed: {
-      background: '#107c10', // Professional green
+      background: '#107c10',
       selectedBackground: '#0e6b0e',
       text: theme.palette.white,
       selectedText: theme.palette.white,
@@ -343,23 +540,23 @@ export const getStepColors = (theme: ITheme): Record<StepStatus, StepColors> => 
       selectedBorder: theme.palette.themeDark,
     },
     pending: {
-      background: '#f3f2f1', // Light neutral
+      background: '#f3f2f1',
       selectedBackground: '#e1dfdd',
-      text: '#605e5c', // Dark neutral
+      text: '#605e5c',
       selectedText: '#323130',
       border: '#d2d0ce',
       selectedBorder: '#c8c6c4',
     },
     warning: {
-      background: '#ffb900', // Professional amber
+      background: '#ffb900',
       selectedBackground: '#f29000',
-      text: '#323130', // Dark text for contrast
+      text: '#323130',
       selectedText: '#1b1a19',
       border: '#ffb900',
       selectedBorder: '#f29000',
     },
     error: {
-      background: '#d13438', // Professional red
+      background: '#d13438',
       selectedBackground: '#b02e32',
       text: theme.palette.white,
       selectedText: theme.palette.white,
@@ -367,7 +564,7 @@ export const getStepColors = (theme: ITheme): Record<StepStatus, StepColors> => 
       selectedBorder: '#b02e32',
     },
     blocked: {
-      background: '#ff8c00', // Professional orange
+      background: '#ff8c00',
       selectedBackground: '#e67e00',
       text: theme.palette.white,
       selectedText: theme.palette.white,
@@ -413,11 +610,7 @@ export const getStepItemStyles = (
           },
         },
       }
-    : {
-        ':hover': {
-          // No hover effect for non-clickable steps
-        },
-      };
+    : {};
 
   const focusStyles = isClickable
     ? {

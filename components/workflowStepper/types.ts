@@ -19,27 +19,16 @@ export interface StepDescriptionStyles {
   description2?: React.CSSProperties;
 }
 
+// UPDATED: Removed fullWidth prop - no longer needed with wrapper approach
 export interface WorkflowStepperProps {
   steps: StepData[];
   mode?: StepperMode;
   selectedStepId?: string;
   onStepClick?: (step: StepData) => void;
-  fullWidth?: boolean;
   minStepWidth?: number;
   descriptionStyles?: StepDescriptionStyles;
   className?: string;
   showScrollHint?: boolean;
-}
-
-export interface StepItemProps {
-  step: StepData;
-  isSelected: boolean;
-  isClickable: boolean;
-  onStepClick: (step: StepData) => void;
-  isLast: boolean;
-  minWidth?: number;
-  descriptionStyles?: StepDescriptionStyles;
-  mode: StepperMode;
 }
 
 export interface ContentAreaProps {
@@ -56,8 +45,9 @@ export interface StepColors {
   selectedBorder: string;
 }
 
+// UPDATED: Removed fullWidth from style props
 export interface StepperStyleProps {
-  fullWidth: boolean;
+  fullWidth: boolean; // Keep for internal use but not exposed in main props
   stepCount: number;
   minStepWidth?: number;
   mode: StepperMode;

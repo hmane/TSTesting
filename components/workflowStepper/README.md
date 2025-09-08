@@ -1,265 +1,278 @@
 # WorkflowStepper Component
 
-A comprehensive, accessible workflow stepper component for SharePoint Framework (SPFx) applications built with React and Fluent UI. Perfect for tracking multi-step processes like approvals, reviews, and business workflows.
+A modern, responsive arrow-style workflow stepper component built with React and Fluent UI. Features horizontal scrolling with animated navigation arrows, multiple display modes, and full accessibility support.
 
 ## Features
 
-- 🎯 **Two Display Modes**: Full steps with content area or progress-only view
-- 🎨 **SharePoint Theme Integration**: Automatic Fluent UI theme colors with custom override support
-- ♿ **Accessibility First**: Full keyboard navigation, screen reader support, and ARIA compliance
-- 📱 **Responsive Design**: Mobile-friendly with horizontal scroll on small screens
-- 🖨️ **Print-Friendly**: Optimized CSS for professional printed reports
-- ⚡ **Smooth Animations**: Subtle transitions and selection feedback
-- 🔧 **Highly Configurable**: Optional step numbers, custom colors, flexible width control
-- 🎭 **Multiple Status Types**: Completed, current, pending, warning, error, and blocked states
+- **Arrow Design**: Classic arrow-style steps with seamless visual connections
+- **Responsive Layout**: Horizontal arrows on desktop, vertical stack on mobile
+- **Scrollable Navigation**: Horizontal scrolling with animated hint arrows
+- **Multiple Modes**: Full steps with content, progress-only, and compact modes
+- **Accessibility**: Full ARIA support, keyboard navigation, and screen reader friendly
+- **TypeScript**: Complete TypeScript definitions and type safety
+- **Fluent UI Integration**: Built with Fluent UI 8.x components and theming
 
 ## Installation
 
-Copy the following files to your SPFx project:
-
+```bash
+npm install @fluentui/react
 ```
-src/components/WorkflowStepper/
-├── types.ts
-├── WorkflowStepper.styles.ts
-├── StepItem.tsx
-├── ContentArea.tsx
-├── utils.ts
-└── WorkflowStepper.tsx
-```
-
-## Dependencies
-
-- React 17.0.1+
-- @fluentui/react 8.x
-- SharePoint Framework
 
 ## Basic Usage
 
 ```tsx
-import React, { useState } from 'react';
-import { WorkflowStepper } from './components/WorkflowStepper/WorkflowStepper';
-import { StepData } from './components/WorkflowStepper/types';
+import React from 'react';
+import { WorkflowStepper, StepData } from './components/WorkflowStepper';
 
-const MyComponent: React.FC = () => {
-  const [selectedStepId, setSelectedStepId] = useState<string>('step-1');
+const steps: StepData[] = [
+  {
+    id: 'step-1',
+    title: 'Request Submitted',
+    description1: 'Completed by John Doe',
+    description2: 'August 20, 2025',
+    status: 'completed',
+    content: '<p>Step completed successfully.</p>',
+  },
+  {
+    id: 'step-2',
+    title: 'Manager Review',
+    description1: 'Currently with Jane Smith',
+    description2: 'In progress',
+    status: 'current',
+    content: '<p>Step is currently being reviewed.</p>',
+  },
+  {
+    id: 'step-3',
+    title: 'Final Approval',
+    description1: 'Pending',
+    description2: 'Awaiting previous step',
+    status: 'pending',
+  },
+];
 
-  const steps: StepData[] = [
-    {
-      id: 'step-1',
-      title: 'Submit Request',
-      description1: 'User submits the initial request',
-      description2: 'Completed on 2024-01-15',
-      status: 'completed',
-      content: '<p>Request submitted successfully by John Doe.</p>'
-    },
-    {
-      id: 'step-2',
-      title: 'Admin Review',
-      description1: 'Administrator assigns reviewer',
-      description2: 'In progress',
-      status: 'current',
-      content: '<p>Waiting for admin to assign a reviewer.</p>'
-    },
-    {
-      id: 'step-3',
-      title: 'Legal Review',
-      description1: 'Legal team reviews compliance',
-      description2: 'Not started',
-      status: 'pending',
-      content: '<p>Legal review will begin after admin approval.</p>'
-    },
-    {
-      id: 'step-4',
-      title: 'Execution',
-      description1: 'Final execution of the request',
-      description2: 'Pending',
-      status: 'pending',
-      content: '<p>Request will be executed after all approvals.</p>'
-    }
-  ];
+export const MyWorkflow = () => {
+  const [selectedStepId, setSelectedStepId] = useState('step-1');
 
   return (
     <WorkflowStepper
       steps={steps}
-      mode="fullSteps"
+      mode='fullSteps'
       selectedStepId={selectedStepId}
-      onStepClick={(step) => setSelectedStepId(step.id)}
-      showStepNumbers={true}
-      fullWidth={true}
+      onStepClick={step => setSelectedStepId(step.id)}
     />
   );
 };
 ```
 
-## Component Props
+## Display Modes
+
+### Full Steps Mode
+
+Complete workflow stepper with content area displaying step details.
+
+```tsx
+<WorkflowStepper
+  steps={steps}
+  mode='fullSteps'
+  selectedStepId={selectedStepId}
+  onStepClick={handleStepClick}
+/>
+```
+
+### Progress Mode
+
+Shows only the step progress without content area.
+
+```tsx
+<WorkflowStepper steps={steps} mode='progress' minStepWidth={120} />
+```
+
+### Compact Mode
+
+Ultra-tight spacing perfect for dashboards and headers.
+
+```tsx
+<WorkflowStepper steps={steps} mode='compact' minStepWidth={100} />
+```
+
+## Step Data Structure
+
+```tsx
+interface StepData {
+  id: string; // Unique identifier (required)
+  title: string; // Step title (required)
+  description1?: string; // Primary description (optional)
+  description2?: string; // Secondary description (optional)
+  status: StepStatus; // Step status (required)
+  content?: string | React.ReactNode; // Step content (optional)
+  isClickable?: boolean; // Override clickability (optional)
+}
+
+type StepStatus = 'completed' | 'current' | 'pending' | 'warning' | 'error' | 'blocked';
+```
+
+## Step Status Types
+
+| Status      | Description                | Clickable | Visual Style          |
+| ----------- | -------------------------- | --------- | --------------------- |
+| `completed` | Step finished successfully | Yes       | Green background      |
+| `current`   | Step currently in progress | Yes       | Blue/theme background |
+| `pending`   | Step waiting to start      | No\*      | Gray background       |
+| `warning`   | Step needs attention       | Yes       | Orange background     |
+| `error`     | Step has errors            | Yes       | Red background        |
+| `blocked`   | Step is blocked            | No\*      | Orange background     |
+
+\*Can be overridden with `isClickable` property
+
+## Props
 
 ### WorkflowStepperProps
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `steps` | `StepData[]` | required | Array of step data objects |
-| `mode` | `'fullSteps' \| 'progress'` | `'fullSteps'` | Display mode - full steps with content or progress-only |
-| `fullWidth` | `boolean` | `true` | Whether steps should stretch to fill container width |
-| `showStepNumbers` | `boolean` | `true` | Show step numbers (1, 2, 3...) in each step |
-| `selectedStepId` | `string` | undefined | Controlled selection - which step is currently selected |
-| `autoSelectCurrent` | `boolean` | `true` | Auto-select current step or last completed step |
-| `customColors` | `CustomColors` | undefined | Override default theme colors |
-| `onStepClick` | `(step: StepData) => void` | undefined | Callback when a step is clicked |
-| `className` | `string` | undefined | Additional CSS class for the container |
+| Prop                | Type                                     | Default       | Description                      |
+| ------------------- | ---------------------------------------- | ------------- | -------------------------------- |
+| `steps`             | `StepData[]`                             | -             | Array of step data (required)    |
+| `mode`              | `'fullSteps' \| 'progress' \| 'compact'` | `'fullSteps'` | Display mode                     |
+| `selectedStepId`    | `string`                                 | -             | ID of selected step (controlled) |
+| `onStepClick`       | `(step: StepData) => void`               | -             | Step click handler               |
+| `minStepWidth`      | `number`                                 | `160`         | Minimum width per step in pixels |
+| `descriptionStyles` | `StepDescriptionStyles`                  | -             | Custom styles for descriptions   |
+| `className`         | `string`                                 | -             | Additional CSS class             |
+| `showScrollHint`    | `boolean`                                | `true`        | Show scroll hint arrows          |
 
-### StepData Interface
-
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `id` | `string` | ✅ | Unique identifier for the step |
-| `title` | `string` | ✅ | Step title/name |
-| `description1` | `string` | ❌ | First description line (e.g., status) |
-| `description2` | `string` | ❌ | Second description line (e.g., date) |
-| `status` | `StepStatus` | ✅ | Step status (completed, current, pending, warning, error, blocked) |
-| `content` | `string \| React.ReactNode` | ❌ | Content to display when step is selected (fullSteps mode only) |
-| `isClickable` | `boolean` | ❌ | Override clickability (defaults based on mode and status) |
-
-## Display Modes
-
-### Full Steps Mode (`mode="fullSteps"`)
-- Shows all steps with clickable navigation
-- Displays content area below steps
-- Users can click any step to view its content
-- Perfect for workflow creation or detailed step information
-
-### Progress Mode (`mode="progress"`)
-- Shows workflow progress with visual status indicators
-- Only completed and current steps are clickable
-- No content area displayed
-- Perfect for showing current item progress
-
-## Status Types
-
-| Status | Description | Default Color | Clickable (Progress Mode) |
-|--------|-------------|---------------|---------------------------|
-| `completed` | Step finished successfully | Green | ✅ |
-| `current` | Step in progress | Blue (theme primary) | ✅ |
-| `pending` | Step not started | Grey | ❌ |
-| `warning` | Step needs attention | Yellow | ❌ |
-| `error` | Step has errors | Red | ❌ |
-| `blocked` | Step is blocked | Orange | ❌ |
-
-## Custom Colors
-
-Override default theme colors by providing a `customColors` object:
+### StepDescriptionStyles
 
 ```tsx
-const customColors = {
-  completed: {
-    background: '#28a745',
-    selectedBackground: '#1e7e34',
-    text: '#ffffff',
-    selectedText: '#ffffff'
-  },
-  current: {
-    background: '#007bff',
-    selectedBackground: '#0056b3',
-    text: '#ffffff',
-    selectedText: '#ffffff'
-  },
-  warning: {
-    background: '#ffc107',
-    selectedBackground: '#e0a800',
-    text: '#212529',
-    selectedText: '#212529'
-  }
-  // ... other statuses
-};
-
-<WorkflowStepper
-  steps={steps}
-  customColors={customColors}
-  // ... other props
-/>
+interface StepDescriptionStyles {
+  description1?: React.CSSProperties;
+  description2?: React.CSSProperties;
+}
 ```
 
-## Keyboard Navigation
+## Scrolling and Navigation
 
-The component supports full keyboard accessibility:
+### Automatic Scrolling
 
-- **Arrow Keys / Tab**: Navigate between clickable steps
-- **Enter / Space**: Select the focused step
-- **Home**: Jump to first clickable step
-- **End**: Jump to last clickable step
+The component automatically shows scroll arrows when content overflows:
 
-## Responsive Behavior
+- **Hover activation**: Arrows appear with subtle animation on stepper hover
+- **Click to scroll**: Click arrows to scroll by one step width
+- **Smooth scrolling**: Uses CSS `scroll-behavior: smooth` for animations
+- **Mobile responsive**: Arrows hidden on mobile, native touch scrolling enabled
 
-- **Desktop**: Full arrow-style layout with hover effects
-- **Tablet**: Slightly smaller steps with touch-friendly targets
-- **Mobile**: Horizontal scroll with fade indicators
-- **Print**: Simplified layout without arrows, optimized for printing
+### Keyboard Navigation
 
-## Examples
-
-### Simple Progress Indicator
-
-```tsx
-<WorkflowStepper
-  steps={steps}
-  mode="progress"
-  showStepNumbers={false}
-  fullWidth={true}
-/>
-```
-
-### Compact Step Layout
-
-```tsx
-<WorkflowStepper
-  steps={steps}
-  mode="fullSteps"
-  fullWidth={false}
-  showStepNumbers={true}
-/>
-```
-
-### With React Component Content
-
-```tsx
-const steps = [
-  {
-    id: 'step-1',
-    title: 'Data Input',
-    status: 'completed',
-    content: (
-      <div>
-        <h3>Data Input Form</h3>
-        <MyCustomForm onSubmit={handleSubmit} />
-      </div>
-    )
-  }
-  // ... more steps
-];
-```
-
-### Controlled Selection
-
-```tsx
-const [currentStep, setCurrentStep] = useState('step-2');
-
-<WorkflowStepper
-  steps={steps}
-  selectedStepId={currentStep}
-  onStepClick={(step) => {
-    setCurrentStep(step.id);
-    // Additional logic here
-  }}
-/>
-```
+- **Arrow Keys**: Navigate between clickable steps
+- **Home/End**: Jump to first/last clickable step
+- **Tab**: Focus management for accessibility
+- **Enter/Space**: Activate focused step
 
 ## Accessibility Features
 
-- **ARIA Labels**: Comprehensive labeling for screen readers
-- **Live Regions**: Announces step changes and progress updates
-- **Keyboard Navigation**: Full keyboard control
-- **Focus Management**: Proper focus indicators and management
-- **High Contrast**: Supports Windows high contrast mode
-- **Screen Reader**: Detailed descriptions and status announcements
+### ARIA Support
+
+- Proper roles (`application`, `region`, `tablist`, `button`)
+- Descriptive labels and live regions
+- Current step indication
+- Progress announcements
+
+### Screen Reader Support
+
+- Step status descriptions
+- Progress percentage announcements
+- Navigation instructions
+- Content change notifications
+
+### Keyboard Support
+
+- Full keyboard navigation
+- Focus indicators
+- Skip navigation patterns
+
+## Styling and Theming
+
+The component uses Fluent UI theming and can be customized through:
+
+### Theme Integration
+
+```tsx
+import { ThemeProvider } from '@fluentui/react';
+
+<ThemeProvider theme={customTheme}>
+  <WorkflowStepper steps={steps} />
+</ThemeProvider>;
+```
+
+### Custom Description Styles
+
+```tsx
+const customStyles: StepDescriptionStyles = {
+  description1: {
+    fontWeight: 600,
+    color: theme.palette.themePrimary,
+  },
+  description2: {
+    fontStyle: 'italic',
+    fontSize: '11px',
+  },
+};
+
+<WorkflowStepper steps={steps} descriptionStyles={customStyles} />;
+```
+
+## Advanced Examples
+
+### React Component Content
+
+```tsx
+const CustomStepContent = ({ data }) => (
+  <div>
+    <h4>Custom React Component</h4>
+    <button onClick={() => alert('Action triggered')}>Take Action</button>
+  </div>
+);
+
+const steps: StepData[] = [
+  {
+    id: 'interactive-step',
+    title: 'Interactive Step',
+    status: 'current',
+    content: <CustomStepContent data={someData} />,
+  },
+];
+```
+
+### Dynamic Step Updates
+
+```tsx
+const [steps, setSteps] = useState(initialSteps);
+
+const updateStepStatus = (stepId: string, newStatus: StepStatus) => {
+  setSteps(prev => prev.map(step => (step.id === stepId ? { ...step, status: newStatus } : step)));
+};
+```
+
+### Integration with Forms
+
+```tsx
+const FormWorkflow = () => {
+  const [currentStep, setCurrentStep] = useState(0);
+  const [formData, setFormData] = useState({});
+
+  const steps = [
+    {
+      id: 'personal-info',
+      title: 'Personal Information',
+      status: currentStep > 0 ? 'completed' : 'current',
+      content: <PersonalInfoForm data={formData} onChange={setFormData} />,
+    },
+    // ... more form steps
+  ];
+
+  return (
+    <WorkflowStepper steps={steps} mode='fullSteps' onStepClick={step => navigateToStep(step)} />
+  );
+};
+```
 
 ## Browser Support
 
@@ -267,51 +280,61 @@ const [currentStep, setCurrentStep] = useState('step-2');
 - Firefox 88+
 - Safari 14+
 - Edge 90+
-- Internet Explorer 11 (with polyfills)
-
-## TypeScript Support
-
-The component is written in TypeScript and includes full type definitions. All interfaces are exported for use in your application.
 
 ## Performance Considerations
 
-- Uses React.memo() for optimized re-renders
-- Debounced animations for smooth performance
-- Efficient DOM updates with proper keys
-- Minimal re-calculations with useMemo hooks
+- **Virtualization**: Not needed for typical use (< 50 steps)
+- **Memoization**: Step rendering is optimized with React.memo patterns
+- **Smooth scrolling**: Uses CSS animations for optimal performance
+- **Responsive images**: Icons scale appropriately
 
 ## Troubleshooting
 
-### Steps not appearing correctly
-- Ensure each step has a unique `id`
-- Check that `steps` array is not empty
-- Verify Fluent UI theme is properly initialized
+### Scrollbar Not Visible
 
-### Content not showing
-- Make sure you're using `mode="fullSteps"`
-- Check that the selected step has `content` property
-- Verify step is clickable and properly selected
+Ensure container has sufficient width constraints:
 
-### Styling issues
-- Ensure Fluent UI theme is loaded
-- Check for CSS conflicts
-- Verify custom colors follow the correct interface
+```tsx
+<div style={{ maxWidth: '800px' }}>
+  <WorkflowStepper steps={manySteps} />
+</div>
+```
 
-### Accessibility warnings
-- Ensure all steps have meaningful titles
-- Provide description text for complex workflows
-- Test with screen readers
+### Steps Not Clickable
+
+Check step status and `isClickable` override:
+
+```tsx
+// Force clickability
+{ id: 'step', status: 'pending', isClickable: true }
+```
+
+### Mobile Layout Issues
+
+The component automatically handles mobile responsive design. For custom responsive behavior:
+
+```css
+@media (max-width: 768px) {
+  .custom-stepper-container {
+    padding: 0;
+  }
+}
+```
 
 ## Contributing
 
-When contributing to this component:
-
-1. Maintain TypeScript strict mode compliance
-2. Follow accessibility best practices
-3. Add appropriate unit tests
-4. Update documentation for new features
-5. Test across different SharePoint themes
+1. Follow TypeScript strict mode
+2. Include unit tests for new features
+3. Update documentation for API changes
+4. Test accessibility with screen readers
+5. Verify mobile responsive behavior
 
 ## License
 
-This component is designed for use in SharePoint Framework applications and follows Microsoft's development guidelines.
+MIT License - see LICENSE file for details.
+
+## Related Components
+
+- `ContentArea` - Step content display component
+- `StepItem` - Individual step rendering component
+- `utils` - Utility functions for step management

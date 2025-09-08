@@ -1,8 +1,23 @@
 import * as React from 'react';
 import { useCallback, useRef } from 'react';
 import { useTheme } from '@fluentui/react';
-import { StepItemProps } from './types';
+import { StepData, StepDescriptionStyles, StepperMode } from './types';
 import { getStepperStyles, getStepItemStyles } from './WorkflowStepper.styles';
+
+export interface StepItemProps {
+  step: StepData;
+  isSelected: boolean;
+  isClickable: boolean;
+  onStepClick: (step: StepData) => void;
+  isLast: boolean;
+  isFirst: boolean;
+  totalSteps: number;
+  stepIndex: number;
+  minWidth?: number;
+  descriptionStyles?: StepDescriptionStyles;
+  mode: StepperMode;
+  fullWidth?: boolean;
+}
 
 export const StepItem: React.FC<StepItemProps> = ({
   step,
@@ -10,16 +25,20 @@ export const StepItem: React.FC<StepItemProps> = ({
   isClickable,
   onStepClick,
   isLast,
+  isFirst,
+  totalSteps,
+  stepIndex,
   minWidth,
   descriptionStyles,
   mode,
+  fullWidth = true,
 }) => {
   const theme = useTheme();
   const stepRef = useRef<HTMLDivElement>(null);
 
   const styles = getStepperStyles(theme, {
-    fullWidth: false,
-    stepCount: 0,
+    fullWidth,
+    stepCount: totalSteps,
     minStepWidth: minWidth,
     mode,
   });
@@ -59,6 +78,29 @@ export const StepItem: React.FC<StepItemProps> = ({
   };
 
   const defaultStyles = getDefaultDescriptionStyles();
+
+  // Get the appropriate content style based on step position
+  const getStepContentClass = () => {
+    const baseClass = styles.stepContent;
+
+    // Single step (only one step in the entire workflow)
+    if (totalSteps === 1) {
+      return `${baseClass} ${styles.stepContentSingle}`;
+    }
+
+    // First step (no arrow at beginning)
+    if (isFirst) {
+      return `${baseClass} ${styles.stepContentFirst}`;
+    }
+
+    // Last step (keep arrow at end)
+    if (isLast) {
+      return `${baseClass} ${styles.stepContentLast}`;
+    }
+
+    // Regular middle steps (arrows on both sides)
+    return `${baseClass} ${styles.stepContentMiddle}`;
+  };
 
   const renderStepText = () => {
     return (
@@ -103,12 +145,15 @@ export const StepItem: React.FC<StepItemProps> = ({
       tabIndex={isClickable ? 0 : -1}
       data-step-id={step.id}
       data-step-status={step.status}
+      data-step-index={stepIndex}
+      data-is-first={isFirst}
+      data-is-last={isLast}
       style={{
         minWidth: minWidth ? `${minWidth}px` : undefined,
         cursor: isClickable ? 'pointer' : 'not-allowed',
       }}
     >
-      <div className={`${styles.stepContent} ${stepContentStyles}`}>{renderStepText()}</div>
+      <div className={`${getStepContentClass()} ${stepContentStyles}`}>{renderStepText()}</div>
     </div>
   );
 };

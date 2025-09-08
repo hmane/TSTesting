@@ -23,7 +23,6 @@ export const WorkflowStepper: React.FC<WorkflowStepperProps> = ({
   mode = 'fullSteps',
   selectedStepId,
   onStepClick,
-  fullWidth = true,
   minStepWidth,
   descriptionStyles,
   className,
@@ -31,7 +30,7 @@ export const WorkflowStepper: React.FC<WorkflowStepperProps> = ({
 }) => {
   const theme = useTheme();
   const containerRef = useRef<HTMLDivElement>(null);
-  const stepsContainerRef = useRef<HTMLDivElement>(null);
+  const stepsWrapperRef = useRef<HTMLDivElement>(null);
   const [internalSelectedStepId, setInternalSelectedStepId] = useState<string | null>(null);
   const [announceText, setAnnounceText] = useState<string>('');
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
@@ -47,39 +46,103 @@ export const WorkflowStepper: React.FC<WorkflowStepperProps> = ({
     }
   }, [steps]);
 
-  // Check scroll hints
+  // ENHANCED: More robust bidirectional scroll hint detection
   const checkScrollHints = useCallback(() => {
-    if (!showScrollHint || !stepsContainerRef.current) return;
+    if (!showScrollHint || !stepsWrapperRef.current) return;
 
-    const container = stepsContainerRef.current;
-    const { scrollLeft, scrollWidth, clientWidth } = container;
+    const wrapper = stepsWrapperRef.current;
+    const { scrollLeft, scrollWidth, clientWidth } = wrapper;
 
-    setShowLeftScrollHint(scrollLeft > 10);
-    setShowRightScrollHint(scrollLeft + clientWidth < scrollWidth - 10);
+    // Add small tolerance for rounding errors
+    const tolerance = 2;
+
+    // Check if horizontal scrolling is actually possible
+    const hasHorizontalScroll = scrollWidth > clientWidth + tolerance;
+
+    if (!hasHorizontalScroll) {
+      // No scrolling needed, hide both hints
+      setShowLeftScrollHint(false);
+      setShowRightScrollHint(false);
+      return;
+    }
+
+    // Show left hint if user can scroll left (not at the very beginning)
+    const canScrollLeft = scrollLeft > tolerance;
+
+    // Show right hint if user can scroll right (not at the very end)
+    const canScrollRight = scrollLeft + clientWidth < scrollWidth - tolerance;
+
+    setShowLeftScrollHint(canScrollLeft);
+    setShowRightScrollHint(canScrollRight);
+
+    // Debug logging (remove in production)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Scroll Debug:', {
+        scrollLeft,
+        scrollWidth,
+        clientWidth,
+        hasHorizontalScroll,
+        canScrollLeft,
+        canScrollRight,
+      });
+    }
   }, [showScrollHint]);
 
   // Set up scroll hint detection
   useEffect(() => {
     if (!showScrollHint) return;
 
-    const container = stepsContainerRef.current;
-    if (!container) return;
+    const wrapper = stepsWrapperRef.current;
+    if (!wrapper) return;
 
-    // Initial check
-    const timer = setTimeout(checkScrollHints, 100);
+    // Function to check scroll after DOM changes
+    const checkScrollDelayed = () => {
+      // Use requestAnimationFrame to ensure DOM has updated
+      requestAnimationFrame(() => {
+        setTimeout(checkScrollHints, 50); // Small delay to ensure rendering is complete
+      });
+    };
+
+    // Initial check after component mounts
+    checkScrollDelayed();
 
     // Add scroll listener
-    container.addEventListener('scroll', checkScrollHints);
+    wrapper.addEventListener('scroll', checkScrollHints, { passive: true });
 
     // Add resize listener to window
-    window.addEventListener('resize', checkScrollHints);
+    const handleResize = () => {
+      checkScrollDelayed();
+    };
+    window.addEventListener('resize', handleResize);
+
+    // Use ResizeObserver if available for more precise detection
+    let resizeObserver: ResizeObserver | null = null;
+    if (window.ResizeObserver) {
+      resizeObserver = new ResizeObserver(() => {
+        checkScrollDelayed();
+      });
+      resizeObserver.observe(wrapper);
+    }
 
     return () => {
-      clearTimeout(timer);
-      container.removeEventListener('scroll', checkScrollHints);
-      window.removeEventListener('resize', checkScrollHints);
+      wrapper.removeEventListener('scroll', checkScrollHints);
+      window.removeEventListener('resize', handleResize);
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
     };
   }, [checkScrollHints, showScrollHint, steps.length]);
+
+  useEffect(() => {
+    if (!showScrollHint) return;
+
+    // Delay check to allow for DOM updates after steps change
+    const timer = setTimeout(() => {
+      checkScrollHints();
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [steps, checkScrollHints, showScrollHint]);
 
   // Determine which step should be selected
   const selectedStep = useMemo(() => {
@@ -120,12 +183,12 @@ export const WorkflowStepper: React.FC<WorkflowStepperProps> = ({
   const styles = useMemo(
     () =>
       getStepperStyles(theme, {
-        fullWidth,
+        fullWidth: false, // No longer needed with wrapper approach
         stepCount: steps.length,
         minStepWidth,
         mode,
       }),
-    [theme, fullWidth, steps.length, minStepWidth, mode]
+    [theme, steps.length, minStepWidth, mode]
   );
 
   const stepStatistics = useMemo(() => getStepStatistics(steps), [steps]);
@@ -200,28 +263,115 @@ export const WorkflowStepper: React.FC<WorkflowStepperProps> = ({
           isClickable={clickable}
           onStepClick={handleStepClick}
           isLast={index === steps.length - 1}
+          isFirst={index === 0}
+          totalSteps={steps.length}
+          stepIndex={index}
           minWidth={minStepWidth}
           descriptionStyles={descriptionStyles}
           mode={mode}
+          fullWidth={false} // Always false now with wrapper approach
         />
       );
     });
   };
 
+  const handleScrollLeft = useCallback(() => {
+    if (!stepsWrapperRef.current) return;
+
+    const wrapper = stepsWrapperRef.current;
+    const scrollAmount = minStepWidth || 160; // Scroll by one step width
+
+    wrapper.scrollBy({
+      left: -scrollAmount,
+      behavior: 'smooth',
+    });
+
+    // Update scroll hints after animation
+    setTimeout(checkScrollHints, 300);
+  }, [minStepWidth, checkScrollHints]);
+
+  const handleScrollRight = useCallback(() => {
+    if (!stepsWrapperRef.current) return;
+
+    const wrapper = stepsWrapperRef.current;
+    const scrollAmount = minStepWidth || 160; // Scroll by one step width
+
+    wrapper.scrollBy({
+      left: scrollAmount,
+      behavior: 'smooth',
+    });
+
+    // Update scroll hints after animation
+    setTimeout(checkScrollHints, 300);
+  }, [minStepWidth, checkScrollHints]);
+
+  // NEW: Enhanced scroll hints with click functionality
   const renderScrollHints = () => {
     if (!showScrollHint) return null;
 
     return (
       <>
         {showLeftScrollHint && (
-          <div className={styles.scrollHintLeft}>
-            <Icon iconName='ChevronLeft' className={styles.scrollIcon} />
-          </div>
+          <button
+            className={styles.scrollHintLeft}
+            onClick={handleScrollLeft}
+            aria-label='Scroll left to see previous steps'
+            type='button'
+            style={{
+              // Make it clearly clickable
+              cursor: 'pointer',
+              border: 'none',
+              background: 'transparent',
+              padding: 0,
+              outline: 'none',
+            }}
+            onFocus={e => {
+              e.currentTarget.style.outline = `2px solid ${theme.palette.themePrimary}`;
+            }}
+            onBlur={e => {
+              e.currentTarget.style.outline = 'none';
+            }}
+          >
+            <Icon
+              iconName='ChevronLeft'
+              className={styles.scrollIcon}
+              style={{
+                fontSize: '16px',
+                color: theme.palette.themePrimary,
+              }}
+            />
+          </button>
         )}
         {showRightScrollHint && (
-          <div className={styles.scrollHintRight}>
-            <Icon iconName='ChevronRight' className={styles.scrollIcon} />
-          </div>
+          <button
+            className={styles.scrollHintRight}
+            onClick={handleScrollRight}
+            aria-label='Scroll right to see more steps'
+            type='button'
+            style={{
+              // Make it clearly clickable
+              cursor: 'pointer',
+              border: 'none',
+              background: 'transparent',
+              padding: 0,
+              outline: 'none',
+            }}
+            onFocus={e => {
+              e.currentTarget.style.outline = `2px solid ${theme.palette.themePrimary}`;
+            }}
+            onBlur={e => {
+              e.currentTarget.style.outline = 'none';
+            }}
+          >
+            <Icon
+              iconName='ChevronRight'
+              className={styles.scrollIcon}
+              style={{
+                fontSize: '16px',
+                color: theme.palette.themePrimary,
+              }}
+            />
+          </button>
         )}
       </>
     );
@@ -253,25 +403,27 @@ export const WorkflowStepper: React.FC<WorkflowStepperProps> = ({
         {announceText}
       </div>
 
-      {/* Steps container with scroll hints */}
-      <div style={{ position: 'relative' }}>
+      {/* WRAPPER WITH RELATIVE POSITIONING FOR ARROWS */}
+      <div className={styles.stepperContainer} style={{ position: 'relative' }}>
+        {/* SCROLLABLE CONTAINER - NO ARROWS INSIDE HERE */}
         <div
-          ref={stepsContainerRef}
-          className={styles.stepsContainer}
-          role='tablist'
-          aria-label='Workflow steps'
-          style={{
-            // Remove justify-content when fullWidth is true to avoid gaps
-            justifyContent: fullWidth ? 'flex-start' : 'flex-start',
-          }}
+          ref={stepsWrapperRef}
+          className={styles.stepsWrapper}
+          role='region'
+          aria-label='Workflow progress'
+          data-has-content={mode === 'fullSteps' ? 'true' : 'false'}
+          data-standalone={mode !== 'fullSteps' ? 'true' : 'false'}
         >
-          {renderSteps()}
+          <div className={styles.stepsContainer} role='tablist' aria-label='Workflow steps'>
+            {renderSteps()}
+          </div>
         </div>
 
+        {/* FIXED ARROWS - POSITIONED RELATIVE TO WRAPPER */}
         {renderScrollHints()}
       </div>
 
-      {/* Content area - only show in fullSteps mode */}
+      {/* Content area */}
       {mode === 'fullSteps' && <ContentArea selectedStep={selectedStep} isVisible={true} />}
 
       {/* Progress indicator for screen readers */}
