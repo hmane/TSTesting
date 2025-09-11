@@ -4,6 +4,18 @@ const build = require('@microsoft/sp-build-web');
 const bundleAnalyzer = require('webpack-bundle-analyzer');
 const path = require('path');
 
+// Fast serve configuration
+const { addFastServe } = require("spfx-fast-serve-helpers");
+
+addFastServe(build, {
+  serve: {
+    open: false,
+    port: 4321,
+    https: true,
+    host: 'localhost'
+  }
+});
+
 // Disable default SPFx tasks that we'll customize
 build.addSuppression(`Warning - [sass] The local CSS class 'ms-Grid' is not camelCase and will not be type-safe.`);
 
