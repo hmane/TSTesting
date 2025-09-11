@@ -10,11 +10,11 @@ export interface IPrincipal {
 	department?: string;
 }
 
-export type ActivityVariant = 'compact' | 'detailed' | 'timeline' | 'inline';
+export type ActivityVariant = 'compact' | 'detailed' | 'inline';
 
 export interface ActivityItemProps {
 	context: WebPartContext;
-	
+
 	/** Unique identifier for the item */
 	itemId?: string;
 

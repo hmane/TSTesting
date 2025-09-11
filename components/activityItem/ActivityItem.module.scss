@@ -1,523 +1,354 @@
-// SharePoint design tokens
-:root {
-  // Colors
-  --activity-theme-primary: #0078d4;
-  --activity-theme-primary-light: #c7e0f4;
-  --activity-theme-neutral-lighter: #f8f9fa;
-  --activity-theme-neutral-light: #edebe9;
-  --activity-theme-neutral-tertiary: #a19f9d;
-  --activity-theme-neutral-secondary: #605e5c;
-  --activity-theme-neutral-primary: #323130;
-  --activity-theme-white: #ffffff;
-  --activity-theme-success: #107c10;
-  --activity-theme-warning: #ffb900;
+// ActivityItem.module.scss - Clean and working styles
 
-  // Spacing
-  --activity-spacing-xs: 4px;
-  --activity-spacing-s: 8px;
-  --activity-spacing-m: 12px;
-  --activity-spacing-l: 16px;
-  --activity-spacing-xl: 20px;
-
-  // Typography
-  --activity-font-family: 'Segoe UI', 'Segoe UI Web (West European)', -apple-system, BlinkMacSystemFont, sans-serif;
-  --activity-font-size-xs: 11px;
-  --activity-font-size-s: 12px;
-  --activity-font-size-m: 14px;
-  --activity-font-weight-regular: 400;
-  --activity-font-weight-semibold: 600;
-  --activity-line-height: 1.4;
-
-  // Border radius
-  --activity-border-radius: 6px;
-  --activity-border-radius-large: 8px;
-
-  // Shadows
-  --activity-shadow-light: 0 1px 3px rgba(0, 0, 0, 0.1);
-  --activity-shadow-medium: 0 2px 6px rgba(0, 0, 0, 0.15);
-
-  // Animation
-  --activity-animation-fast: 0.15s;
-  --activity-easing: cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-// Base activity item
 .activityItem {
-  font-family: var(--activity-font-family);
-  font-size: var(--activity-font-size-m);
-  line-height: var(--activity-line-height);
-  color: var(--activity-theme-neutral-primary);
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px;
+  color: #323130;
+  width: 100%;
   box-sizing: border-box;
 
-  *,
-  *::before,
-  *::after {
-    box-sizing: inherit;
+  * {
+    box-sizing: border-box;
   }
 
   &.clickable {
     cursor: pointer;
-    transition: all var(--activity-animation-fast) var(--activity-easing);
+    transition: all 0.2s ease;
 
     &:hover {
-      transform: translateY(-1px);
-      box-shadow: var(--activity-shadow-medium);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
 
-    &:active {
-      transform: translateY(0);
+    &:focus-visible {
+      outline: 2px solid #0078d4;
+      outline-offset: 2px;
     }
   }
 
-  // Recently modified styling
-  &.recentlyModified {
-    position: relative;
+  &.recent {
+    border-left: 3px solid #107c10;
 
-    &::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      bottom: 0;
-      width: 3px;
-      background: var(--activity-theme-success);
-      border-radius: 0 var(--activity-border-radius) var(--activity-border-radius) 0;
+    .action {
+      color: #107c10;
+      font-weight: 600;
     }
 
-    .timeText {
-      color: var(--activity-theme-success);
-      font-weight: var(--activity-font-weight-semibold);
-    }
-
-    .activityText {
-      color: var(--activity-theme-success);
+    .time {
+      color: #107c10;
+      font-weight: 600;
     }
   }
 }
 
-// Compact variant - single line with avatars
-.variantCompact {
-  display: flex;
-  align-items: center;
-  gap: var(--activity-spacing-s);
-  padding: var(--activity-spacing-s) var(--activity-spacing-m);
-  background: var(--activity-theme-white);
-  border: 1px solid var(--activity-theme-neutral-light);
-  border-radius: var(--activity-border-radius);
+// Persona wrapper
+.persona {
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
 
-  &.recentlyModified {
-    border-left-color: var(--activity-theme-success);
-    border-left-width: 3px;
-    background: linear-gradient(90deg, rgba(16, 124, 16, 0.05) 0%, var(--activity-theme-white) 20%);
+  &:hover {
+    background-color: #f3f2f1;
   }
 
-  .activityContent {
-    display: flex;
-    align-items: center;
-    gap: var(--activity-spacing-s);
+  &:focus-visible {
+    outline: 2px solid #0078d4;
+    outline-offset: 1px;
+  }
+}
+
+// Icons
+.iconCreated {
+  color: #0078d4;
+  font-size: 12px;
+  margin-right: 6px;
+  flex-shrink: 0;
+}
+
+.iconModified {
+  color: #107c10;
+  font-size: 12px;
+  margin-right: 6px;
+  flex-shrink: 0;
+}
+
+// Compact variant
+.compact {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  background: #ffffff;
+  border: 1px solid #e1dfdd;
+  border-radius: 4px;
+
+  &:hover {
+    background-color: #faf9f8;
+  }
+
+  .avatar {
+    flex-shrink: 0;
+  }
+
+  .content {
     flex: 1;
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
   }
 
-  .personaSection {
+  .main {
     display: flex;
     align-items: center;
-    gap: var(--activity-spacing-xs);
-    min-width: 0;
 
-    .personaName {
-      font-weight: var(--activity-font-weight-semibold);
-      color: var(--activity-theme-primary);
-      white-space: nowrap;
+    .action {
+      color: #323130;
+      font-size: 14px;
+      font-weight: 400;
       overflow: hidden;
       text-overflow: ellipsis;
-    }
-
-    .activityText {
-      font-size: var(--activity-font-size-s);
-      color: var(--activity-theme-neutral-secondary);
       white-space: nowrap;
     }
   }
 
-  .timeSection {
-    display: flex;
-    align-items: center;
-    gap: var(--activity-spacing-s);
+  .original {
+    color: #605e5c;
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .timestamp {
     flex-shrink: 0;
 
-    .timeText {
-      font-size: var(--activity-font-size-s);
-      color: var(--activity-theme-neutral-tertiary);
+    .time {
+      color: #605e5c;
+      font-size: 12px;
       white-space: nowrap;
     }
   }
 
-  .separator {
-    color: var(--activity-theme-neutral-tertiary);
-    margin: 0 var(--activity-spacing-xs);
+  // Mobile
+  @media (max-width: 480px) {
+    flex-direction: column;
+    gap: 8px;
+
+    .timestamp {
+      align-self: flex-start;
+    }
   }
 }
 
-// Detailed variant - card format
-.variantDetailed {
-  background: var(--activity-theme-white);
-  border: 1px solid var(--activity-theme-neutral-light);
-  border-radius: var(--activity-border-radius-large);
-  padding: var(--activity-spacing-l);
-  box-shadow: var(--activity-shadow-light);
+// Detailed variant
+.detailed {
+  background: #ffffff;
+  border: 1px solid #e1dfdd;
+  border-radius: 6px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 
-  &.recentlyModified {
-    border-left-color: var(--activity-theme-success);
-    border-left-width: 4px;
-    background: linear-gradient(90deg, rgba(16, 124, 16, 0.03) 0%, var(--activity-theme-white) 15%);
-
-    .activityHeader {
-      position: relative;
-
-      &::after {
-        content: 'Recently modified';
-        position: absolute;
-        top: -8px;
-        right: 0;
-        font-size: var(--activity-font-size-xs);
-        color: var(--activity-theme-success);
-        background: rgba(16, 124, 16, 0.1);
-        padding: 2px 6px;
-        border-radius: var(--activity-border-radius);
-        font-weight: var(--activity-font-weight-semibold);
-      }
-    }
+  &:hover {
+    background-color: #faf9f8;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
   }
 
-  .activityHeader {
+  .avatar {
+    flex-shrink: 0;
+  }
+
+  .content {
+    flex: 1;
+    min-width: 0;
     display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: var(--activity-spacing-m);
-    margin-bottom: var(--activity-spacing-m);
+    flex-direction: column;
+    gap: 6px;
   }
 
-  .activitySection {
+  .main {
     display: flex;
     align-items: center;
-    gap: var(--activity-spacing-s);
-    margin-bottom: var(--activity-spacing-s);
 
-    &:last-child {
-      margin-bottom: 0;
-    }
-
-    .personaContainer {
-      display: flex;
-      align-items: center;
-      gap: var(--activity-spacing-s);
-      flex: 1;
-      min-width: 0;
-    }
-
-    .activityDetails {
-      display: flex;
-      flex-direction: column;
-      gap: var(--activity-spacing-xs);
-      min-width: 0;
-
-      .personaName {
-        font-weight: var(--activity-font-weight-semibold);
-        color: var(--activity-theme-primary);
-      }
-
-      .activityText {
-        font-size: var(--activity-font-size-s);
-        color: var(--activity-theme-neutral-secondary);
-      }
-    }
-
-    .timeDetails {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: var(--activity-spacing-xs);
-      flex-shrink: 0;
-
-      .timeText {
-        font-size: var(--activity-font-size-s);
-        color: var(--activity-theme-neutral-secondary);
-        font-weight: var(--activity-font-weight-semibold);
-      }
-
-      .relativeTime {
-        font-size: var(--activity-font-size-xs);
-        color: var(--activity-theme-neutral-tertiary);
-      }
+    .action {
+      color: #323130;
+      font-size: 16px;
+      font-weight: 600;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
   }
 
-  .divider {
-    height: 1px;
-    background: var(--activity-theme-neutral-light);
-    margin: var(--activity-spacing-s) 0;
-  }
-}
+  .metadata {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
 
-// Timeline variant - vertical flow
-.variantTimeline {
-  position: relative;
-  padding-left: var(--activity-spacing-xl);
-
-  &::before {
-    content: '';
-    position: absolute;
-    left: 10px;
-    top: 0;
-    bottom: 0;
-    width: 2px;
-    background: var(--activity-theme-neutral-light);
-  }
-
-  &.recentlyModified {
-    &::before {
-      background: linear-gradient(to bottom, var(--activity-theme-success) 0%, var(--activity-theme-neutral-light) 50%);
-    }
-  }
-
-  .timelineItem {
-    position: relative;
-    margin-bottom: var(--activity-spacing-l);
-
-    &::before {
-      content: '';
-      position: absolute;
-      left: -26px;
-      top: 8px;
-      width: 8px;
-      height: 8px;
-      background: var(--activity-theme-primary);
-      border-radius: 50%;
-      border: 2px solid var(--activity-theme-white);
-      box-shadow: 0 0 0 2px var(--activity-theme-primary);
+    .jobTitle {
+      color: #605e5c;
+      font-size: 12px;
     }
 
-    &.modified::before {
-      background: var(--activity-theme-success);
-      box-shadow: 0 0 0 2px var(--activity-theme-success);
-
-      .recentlyModified & {
-        animation: pulse 2s infinite;
-      }
-    }
-
-    .timelineContent {
-      background: var(--activity-theme-white);
-      border: 1px solid var(--activity-theme-neutral-light);
-      border-radius: var(--activity-border-radius);
-      padding: var(--activity-spacing-m);
-
-      .recentlyModified & {
-        border-left-color: var(--activity-theme-success);
-        border-left-width: 3px;
-        background: linear-gradient(90deg, rgba(16, 124, 16, 0.03) 0%, var(--activity-theme-white) 20%);
-      }
-
-      .timelineHeader {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: var(--activity-spacing-s);
-        margin-bottom: var(--activity-spacing-xs);
-      }
-
-      .personaInfo {
-        display: flex;
-        align-items: center;
-        gap: var(--activity-spacing-s);
-
-        .personaName {
-          font-weight: var(--activity-font-weight-semibold);
-          color: var(--activity-theme-primary);
-        }
-      }
-
-      .activityLabel {
-        font-size: var(--activity-font-size-s);
-        color: var(--activity-theme-neutral-secondary);
-      }
-
-      .timeInfo {
-        font-size: var(--activity-font-size-xs);
-        color: var(--activity-theme-neutral-tertiary);
-      }
-    }
-  }
-}
-
-// Inline variant - minimal text
-.variantInline {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--activity-spacing-xs);
-  font-size: var(--activity-font-size-s);
-
-  &.recentlyModified {
-    .inlineTime {
-      color: var(--activity-theme-success);
-      font-weight: var(--activity-font-weight-semibold);
+    .department {
+      color: #605e5c;
+      font-size: 12px;
 
       &::before {
-        content: '●';
+        content: '• ';
         margin-right: 4px;
-        color: var(--activity-theme-success);
-        animation: pulse 2s infinite;
       }
     }
   }
 
-  .inlineText {
-    color: var(--activity-theme-neutral-secondary);
+  .original {
+    color: #605e5c;
+    font-size: 12px;
+    border-top: 1px solid #e1dfdd;
+    padding-top: 8px;
+    margin-top: 4px;
   }
 
-  .inlinePersona {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--activity-spacing-xs);
+  .timestamp {
+    flex-shrink: 0;
 
-    .personaName {
-      color: var(--activity-theme-primary);
-      font-weight: var(--activity-font-weight-semibold);
+    .time {
+      color: #605e5c;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
     }
   }
 
-  .inlineTime {
-    color: var(--activity-theme-neutral-tertiary);
-    font-weight: var(--activity-font-weight-regular);
+  // Mobile
+  @media (max-width: 480px) {
+    padding: 12px;
+    flex-direction: column;
+    gap: 8px;
+
+    .timestamp {
+      align-self: flex-start;
+    }
+
+    .metadata {
+      flex-direction: column;
+      gap: 2px;
+
+      .department::before {
+        display: none;
+      }
+    }
   }
 }
 
-// Pulse animation for recent modifications
+// Shared layout for compact and detailed
+.compact,
+.detailed {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+// Inline variant
+.inline {
+  display: inline;
+  font-size: 12px;
+
+  .inlineText {
+    color: #605e5c;
+  }
+
+  .inlineUser {
+    color: #0078d4;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+
+    &:hover {
+      color: #106ebe;
+      text-decoration: underline;
+    }
+
+    &:focus-visible {
+      outline: 2px solid #0078d4;
+      outline-offset: 1px;
+      border-radius: 2px;
+    }
+  }
+
+  &.recent {
+    .inlineText {
+      color: #107c10;
+      font-weight: 600;
+
+      &::before {
+        content: '● ';
+        color: #107c10;
+        animation: pulse 2s infinite;
+      }
+    }
+  }
+}
+
+// Animation
 @keyframes pulse {
-  0% {
+  0%, 100% {
     opacity: 1;
   }
   50% {
-    opacity: 0.5;
-  }
-  100% {
-    opacity: 1;
+    opacity: 0.6;
   }
 }
 
-// Responsive behavior
-@media (max-width: 640px) {
-  .variantCompact {
-    flex-direction: column;
-    align-items: stretch;
-    gap: var(--activity-spacing-s);
-
-    &.recentlyModified::before {
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: auto;
-      width: auto;
-      height: 3px;
-      border-radius: var(--activity-border-radius) var(--activity-border-radius) 0 0;
-    }
-
-    .activityContent {
-      flex-direction: column;
-      align-items: stretch;
-      gap: var(--activity-spacing-s);
-    }
-
-    .timeSection {
-      justify-content: center;
-    }
-  }
-
-  .variantDetailed {
-    .activityHeader {
-      flex-direction: column;
-      gap: var(--activity-spacing-s);
-    }
-
-    .activitySection {
-      flex-direction: column;
-      align-items: stretch;
-      gap: var(--activity-spacing-s);
-
-      .timeDetails {
-        align-items: flex-start;
-      }
-    }
-
-    &.recentlyModified .activityHeader::after {
-      position: static;
-      align-self: flex-start;
-      margin-bottom: var(--activity-spacing-s);
-    }
-  }
-
-  .variantTimeline {
-    padding-left: var(--activity-spacing-m);
-
-    &::before {
-      left: 6px;
-    }
-
-    .timelineItem::before {
-      left: -18px;
-    }
-  }
-}
-
-// High contrast support
+// High contrast
 @media (forced-colors: active) {
   .activityItem {
-    border: 1px solid ButtonBorder;
+    border: 1px solid ButtonBorder !important;
+    background: ButtonFace !important;
 
-    &.recentlyModified::before {
-      background: Highlight;
+    .action,
+    .time {
+      color: ButtonText !important;
     }
 
-    .personaName {
-      color: LinkText;
+    .inlineUser {
+      color: LinkText !important;
     }
 
-    .timeText,
-    .activityText {
-      color: ButtonText;
-    }
+    &.recent {
+      border-left-color: Highlight !important;
 
-    &.recentlyModified {
-      .timeText,
-      .activityText {
-        color: Highlight;
+      .action,
+      .time {
+        color: Highlight !important;
       }
     }
   }
 }
 
-// Reduced motion support
+// Reduced motion
 @media (prefers-reduced-motion: reduce) {
-  .activityItem.clickable {
+  .activityItem.clickable:hover {
     transition: none;
+  }
 
-    &:hover {
-      transform: none;
+  .inline.recent .inlineText::before {
+    animation: none;
+  }
+}
+
+// Print
+@media print {
+  .activityItem {
+    background: white !important;
+    border: 1px solid #ccc !important;
+    box-shadow: none !important;
+
+    .persona:hover {
+      background: transparent !important;
     }
-  }
 
-  .timelineItem.modified::before {
-    animation: none;
-  }
-
-  .variantInline.recentlyModified .inlineTime::before {
-    animation: none;
-  }
-
-  @keyframes pulse {
-    0%, 100% {
-      opacity: 1;
+    &.clickable:hover {
+      box-shadow: none !important;
     }
   }
 }

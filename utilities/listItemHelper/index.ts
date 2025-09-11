@@ -1,27 +1,16 @@
 /**
- * SharePoint List Item Helper Utility
- * A comprehensive, type-safe utility for building SharePoint list item updates and extracting data
+ * SharePoint Value Utilities - Main Exports
+ * File: index.ts
  */
 
 // Export all types and interfaces
 export type {
-  FieldMapping, FieldSchema, IListItemFormUpdateValue, IPrincipal, SafeExtractionResult, TaxonomyFieldValue
-} from './types';
+  IListItemFormUpdateValue, IPrincipal, SPImage, SPLocation, SPLookup,
+  SPTaxonomy,
+  SPUrl
+} from './spTypes';
 
-// Export enums
-export { SPFieldType } from './types';
-
-// Export out-of-the-box fields
-export { OOBFields } from './oobFields';
-
-// Export main helper class
-export { ListItemHelper } from './ListItemHelper';
-
-// Export updater class for direct use
-export { ListItemUpdater } from './listItemUpdater';
-
-// Export utility functions for advanced scenarios
-export { convertFieldValue } from './fieldConverter';
-export { addDirectUpdateValue, formatValueByType } from './fieldFormatter';
-export { extract, safeExtract } from './listItemExtractor';
+// Export utility functions
+export { createSPExtractor } from './spExtractor';
+export { createSPUpdater } from './spUpdater';
 

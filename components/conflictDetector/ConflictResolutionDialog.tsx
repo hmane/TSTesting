@@ -544,7 +544,7 @@ export const ConflictHandler: React.FC<ConflictHandlerProps> = ({
 
   // Only import the notification component when needed to avoid circular dependencies
   const NotificationComponent = React.lazy(() =>
-    import('./ConflictNotificationBar').then(module => ({
+    import(/* webpackChunkName: 'conflict-notification-bar' */ './ConflictNotificationBar').then(module => ({
       default: module.ConflictNotificationBar,
     }))
   );

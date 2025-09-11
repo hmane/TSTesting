@@ -59,12 +59,7 @@ const getAbsoluteTime = (date: Date, showTime: boolean = true): string => {
 const isRecentModification = (modifiedDate: Date, createdDate: Date): boolean => {
   const now = new Date();
   const timeSinceModified = now.getTime() - modifiedDate.getTime();
-
-  // Recent if modified within 24 hours OR if modified more than 1 hour after creation
-  return (
-    timeSinceModified < 24 * 60 * 60 * 1000 ||
-    modifiedDate.getTime() - createdDate.getTime() > 60 * 60 * 1000
-  );
+  return timeSinceModified < 24 * 60 * 60 * 1000;
 };
 
 // Main ActivityItem Component
@@ -108,66 +103,48 @@ export const ActivityItem = memo<ActivityItemProps>(
     // Determine if we should show modification info
     const shouldShowModification = useMemo(() => {
       if (!modifiedBy || !modifiedDate) return false;
-
-      // Don't show if modified by same person within 5 minutes of creation
       const timeDiff = modifiedDate.getTime() - createdDate.getTime();
       const isSamePerson = modifiedBy.email === createdBy.email;
-
       return !(isSamePerson && timeDiff < 5 * 60 * 1000);
     }, [modifiedBy, modifiedDate, createdBy, createdDate]);
 
+    // Use the most recent activity for display
+    const displayUser = shouldShowModification && modifiedBy ? modifiedBy : createdBy;
+    const displayDate = shouldShowModification && modifiedDate ? modifiedDate : createdDate;
+    const displayAction = shouldShowModification && modifiedBy ? 'modified' : 'created';
+    const isRecent =
+      shouldShowModification && modifiedDate
+        ? isRecentModification(modifiedDate, createdDate)
+        : false;
+
     // Memoized time formatting
     const timeInfo = useMemo(() => {
-      const createdTime = showRelativeTime
-        ? getRelativeTime(createdDate)
-        : getAbsoluteTime(createdDate);
-
-      const modifiedTime =
-        modifiedDate && shouldShowModification
-          ? showRelativeTime
-            ? getRelativeTime(modifiedDate)
-            : getAbsoluteTime(modifiedDate)
-          : null;
+      const displayTime = showRelativeTime
+        ? getRelativeTime(displayDate)
+        : getAbsoluteTime(displayDate);
 
       return {
-        created: {
-          relative: getRelativeTime(createdDate),
-          absolute: getAbsoluteTime(createdDate),
-          display: createdTime,
-        },
-        modified: modifiedTime
-          ? {
-              relative: getRelativeTime(modifiedDate!),
-              absolute: getAbsoluteTime(modifiedDate!),
-              display: modifiedTime,
-              isRecent: isRecentModification(modifiedDate!, createdDate),
-            }
-          : null,
+        relative: getRelativeTime(displayDate),
+        absolute: getAbsoluteTime(displayDate),
+        display: displayTime,
       };
-    }, [createdDate, modifiedDate, showRelativeTime, shouldShowModification]);
+    }, [displayDate, showRelativeTime]);
 
-    // Click handlers with proper event handling
-    const handleCreatedByClick = useCallback(
+    // Click handlers
+    const handleUserClick = useCallback(
       (e: React.MouseEvent) => {
         e.stopPropagation();
-        onCreatedByClick?.(createdBy);
-      },
-      [createdBy, onCreatedByClick]
-    );
-
-    const handleModifiedByClick = useCallback(
-      (e: React.MouseEvent) => {
-        e.stopPropagation();
-        if (modifiedBy) {
-          onModifiedByClick?.(modifiedBy);
+        if (displayAction === 'created') {
+          onCreatedByClick?.(displayUser);
+        } else {
+          onModifiedByClick?.(displayUser);
         }
       },
-      [modifiedBy, onModifiedByClick]
+      [displayUser, displayAction, onCreatedByClick, onModifiedByClick]
     );
 
     const handleItemClick = useCallback(
       (e: React.MouseEvent) => {
-        // Only trigger if clicking on the container, not on interactive elements
         if (onClick && e.target === e.currentTarget) {
           onClick();
         }
@@ -175,37 +152,30 @@ export const ActivityItem = memo<ActivityItemProps>(
       [onClick]
     );
 
-    // Component classes with proper type safety
+    // Component classes
     const componentClasses = useMemo(() => {
       const classes = [styles.activityItem];
 
-      // Add variant class with explicit type checking
       switch (variant) {
         case 'compact':
-          classes.push(styles.variantCompact);
+          classes.push(styles.compact);
           break;
         case 'detailed':
-          classes.push(styles.variantDetailed);
-          break;
-        case 'timeline':
-          classes.push(styles.variantTimeline);
+          classes.push(styles.detailed);
           break;
         case 'inline':
-          classes.push(styles.variantInline);
+          classes.push(styles.inline);
           break;
         default:
-          console.warn(`ActivityItem: Unknown variant "${variant}", defaulting to compact`);
-          classes.push(styles.variantCompact);
+          classes.push(styles.compact);
       }
 
-      // Add clickable class if onClick handler provided
       if (onClick) {
         classes.push(styles.clickable);
       }
 
-      // Add recent modification class for styling
-      if (timeInfo.modified?.isRecent) {
-        classes.push(styles.recentlyModified);
+      if (isRecent) {
+        classes.push(styles.recent);
       }
 
       if (className) {
@@ -213,290 +183,124 @@ export const ActivityItem = memo<ActivityItemProps>(
       }
 
       return classes.join(' ');
-    }, [variant, onClick, className, timeInfo.modified?.isRecent]);
+    }, [variant, onClick, className, isRecent]);
 
-    // Render LivePersona component with correct props only
+    // Render persona
     const renderPersona = useCallback(
-      (
-        user: IPrincipal,
-        size: PersonaSize = PersonaSize.size32,
-        onClickHandler?: (e: React.MouseEvent) => void
-      ) => {
-        // Fallback for missing user data
+      (user: IPrincipal, size: PersonaSize = PersonaSize.size32) => {
         const displayName = user.title || user.email || 'Unknown User';
         const secondaryText = user.jobTitle || user.email || '';
 
         return (
           <div
-            onClick={onClickHandler}
-            style={{
-              cursor: onClickHandler ? 'pointer' : 'default',
-              display: 'inline-block',
+            onClick={handleUserClick}
+            className={styles.persona}
+            role='button'
+            tabIndex={0}
+            onKeyDown={e => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleUserClick(e as any);
+              }
             }}
-            role={onClickHandler ? 'button' : undefined}
-            tabIndex={onClickHandler ? 0 : undefined}
-            onKeyDown={
-              onClickHandler
-                ? e => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      onClickHandler(e as any);
-                    }
-                  }
-                : undefined
-            }
-            aria-label={onClickHandler ? `View ${displayName}'s profile` : undefined}
+            aria-label={`View ${displayName}'s profile`}
           >
             <LivePersona
               upn={user.email}
               serviceScope={context.serviceScope}
-              disableHover={false}
+              disableHover={!showSharedFiles}
               template={
                 <Persona
                   text={displayName}
                   secondaryText={secondaryText}
                   size={size}
-                  imageUrl={undefined} // Let LivePersona handle the image
+                  imageUrl={undefined}
                 />
               }
             />
           </div>
         );
       },
-      [context]
+      [context, handleUserClick, showSharedFiles]
     );
 
-    // Render time with tooltip and enhanced accessibility
-    const renderTimeWithTooltip = useCallback(
-      (timeData: typeof timeInfo.created | typeof timeInfo.modified, label: string) => {
-        if (!timeData) return null;
-
-        return (
-          <TooltipHost content={`${label}: ${timeData.absolute}`}>
-            <span
-              className={styles.timeText}
-              title={timeData.absolute}
-              aria-label={`${label}: ${timeData.absolute}`}
-            >
-              {timeData.display}
-            </span>
-          </TooltipHost>
-        );
-      },
-      []
-    );
-
-    // Enhanced icon rendering with activity type
-    const renderActivityIcon = useCallback((activityType: 'created' | 'modified') => {
-      const iconName = activityType === 'created' ? 'Add' : 'Edit';
-      const iconColor =
-        activityType === 'created'
-          ? 'var(--activity-theme-primary)'
-          : 'var(--activity-theme-success)';
-
+    // Render time
+    const renderTime = useCallback(() => {
+      const label = displayAction === 'created' ? 'Created' : 'Last modified';
       return (
-        <Icon
-          iconName={iconName}
-          style={{
-            marginRight: 4,
-            color: iconColor,
-            fontSize: '12px',
-          }}
-          aria-hidden='true'
-        />
+        <TooltipHost content={`${label}: ${timeInfo.absolute}`}>
+          <span className={styles.time} title={timeInfo.absolute}>
+            {timeInfo.display}
+          </span>
+        </TooltipHost>
       );
-    }, []);
+    }, [displayAction, timeInfo]);
 
-    // Render variants with enhanced functionality
-    const renderCompactVariant = () => (
+    // Render variants
+    if (variant === 'inline') {
+      return (
+        <span className={componentClasses} style={style}>
+          <span className={styles.inlineText}>
+            {displayAction === 'created' ? 'Created' : 'Modified'} by{' '}
+            <span
+              className={styles.inlineUser}
+              onClick={handleUserClick}
+              role='button'
+              tabIndex={0}
+            >
+              {displayUser.title}
+            </span>{' '}
+            {timeInfo.display}
+          </span>
+        </span>
+      );
+    }
+
+    return (
       <div
         className={componentClasses}
         style={style}
         onClick={handleItemClick}
         role={onClick ? 'button' : undefined}
         tabIndex={onClick ? 0 : undefined}
-        onKeyDown={
-          onClick
-            ? e => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  handleItemClick(e as any);
-                }
-              }
-            : undefined
-        }
       >
-        <div className={styles.activityContent}>
-          <div className={styles.personaSection}>
-            {renderPersona(createdBy, PersonaSize.size24, handleCreatedByClick)}
-            <span className={styles.personaName}>{createdBy.title}</span>
-            <span className={styles.activityText}>created</span>
-          </div>
-
-          {shouldShowModification && modifiedBy && modifiedDate && (
-            <>
-              <span className={styles.separator}>•</span>
-              <div className={styles.personaSection}>
-                {renderPersona(modifiedBy, PersonaSize.size24, handleModifiedByClick)}
-                <span className={styles.personaName}>{modifiedBy.title}</span>
-                <span className={styles.activityText}>modified</span>
-              </div>
-            </>
+        <div className={styles.avatar}>
+          {renderPersona(
+            displayUser,
+            variant === 'detailed' ? PersonaSize.size40 : PersonaSize.size32
           )}
         </div>
 
-        <div className={styles.timeSection}>
-          {timeInfo.modified
-            ? renderTimeWithTooltip(timeInfo.modified, 'Last modified')
-            : renderTimeWithTooltip(timeInfo.created, 'Created')}
-        </div>
-      </div>
-    );
-
-    const renderDetailedVariant = () => (
-      <div
-        className={componentClasses}
-        style={style}
-        onClick={handleItemClick}
-        role={onClick ? 'button' : undefined}
-        tabIndex={onClick ? 0 : undefined}
-      >
-        <div className={styles.activitySection}>
-          <div className={styles.personaContainer}>
-            {renderPersona(createdBy, PersonaSize.size40, handleCreatedByClick)}
-            <div className={styles.activityDetails}>
-              <span className={styles.personaName}>{createdBy.title}</span>
-              <span className={styles.activityText}>Created this item</span>
-            </div>
-          </div>
-          <div className={styles.timeDetails}>
-            {renderTimeWithTooltip(timeInfo.created, 'Created')}
-            {showRelativeTime && (
-              <span className={styles.relativeTime}>{timeInfo.created.relative}</span>
-            )}
-          </div>
-        </div>
-
-        {shouldShowModification && modifiedBy && modifiedDate && timeInfo.modified && (
-          <>
-            <div className={styles.divider} />
-            <div className={styles.activitySection}>
-              <div className={styles.personaContainer}>
-                {renderPersona(modifiedBy, PersonaSize.size40, handleModifiedByClick)}
-                <div className={styles.activityDetails}>
-                  <span className={styles.personaName}>{modifiedBy.title}</span>
-                  <span className={styles.activityText}>Last modified</span>
-                </div>
-              </div>
-              <div className={styles.timeDetails}>
-                {renderTimeWithTooltip(timeInfo.modified, 'Last modified')}
-                {showRelativeTime && (
-                  <span className={styles.relativeTime}>{timeInfo.modified.relative}</span>
-                )}
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-    );
-
-    const renderTimelineVariant = () => (
-      <div className={componentClasses} style={style}>
-        <div className={styles.timelineItem}>
-          <div
-            className={styles.timelineContent}
-            onClick={handleItemClick}
-            role={onClick ? 'button' : undefined}
-            tabIndex={onClick ? 0 : undefined}
-          >
-            <div className={styles.timelineHeader}>
-              <div className={styles.personaInfo}>
-                {renderPersona(createdBy, PersonaSize.size32, handleCreatedByClick)}
-                <span className={styles.personaName}>{createdBy.title}</span>
-              </div>
-              <span className={styles.timeInfo}>{timeInfo.created.display}</span>
-            </div>
-            <div className={styles.activityLabel}>
-              {renderActivityIcon('created')}
-              Created this item
-            </div>
-          </div>
-        </div>
-
-        {shouldShowModification && modifiedBy && modifiedDate && timeInfo.modified && (
-          <div className={`${styles.timelineItem} ${styles.modified}`}>
-            <div
-              className={styles.timelineContent}
-              onClick={handleItemClick}
-              role={onClick ? 'button' : undefined}
-              tabIndex={onClick ? 0 : undefined}
-            >
-              <div className={styles.timelineHeader}>
-                <div className={styles.personaInfo}>
-                  {renderPersona(modifiedBy, PersonaSize.size32, handleModifiedByClick)}
-                  <span className={styles.personaName}>{modifiedBy.title}</span>
-                </div>
-                <span className={styles.timeInfo}>{timeInfo.modified.display}</span>
-              </div>
-              <div className={styles.activityLabel}>
-                {renderActivityIcon('modified')}
-                Modified this item
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-
-    const renderInlineVariant = () => (
-      <span
-        className={componentClasses}
-        style={style}
-        onClick={handleItemClick}
-        role={onClick ? 'button' : undefined}
-        tabIndex={onClick ? 0 : undefined}
-      >
-        <span className={styles.inlineText}>Created by </span>
-        <span className={styles.inlinePersona}>
-          {renderPersona(createdBy, PersonaSize.size24, handleCreatedByClick)}
-          <span className={styles.personaName}>{createdBy.title}</span>
-        </span>
-        <span className={styles.inlineTime}> {timeInfo.created.display}</span>
-
-        {shouldShowModification && modifiedBy && modifiedDate && timeInfo.modified && (
-          <>
-            <span className={styles.inlineText}>, modified by </span>
-            <span className={styles.inlinePersona}>
-              {renderPersona(modifiedBy, PersonaSize.size24, handleModifiedByClick)}
-              <span className={styles.personaName}>{modifiedBy.title}</span>
+        <div className={styles.content}>
+          <div className={styles.main}>
+            <Icon
+              iconName={displayAction === 'created' ? 'Add' : 'Edit'}
+              className={displayAction === 'created' ? styles.iconCreated : styles.iconModified}
+            />
+            <span className={styles.action}>
+              {displayAction === 'created' ? 'created' : 'modified'} this item
             </span>
-            <span className={styles.inlineTime}> {timeInfo.modified.display}</span>
-          </>
-        )}
-      </span>
-    );
+          </div>
 
-    // Render based on variant with error boundary
-    try {
-      switch (variant) {
-        case 'detailed':
-          return renderDetailedVariant();
-        case 'timeline':
-          return renderTimelineVariant();
-        case 'inline':
-          return renderInlineVariant();
-        case 'compact':
-        default:
-          return renderCompactVariant();
-      }
-    } catch (error) {
-      console.error('ActivityItem: Error rendering component', error);
-      return (
-        <div className={styles.activityItem} style={{ color: 'red', padding: '8px' }}>
-          Error rendering activity item
+          {variant === 'detailed' && (
+            <div className={styles.metadata}>
+              {displayUser.jobTitle && (
+                <span className={styles.jobTitle}>{displayUser.jobTitle}</span>
+              )}
+              {displayUser.department && (
+                <span className={styles.department}>{displayUser.department}</span>
+              )}
+            </div>
+          )}
+
+          {shouldShowModification && (
+            <div className={styles.original}>Originally created {getRelativeTime(createdDate)}</div>
+          )}
         </div>
-      );
-    }
+
+        <div className={styles.timestamp}>{renderTime()}</div>
+      </div>
+    );
   }
 );
 
