@@ -1,0 +1,319 @@
+// ===========================================
+// FormError Component Styles
+// ===========================================
+
+@import '../styles/variables';
+@import '../styles/mixins';
+
+.formError {
+  display: block;
+  width: 100%;
+  margin-top: $form-feedback-margin-top;
+  font-size: $form-feedback-font-size;
+  line-height: 1.4;
+
+  // Size variants
+  &.sizeSm {
+    font-size: $form-feedback-font-size * 0.875;
+    margin-top: $form-feedback-margin-top * 0.75;
+
+    .icon {
+      width: 12px;
+      height: 12px;
+    }
+  }
+
+  &.sizeLg {
+    font-size: $form-feedback-font-size * 1.125;
+    margin-top: $form-feedback-margin-top * 1.25;
+
+    .icon {
+      width: 18px;
+      height: 18px;
+    }
+  }
+
+  // Variant styles
+  &.variantDefault {
+    color: $form-feedback-invalid-color;
+  }
+
+  &.variantInline {
+    display: inline-block;
+    margin-top: 0;
+    margin-left: 0.5rem;
+  }
+
+  &.variantTooltip {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 1070;
+    background-color: $form-feedback-invalid-color;
+    color: $white;
+    padding: 0.5rem;
+    border-radius: $input-border-radius;
+    font-size: $form-feedback-font-size * 0.875;
+    box-shadow: 0 2px 4px rgba($black, 0.15);
+    margin-top: 4px;
+
+    &::before {
+      content: '';
+      position: absolute;
+      bottom: 100%;
+      left: 12px;
+      border: 4px solid transparent;
+      border-bottom-color: $form-feedback-invalid-color;
+    }
+  }
+
+  // Validation states
+  &.stateInvalid {
+    color: $form-feedback-invalid-color;
+
+    .icon {
+      color: $form-feedback-invalid-color;
+    }
+  }
+
+  &.stateValid {
+    color: $form-feedback-valid-color;
+
+    .icon {
+      color: $form-feedback-valid-color;
+    }
+  }
+
+  &.stateValidating {
+    color: $info;
+
+    .icon {
+      color: $info;
+      animation: spin 1s linear infinite;
+    }
+  }
+
+  &.stateIdle {
+    opacity: 0;
+    visibility: hidden;
+  }
+
+  // Animation classes
+  &.animated {
+    transition: opacity 0.3s ease-in-out,
+                visibility 0.3s ease-in-out,
+                transform 0.3s ease-in-out;
+
+    &.entering {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+
+    &.entered {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    &.exiting {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+
+    &.exited {
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-8px);
+    }
+  }
+}
+
+// Error content wrapper
+.errorContent {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.375rem;
+
+  // Inline variant
+  .variantInline & {
+    align-items: center;
+    gap: 0.25rem;
+  }
+}
+
+// Error icon
+.icon {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  margin-top: 0.125rem; // Slight offset to align with text
+
+  // Inline variant
+  .variantInline & {
+    margin-top: 0;
+  }
+
+  // Custom icon styling
+  &.iconCustom {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+// Error message text
+.errorMessage {
+  flex: 1;
+  margin: 0;
+
+  // Handle multiple error messages
+  &.multipleErrors {
+    ul {
+      margin: 0;
+      padding-left: 1rem;
+
+      li {
+        margin-bottom: 0.25rem;
+
+        &:last-child {
+          margin-bottom: 0;
+        }
+      }
+    }
+  }
+}
+
+// Success state
+.successMessage {
+  color: $form-feedback-valid-color;
+
+  .icon {
+    color: $form-feedback-valid-color;
+  }
+}
+
+// Debug mode styles
+.debug {
+  position: relative;
+  outline: 1px dashed rgba($danger, 0.4);
+  background: rgba($danger, 0.05);
+  padding: 0.25rem;
+
+  &::before {
+    content: 'FormError Debug: ' attr(data-error-state);
+    position: absolute;
+    top: -20px;
+    left: 0;
+    font-size: 9px;
+    color: $danger;
+    background: rgba($danger, 0.1);
+    padding: 2px 4px;
+    border-radius: 2px;
+    z-index: 1000;
+    white-space: nowrap;
+  }
+
+  &.stateValid::before {
+    color: $success;
+    background: rgba($success, 0.1);
+  }
+
+  &.stateValidating::before {
+    color: $info;
+    background: rgba($info, 0.1);
+  }
+}
+
+// Default icons using CSS
+.defaultErrorIcon::before {
+  content: '✗';
+  font-weight: bold;
+}
+
+.defaultSuccessIcon::before {
+  content: '✓';
+  font-weight: bold;
+}
+
+.defaultValidatingIcon::before {
+  content: '⟳';
+  font-weight: bold;
+}
+
+// Animations
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-4px);
+  }
+  75% {
+    transform: translateX(4px);
+  }
+}
+
+// Shake animation for new errors
+.formError.newError {
+  animation: shake 0.5s ease-in-out;
+}
+
+// High contrast mode support
+@media (prefers-contrast: high) {
+  .formError {
+    font-weight: 600;
+
+    &.stateInvalid {
+      border-left: 3px solid $form-feedback-invalid-color;
+      padding-left: 0.5rem;
+    }
+
+    &.stateValid {
+      border-left: 3px solid $form-feedback-valid-color;
+      padding-left: 0.5rem;
+    }
+  }
+}
+
+// Reduced motion support
+@media (prefers-reduced-motion: reduce) {
+  .formError {
+    &.animated {
+      transition: none;
+    }
+
+    .icon {
+      animation: none !important;
+    }
+  }
+
+  .newError {
+    animation: none;
+  }
+}
+
+// Print styles
+@media print {
+  .formError {
+    &.stateInvalid {
+      color: $black !important;
+
+      &::before {
+        content: 'Error: ';
+        font-weight: bold;
+      }
+    }
+
+    .icon {
+      display: none;
+    }
+  }
+}
