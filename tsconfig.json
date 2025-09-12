@@ -1,0 +1,126 @@
+{
+  "extends": "./node_modules/@microsoft/sp-build-web/lib/schemas/tsconfig-base.json",
+  "compilerOptions": {
+    // Language and Module Settings
+    "target": "ES2018",
+    "lib": [
+      "ES2018",
+      "ES2019.Array",
+      "ES2020.Promise",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "jsx": "react-jsx",
+    
+    // Path Mapping (matches your gulpfile @ alias)
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@components/*": ["src/components/*"],
+      "@services/*": ["src/services/*"],
+      "@utils/*": ["src/utils/*"],
+      "@types/*": ["src/types/*"],
+      "@styles/*": ["src/styles/*"],
+      "@assets/*": ["src/assets/*"]
+    },
+    
+    // Build Performance Optimizations
+    "incremental": true,
+    "tsBuildInfoFile": "./node_modules/.cache/.tsbuildinfo",
+    "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
+    
+    // Tree Shaking and Bundle Optimization
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "importHelpers": true,
+    "preserveConstEnums": false,
+    "removeComments": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": false,
+    "importsNotUsedAsValues": "remove",
+    
+    // Type Checking (Strict but SPFx-compatible)
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "exactOptionalPropertyTypes": false,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": false,
+    "noImplicitOverride": true,
+    
+    // Source Maps and Debugging
+    "sourceMap": true,
+    "inlineSourceMap": false,
+    "inlineSources": false,
+    "mapRoot": "",
+    "sourceRoot": "",
+    
+    // Declaration Files
+    "declaration": false,
+    "declarationMap": false,
+    "emitDeclarationOnly": false,
+    
+    // Advanced Options
+    "resolveJsonModule": true,
+    "allowJs": false,
+    "checkJs": false,
+    "noEmit": false,
+    "noEmitOnError": false,
+    "preserveWatchOutput": true,
+    "pretty": true,
+    
+    // Experimental Features for Better Performance
+    "useDefineForClassFields": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    
+    // Module Detection
+    "moduleDetection": "auto"
+  },
+  "include": [
+    "src/**/*",
+    "src/**/*.json"
+  ],
+  "exclude": [
+    "node_modules",
+    "lib",
+    "temp",
+    "dist",
+    "sharepoint",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.spec.ts",
+    "**/*.spec.tsx",
+    "coverage",
+    ".vscode",
+    ".git"
+  ],
+  "ts-node": {
+    "esm": true,
+    "experimentalSpecifierResolution": "node"
+  },
+  "watchOptions": {
+    // File Watching Optimization
+    "watchFile": "useFsEvents",
+    "watchDirectory": "useFsEvents",
+    "fallbackPolling": "dynamicPriority",
+    "synchronousWatchDirectory": true,
+    "excludeDirectories": [
+      "**/node_modules",
+      "**/lib",
+      "**/temp",
+      "**/dist",
+      "**/sharepoint"
+    ]
+  },
+  "typeAcquisition": {
+    "enable": false,
+    "include": [],
+    "exclude": []
+  }
+}
