@@ -24,7 +24,7 @@
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
     "importHelpers": true,
-    "preserveConstEnums": false,
+    "preserveConstEnums": true,
     "removeComments": true,
     "isolatedModules": true,
     "verbatimModuleSyntax": false,
