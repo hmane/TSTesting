@@ -70,7 +70,7 @@
     
     // Advanced Options
     "resolveJsonModule": true,
-    "allowJs": false,
+    "allowJs": true,
     "checkJs": false,
     "noEmit": false,
     "noEmitOnError": false,
