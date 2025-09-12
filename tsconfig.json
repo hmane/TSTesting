@@ -1,19 +1,6 @@
 {
-  "extends": "./node_modules/@microsoft/sp-build-web/lib/schemas/tsconfig-base.json",
+  "extends": "./node_modules/@microsoft/rush-stack-compiler-5.3/includes/tsconfig-web.json",
   "compilerOptions": {
-    // Language and Module Settings
-    "target": "ES2018",
-    "lib": [
-      "ES2018",
-      "ES2019.Array",
-      "ES2020.Promise",
-      "DOM",
-      "DOM.Iterable"
-    ],
-    "module": "ESNext",
-    "moduleResolution": "node",
-    "jsx": "react-jsx",
-    
     // Path Mapping (matches your gulpfile @ alias)
     "baseUrl": ".",
     "paths": {
@@ -42,6 +29,19 @@
     "isolatedModules": true,
     "verbatimModuleSyntax": false,
     "importsNotUsedAsValues": "remove",
+    
+    // Modern TypeScript Features (SPFx 1.21.1 compatible)
+    "target": "ES2017",
+    "lib": [
+      "ES2017",
+      "ES2018.Promise",
+      "ES2019.Array",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "jsx": "react-jsx",
     
     // Type Checking (Strict but SPFx-compatible)
     "strict": true,
@@ -74,13 +74,15 @@
     "preserveWatchOutput": true,
     "pretty": true,
     
-    // Experimental Features for Better Performance
-    "useDefineForClassFields": true,
+    // SPFx Required Features
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     
     // Module Detection
-    "moduleDetection": "auto"
+    "moduleDetection": "auto",
+    
+    // Performance Optimizations
+    "useDefineForClassFields": true
   },
   "include": [
     "src/**/*",
