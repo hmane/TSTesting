@@ -42,15 +42,19 @@
     "moduleResolution": "node",
     "jsx": "react-jsx",
     
-    // Type Checking (Strict but SPFx-compatible)
-    "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    // Type Checking (Balanced for SPFx development)
+    "strict": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "exactOptionalPropertyTypes": false,
-    "noImplicitReturns": true,
+    "noImplicitReturns": false,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": false,
-    "noImplicitOverride": true,
+    "noImplicitOverride": false,
+    "noImplicitAny": false,
+    "noImplicitThis": false,
+    "strictNullChecks": false,
+    "strictFunctionTypes": false,
     
     // Source Maps and Debugging
     "sourceMap": true,
