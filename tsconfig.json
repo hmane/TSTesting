@@ -26,9 +26,8 @@
     "importHelpers": true,
     "preserveConstEnums": true,
     "removeComments": true,
-    "isolatedModules": true,
+    "isolatedModules": false,
     "verbatimModuleSyntax": false,
-    "importsNotUsedAsValues": "remove",
     
     // Modern TypeScript Features (SPFx 1.21.1 compatible)
     "target": "ES2017",
