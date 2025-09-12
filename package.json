@@ -12,28 +12,44 @@
     "test": "gulp test",
     
     "serve": "gulp serve --nobrowser",
+    "serve:fast": "gulp serve --nobrowser",
+    "serve:hmr": "npm run serve:fast",
     "serve:legacy": "gulp serve",
     "serve:https": "gulp serve --https --nobrowser",
     
     "build:debug": "gulp bundle --ship=false && gulp package-solution --ship=false",
     "build:production": "gulp bundle --ship && gulp package-solution --ship",
-    "build:analyze": "npm run build:production && npm run analyze",
+    "build:perf": "npm run build:production && npm run analyze:chunks && npm run analyze:assets",
+    "build:profile": "npm run build:production && npm run analyze:build && npm run analyze:runtime",
     
     "package:debug": "gulp package-solution --ship=false",
     "package:release": "gulp package-solution --ship",
     
     "analyze": "gulp analyze-bundle",
+    "analyze:chunks": "gulp analyze-chunks",
+    "analyze:assets": "gulp analyze-assets",
+    "analyze:treeshaking": "gulp analyze-treeshaking",
+    "analyze:build": "gulp analyze-build-performance",
+    "analyze:runtime": "gulp analyze-runtime-performance",
+    "analyze:budget": "gulp performance-budget",
+    
+    "optimize:assets": "gulp optimize-assets",
+    "profile:build": "gulp build-profile",
+    
     "clean:stats": "gulp clean-stats",
     "clean:temp": "gulp clean-temp",
     "clean:all": "npm run clean && npm run clean:temp",
+    "clear-cache": "gulp clear-cache",
     
     "deploy:info": "echo 'Deploy .sppkg from sharepoint/solution/ and assets from temp/deploy/'",
     
-    "dev": "npm run serve",
+    "dev": "npm run serve:hmr",
     "dev:https": "npm run serve:https",
-    "start": "npm run serve",
+    "dev:status": "gulp hmr-status",
+    "start": "npm run serve:hmr",
     
-    "validate": "npm run lint && npm run type-check",
+    "validate": "npm run lint && npm run type-check && npm run validate:scss && npm run analyze:treeshaking",
+    "validate:scss": "gulp validate-scss",
     "lint": "eslint src --ext .ts,.tsx --fix",
     "lint:check": "eslint src --ext .ts,.tsx",
     "type-check": "tsc --noEmit",
@@ -44,13 +60,13 @@
     "info": "npm run info:env && npm run info:deps",
     "info:env": "node --version && npm --version && gulp --version",
     "info:deps": "npm ls --depth=0",
-    "info:bundle": "npm run analyze",
+    "info:bundle": "npm run analyze:chunks",
     
-    "reset": "npm run clean:all && npm install",
+    "reset": "npm run clear-cache && npm run clean:all && npm install",
     "fresh": "rm -rf node_modules package-lock.json && npm install",
     "update:spfx": "npm update @microsoft/sp-build-web @microsoft/sp-core-library @microsoft/sp-webpart-base @microsoft/sp-property-pane @microsoft/sp-lodash-subset",
     
-    "help": "echo 'Main scripts: serve | build:debug | build:production | build:analyze | clean | validate'"
+    "help": "echo 'Main scripts: serve:hmr | build:profile | analyze:chunks | clear-cache | validate'"
   },
   "dependencies": {
     "@microsoft/sp-core-library": "1.21.0",
@@ -59,7 +75,15 @@
     "@microsoft/sp-lodash-subset": "1.21.0",
     "@microsoft/sp-office-ui-fabric-core": "1.21.0",
     "react": "17.0.1",
-    "react-dom": "17.0.1"
+    "react-dom": "17.0.1",
+    "@fluentui/react": "^8.106.4",
+    "@pnp/sp": "3.20.1",
+    "@pnp/logging": "4.16.0",
+    "@pnp/spfx-controls-react": "3.22.0",
+    "devextreme": "22.2.3",
+    "devextreme-react": "22.2.3",
+    "react-hook-form": "^7.45.4",
+    "zustand": "^4.3.9"
   },
   "devDependencies": {
     "@microsoft/sp-build-web": "1.21.0",
@@ -73,5 +97,10 @@
     "webpack-bundle-analyzer": "^4.9.0",
     "open": "^8.4.0",
     "del": "^6.1.1"
-  }
+  },
+  "sideEffects": [
+    "*.css",
+    "*.scss",
+    "devextreme/dist/css/dx.*.css"
+  ]
 }
