@@ -12,13 +12,13 @@
       "@styles/*": ["src/styles/*"],
       "@assets/*": ["src/assets/*"]
     },
-
+    
     // Build Performance Optimizations
     "incremental": true,
     "tsBuildInfoFile": "./node_modules/.cache/.tsbuildinfo",
     "skipLibCheck": true,
     "skipDefaultLibCheck": true,
-
+    
     // Tree Shaking and Bundle Optimization
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
@@ -29,14 +29,20 @@
     "isolatedModules": true,
     "verbatimModuleSyntax": false,
     "importsNotUsedAsValues": "remove",
-
+    
     // Modern TypeScript Features (SPFx 1.21.1 compatible)
     "target": "ES2017",
-    "lib": ["ES2017", "ES2018.Promise", "ES2019.Array", "DOM", "DOM.Iterable"],
+    "lib": [
+      "ES2017",
+      "ES2018.Promise",
+      "ES2019.Array",
+      "DOM",
+      "DOM.Iterable"
+    ],
     "module": "ESNext",
     "moduleResolution": "node",
     "jsx": "react-jsx",
-
+    
     // Type Checking (Strict but SPFx-compatible)
     "strict": true,
     "noUnusedLocals": true,
@@ -46,19 +52,19 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": false,
     "noImplicitOverride": true,
-
+    
     // Source Maps and Debugging
     "sourceMap": true,
     "inlineSourceMap": false,
     "inlineSources": false,
     "mapRoot": "",
     "sourceRoot": "",
-
+    
     // Declaration Files
     "declaration": false,
     "declarationMap": false,
     "emitDeclarationOnly": false,
-
+    
     // Advanced Options
     "resolveJsonModule": true,
     "allowJs": false,
@@ -67,18 +73,21 @@
     "noEmitOnError": false,
     "preserveWatchOutput": true,
     "pretty": true,
-
+    
     // SPFx Required Features
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-
+    
     // Module Detection
     "moduleDetection": "auto",
-
+    
     // Performance Optimizations
     "useDefineForClassFields": true
   },
-  "include": ["src/**/*", "src/**/*.json"],
+  "include": [
+    "src/**/*",
+    "src/**/*.json"
+  ],
   "exclude": [
     "node_modules",
     "lib",
@@ -103,7 +112,13 @@
     "watchDirectory": "useFsEvents",
     "fallbackPolling": "dynamicPriority",
     "synchronousWatchDirectory": true,
-    "excludeDirectories": ["**/node_modules", "**/lib", "**/temp", "**/dist", "**/sharepoint"]
+    "excludeDirectories": [
+      "**/node_modules",
+      "**/lib",
+      "**/temp",
+      "**/dist",
+      "**/sharepoint"
+    ]
   },
   "typeAcquisition": {
     "enable": false,
