@@ -13,7 +13,8 @@
     "serve": "gulp serve --nobrowser",
     "start": "npm run serve",
     "release": "gulp bundle --ship && gulp package-solution --ship",
-    "fresh": "rm -rf node_modules package-lock.json && npm install",
+        "fresh": "powershell -Command \"Remove-Item -Recurse -Force node_modules, package-lock.json -ErrorAction SilentlyContinue\" && npm install",
+
     "clean": "gulp clean && npm run clear-cache && gulp clean-stats && gulp clean-temp",
     "stats": "npm run release && gulp analyze-bundle",
     "clear-cache": "gulp clear-cache"
