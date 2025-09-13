@@ -1,6 +1,8 @@
 {
   "extends": "./node_modules/@microsoft/rush-stack-compiler-5.3/includes/tsconfig-web.json",
   "compilerOptions": {
+    "types": ["webpack-env"],
+
     // Path Mapping (matches your gulpfile @ alias)
     "baseUrl": ".",
     "paths": {
@@ -12,84 +14,65 @@
       "@styles/*": ["src/styles/*"],
       "@assets/*": ["src/assets/*"]
     },
-    
+
     // Build Performance Optimizations
     "incremental": true,
     "tsBuildInfoFile": "./node_modules/.cache/.tsbuildinfo",
     "skipLibCheck": true,
-    "skipDefaultLibCheck": true,
-    
+
+    // SPFx Compatible Settings with Modern Features
+    "target": "ES5",
+    "lib": [
+      "es5", 
+      "dom", 
+      "es2015.collection", 
+      "es2015.promise", 
+      "es2015.iterable",
+      "es2015.core",
+      "es2016.array.include",
+      "es2017.object",
+      "es2020.promise"
+    ],
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "jsx": "react",
+
     // Tree Shaking and Bundle Optimization
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
     "importHelpers": true,
-    "preserveConstEnums": true,
     "removeComments": true,
-    "isolatedModules": false,
-    "verbatimModuleSyntax": false,
-    
-    // Modern TypeScript Features (SPFx 1.21.1 compatible)
-    "target": "ES2017",
-    "lib": [
-      "ES2017",
-      "ES2018.Promise",
-      "ES2019.Array",
-      "DOM",
-      "DOM.Iterable"
-    ],
-    "module": "ESNext",
-    "moduleResolution": "node",
-    "jsx": "react-jsx",
-    
-    // Type Checking (Balanced for SPFx development)
+
+    // Type Checking (SPFx appropriate)
     "strict": false,
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
-    "exactOptionalPropertyTypes": false,
-    "noImplicitReturns": false,
-    "noFallthroughCasesInSwitch": true,
-    "noUncheckedIndexedAccess": false,
-    "noImplicitOverride": false,
     "noImplicitAny": false,
-    "noImplicitThis": false,
     "strictNullChecks": false,
-    "strictFunctionTypes": false,
-    
+    "noFallthroughCasesInSwitch": true,
+
     // Source Maps and Debugging
     "sourceMap": true,
     "inlineSourceMap": false,
     "inlineSources": false,
-    "mapRoot": "",
-    "sourceRoot": "",
-    
+
     // Declaration Files
     "declaration": false,
     "declarationMap": false,
-    "emitDeclarationOnly": false,
-    
+
     // Advanced Options
     "resolveJsonModule": true,
     "allowJs": true,
     "checkJs": false,
-    "noEmit": false,
-    "noEmitOnError": false,
-    "preserveWatchOutput": true,
-    "pretty": true,
-    
+
     // SPFx Required Features
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    
+
     // Module Detection
-    "moduleDetection": "auto",
-    
-    // Performance Optimizations
-    "useDefineForClassFields": true
+    "moduleDetection": "auto"
   },
   "include": [
-    "src/**/*",
-    "src/**/*.json"
+    "src/**/*"
   ],
   "exclude": [
     "node_modules",
@@ -100,32 +83,11 @@
     "**/*.test.ts",
     "**/*.test.tsx",
     "**/*.spec.ts",
-    "**/*.spec.tsx",
-    "coverage",
-    ".vscode",
-    ".git"
+    "**/*.spec.tsx"
   ],
-  "ts-node": {
-    "esm": true,
-    "experimentalSpecifierResolution": "node"
-  },
   "watchOptions": {
-    // File Watching Optimization
     "watchFile": "useFsEvents",
     "watchDirectory": "useFsEvents",
-    "fallbackPolling": "dynamicPriority",
-    "synchronousWatchDirectory": true,
-    "excludeDirectories": [
-      "**/node_modules",
-      "**/lib",
-      "**/temp",
-      "**/dist",
-      "**/sharepoint"
-    ]
-  },
-  "typeAcquisition": {
-    "enable": false,
-    "include": [],
-    "exclude": []
+    "excludeDirectories": ["**/node_modules", "**/lib", "**/temp"]
   }
 }
