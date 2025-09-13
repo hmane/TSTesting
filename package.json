@@ -6,20 +6,20 @@
   "engines": {
     "node": ">=21.14.0 <23.0.0"
   },
-  {
   "scripts": {
-    "build": "tsc --noEmit && gulp bundle --ship=false",
-    "debug": "npm run build && gulp package-solution --ship=false",
-    "serve": "gulp serve --nobrowser",
+    "build": "gulp build --ship=false",
+    "build-bundle": "gulp bundle --ship=false",
+    "serve": "fast-serve",
+    "serve-classic": "gulp serve --nobrowser",
     "start": "npm run serve",
-    "release": "gulp bundle --ship && gulp package-solution --ship",
-        "fresh": "powershell -Command \"Remove-Item -Recurse -Force node_modules, package-lock.json -ErrorAction SilentlyContinue\" && npm install",
-
-    "clean": "gulp clean && npm run clear-cache && gulp clean-stats && gulp clean-temp",
+    "debug": "npm run build && gulp package-solution --ship=false",
+    "release": "gulp clean && gulp build --ship && gulp package-solution --ship",
+    "fresh": "powershell -Command \"Remove-Item -Recurse -Force node_modules, package-lock.json -ErrorAction SilentlyContinue\" && npm install",
+    "clean": "gulp clean && gulp clear-cache",
     "stats": "npm run release && gulp analyze-bundle",
-    "clear-cache": "gulp clear-cache"
-  }
-}
+    "type-check": "tsc --noEmit"
+  },
+
   "dependencies": {
     "@microsoft/sp-core-library": "1.21.0",
     "@microsoft/sp-property-pane": "1.21.0",
