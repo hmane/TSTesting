@@ -1,0 +1,93 @@
+{
+  "extends": "./node_modules/@microsoft/rush-stack-compiler-5.3/includes/tsconfig-web.json",
+  "compilerOptions": {
+    "types": ["webpack-env"],
+
+    // Path Mapping (matches your gulpfile @ alias)
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@components/*": ["src/components/*"],
+      "@services/*": ["src/services/*"],
+      "@utils/*": ["src/utils/*"],
+      "@types/*": ["src/types/*"],
+      "@styles/*": ["src/styles/*"],
+      "@assets/*": ["src/assets/*"]
+    },
+
+    // Build Performance Optimizations
+    "incremental": true,
+    "tsBuildInfoFile": "./node_modules/.cache/.tsbuildinfo",
+    "skipLibCheck": true,
+
+    // SPFx Compatible Settings with Modern Features
+    "target": "ES5",
+    "lib": [
+      "es5", 
+      "dom", 
+      "es2015.collection", 
+      "es2015.promise", 
+      "es2015.iterable",
+      "es2015.core",
+      "es2016.array.include",
+      "es2017.object",
+      "es2020.promise"
+    ],
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "jsx": "react",
+
+    // Tree Shaking and Bundle Optimization
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "importHelpers": true,
+    "removeComments": true,
+
+    // Type Checking (SPFx appropriate)
+    "strict": false,
+    "noImplicitAny": false,
+    "strictNullChecks": false,
+    "noFallthroughCasesInSwitch": true,
+
+    // Source Maps and Debugging
+    "sourceMap": true,
+    "inlineSourceMap": false,
+    "inlineSources": false,
+
+    // Declaration Files
+    "declaration": false,
+    "declarationMap": false,
+
+    // Advanced Options
+    "resolveJsonModule": true,
+    "allowJs": true,
+    "checkJs": false,
+
+    // SPFx Required Features
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+
+    // Module Detection
+    "moduleDetection": "auto"
+  },
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "lib",
+    "temp",
+    "dist",
+    "sharepoint",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.spec.ts",
+    "**/*.spec.tsx"
+  ],
+  "watchOptions": {
+    "watchFile": "useFsEvents",
+    "watchDirectory": "useFsEvents",
+    "excludeDirectories": ["**/node_modules", "**/lib", "**/temp"]
+  }
+}
