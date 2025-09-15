@@ -1,0 +1,76 @@
+.formItem {
+  display: grid;
+  margin-bottom: 16px;
+  gap: 4px 16px;
+
+  // Mobile: single column
+  grid-template-columns: 1fr;
+  grid-template-areas: 'label' 'value';
+
+  // Desktop: two columns with configurable label width
+  @media (min-width: 769px) {
+    grid-template-columns: var(--label-width, 140px) 1fr;
+    grid-template-areas: 'label value';
+    align-items: start;
+  }
+
+  .labelArea {
+    grid-area: label;
+  }
+  .valueArea {
+    grid-area: value;
+  }
+
+  // Modifier for custom label width
+  &.customLabelWidth {
+    @media (min-width: 769px) {
+      grid-template-columns: var(--custom-label-width) 1fr;
+    }
+  }
+
+  &.fullWidth {
+    width: 100%;
+  }
+  &.inline {
+    display: inline-grid;
+    margin-right: 16px;
+    margin-bottom: 8px;
+  }
+}
+
+// Form row with responsive wrapping
+:global(.form-row) {
+  display: flex;
+  flex-wrap: wrap; // Allow wrapping to next line
+  gap: 16px;
+
+  .formItem {
+    flex: 1 1 300px; // grow, shrink, minimum 300px base
+    min-width: 300px; // Prevent excessive squeezing
+    max-width: 100%; // Don't exceed container
+  }
+
+  // For very wide screens, limit to reasonable widths
+  @media (min-width: 1400px) {
+    .formItem {
+      flex: 1 1 400px;
+      max-width: 500px;
+    }
+  }
+
+  // On medium screens, ensure 2 items per row max
+  @media (min-width: 769px) and (max-width: 1200px) {
+    .formItem {
+      flex: 1 1 calc(50% - 8px);
+      min-width: 280px;
+    }
+  }
+
+  // On smaller screens, single column
+  @media (max-width: 768px) {
+    .formItem {
+      flex: 1 1 100%;
+      min-width: 0;
+    }
+  }
+}

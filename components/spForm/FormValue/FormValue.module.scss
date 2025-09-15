@@ -1,0 +1,42 @@
+.formValue {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+
+  .controlContainer {
+    width: 100%;
+
+    // Ensure DevExtreme controls take full width
+    :global {
+      .dx-textbox,
+      .dx-selectbox,
+      .dx-numberbox,
+      .dx-datebox,
+      .dx-textarea,
+      .dx-autocomplete,
+      .dx-lookup,
+      .dx-tagbox,
+      .dx-switch,
+      .dx-checkbox,
+      .dx-radiogroup {
+        width: 100%;
+      }
+    }
+
+    > * {
+      width: 100%;
+    }
+
+    // Handle multiple controls in same FormValue
+    > * + * {
+      margin-top: 8px;
+    }
+  }
+
+  .descriptionErrorContainer {
+    margin-top: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+}

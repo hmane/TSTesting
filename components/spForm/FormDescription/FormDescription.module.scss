@@ -1,0 +1,57 @@
+.formDescription {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.6);
+  line-height: 1.4;
+  margin-top: 4px;
+  padding-left: 0;
+
+  // Remove the left margin - description should be full width
+
+  // Support for rich content
+  p {
+    margin: 0 0 8px 0;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  ul, ol {
+    margin: 4px 0 8px 16px;
+    padding: 0;
+
+    li {
+      margin-bottom: 2px;
+    }
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  strong {
+    font-weight: 600;
+    color: rgba(0, 0, 0, 0.75);
+  }
+
+  em {
+    font-style: italic;
+  }
+
+  code {
+    background-color: rgba(0, 0, 0, 0.05);
+    padding: 2px 4px;
+    border-radius: 2px;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+  }
+
+  a {
+    color: #1976d2;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
