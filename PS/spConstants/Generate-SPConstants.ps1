@@ -240,8 +240,7 @@ function Get-MockFields {
     $listTemplate = $Template.Lists | Where-Object { $_.Title -eq $ListTitle }
     
     if ($listTemplate -and $listTemplate.Fields) {
-      Write-Host "    Found $($listTemplate.Fields.Count) fields in template for '$ListTitle'" -ForegroundColor Gray
-      Write-Host "    Parsing field definitions from SchemaXml..." -ForegroundColor Gray
+      Write-Host "    Parsing $($listTemplate.Fields.Count) fields from template..." -ForegroundColor Gray
       
       foreach ($fieldDef in $listTemplate.Fields) {
         try {
@@ -252,8 +251,6 @@ function Get-MockFields {
           $schemaXml = $fieldDef.SchemaXml
           
           if (-not [string]::IsNullOrEmpty($schemaXml)) {
-            Write-Host "      Parsing SchemaXml for field" -ForegroundColor DarkGray
-            
             # Parse the XML field definition
             [xml]$fieldXml = $schemaXml
             $fieldElement = $fieldXml.Field
@@ -274,13 +271,9 @@ function Get-MockFields {
             if ([string]::IsNullOrEmpty($displayName)) {
               $displayName = $internalName
             }
-            
-            Write-Host "      XML Field - Name: '$internalName', DisplayName: '$displayName', Type: '$($fieldElement.Type)'" -ForegroundColor DarkGray
           }
           else {
             # Fallback: try to get properties directly from field object
-            Write-Host "      No SchemaXml found, trying field object properties" -ForegroundColor DarkGray
-            
             if ($fieldDef.InternalName) {
               $internalName = $fieldDef.InternalName
             } elseif ($fieldDef.StaticName) {
@@ -296,20 +289,14 @@ function Get-MockFields {
             } else {
               $displayName = $internalName
             }
-            
-            Write-Host "      Object Field - InternalName: '$internalName', DisplayName: '$displayName'" -ForegroundColor DarkGray
           }
           
           if (-not [string]::IsNullOrEmpty($internalName)) {
             # Skip excluded fields
-            if ($ExcludeFields -contains $internalName) {
-              Write-Host "        Skipping excluded field: $internalName" -ForegroundColor DarkGray
-              continue
-            }
+            if ($ExcludeFields -contains $internalName) { continue }
             
             # Skip fields starting with underscore (except important ones)
             if ($internalName.StartsWith("_") -and $internalName -notmatch "^(ID|Title|Created|Modified|Author|Editor|ContentType)$") {
-              Write-Host "        Skipping underscore field: $internalName" -ForegroundColor DarkGray
               continue
             }
             
@@ -319,30 +306,17 @@ function Get-MockFields {
               Hidden = $false
               ReadOnlyField = $false
             }
-            
-            Write-Host "        Added field: $internalName" -ForegroundColor Green
-          } else {
-            Write-Host "        Skipping field - no internal name found" -ForegroundColor Yellow
           }
         }
         catch {
-          Write-Host "        Error parsing field: $($_.Exception.Message)" -ForegroundColor Red
-          Write-Host "        SchemaXml content: $($fieldDef.SchemaXml.Substring(0, [Math]::Min(100, $fieldDef.SchemaXml.Length)))..." -ForegroundColor DarkGray
+          Write-Host "    Error parsing field: $($_.Exception.Message)" -ForegroundColor Red
         }
-      }
-    } else {
-      Write-Host "    No Fields property found for list '$ListTitle'" -ForegroundColor Yellow
-      if ($listTemplate) {
-        $listProperties = $listTemplate | Get-Member -MemberType Properties | Select-Object -ExpandProperty Name
-        Write-Host "    Available list properties: $($listProperties -join ', ')" -ForegroundColor DarkGray
       }
     }
   }
   
   # If no fields found in template, add standard fields
   if ($mockFields.Count -eq 0) {
-    Write-Host "    No custom fields found in template, adding standard fields for '$ListTitle'" -ForegroundColor Yellow
-    
     $standardFields = @(
       @{InternalName="ID"; Title="ID"},
       @{InternalName="Title"; Title="Title"},
@@ -373,7 +347,6 @@ function Get-MockFields {
           Hidden = $false
           ReadOnlyField = ($standardField -in @("ID", "Created", "Modified", "Author", "Editor"))
         }
-        Write-Host "        Added missing standard field: $standardField" -ForegroundColor Cyan
       }
     }
     
@@ -391,7 +364,7 @@ function Get-MockFields {
     $mockFields = $sortedFields
   }
   
-  Write-Host "    Generated $($mockFields.Count) total fields for '$ListTitle'" -ForegroundColor Gray
+  Write-Host "    Found $($mockFields.Count) total fields" -ForegroundColor Gray
   return $mockFields
 }
 
@@ -467,8 +440,6 @@ export const $($safeName)Fields = {
     
     # Use the InternalName directly for the TypeScript property name (with proper casing)
     $propertyName = Get-SafePropertyName -InputName $internalName
-    
-    Write-Host "      Field mapping: $propertyName = '$internalName'" -ForegroundColor DarkGray
     
     $fieldItems += "  $propertyName`: '$internalName'"
   }
