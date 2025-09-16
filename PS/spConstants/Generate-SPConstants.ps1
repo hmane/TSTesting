@@ -157,8 +157,17 @@ function Read-TemplateFile {
       
       Write-Host "PnP Provisioning Template loaded successfully" -ForegroundColor Green
       
-      # Parse PnP Template XML structure
-      $template = Parse-PnPProvisioningTemplate -XmlContent $xmlContent
+      # Check if this is a multi-file template with ProvisioningTemplateFile references
+      $templateFileRefs = $xmlContent.SelectNodes("//pnp:ProvisioningTemplateFile | //*[local-name()='ProvisioningTemplateFile']")
+      
+      if ($templateFileRefs -and $templateFileRefs.Count -gt 0) {
+        Write-Host "Multi-file PnP template detected with $($templateFileRefs.Count) template file references" -ForegroundColor Yellow
+        $template = Parse-MultiFilePnPTemplate -MainFilePath $FilePath -XmlContent $xmlContent
+      }
+      else {
+        Write-Host "Single-file PnP template detected" -ForegroundColor Gray
+        $template = Parse-PnPProvisioningTemplate -XmlContent $xmlContent
+      }
       
       Write-Host "Lists in PnP template: $($template.Lists.Count)" -ForegroundColor Gray
       
@@ -173,6 +182,118 @@ function Read-TemplateFile {
     Write-Error "Failed to parse template file: $($_.Exception.Message)"
     return $null
   }
+}
+
+function Parse-MultiFilePnPTemplate {
+  param(
+    [string]$MainFilePath,
+    [xml]$XmlContent
+  )
+
+  Write-Host "Processing multi-file PnP Provisioning Template..." -ForegroundColor Cyan
+  
+  # Get the base directory for resolving relative paths
+  $baseDirectory = Split-Path $MainFilePath -Parent
+  
+  # Initialize the combined template structure
+  $combinedTemplate = [PSCustomObject]@{
+    Lists = @()
+    SchemaVersion = "PnP-MultiFile"
+    GeneratedOn = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
+    Description = "Parsed from Multi-file PnP Provisioning Template"
+  }
+
+  # Find all ProvisioningTemplateFile references
+  $templateFileRefs = @()
+  
+  # Try different XPath expressions for template file references
+  $possiblePaths = @(
+    "//pnp:ProvisioningTemplateFile",
+    "//ProvisioningTemplateFile", 
+    "//*[local-name()='ProvisioningTemplateFile']"
+  )
+
+  foreach ($path in $possiblePaths) {
+    try {
+      $refs = $XmlContent.SelectNodes($path)
+      if ($refs -and $refs.Count -gt 0) {
+        $templateFileRefs += $refs
+        Write-Host "Found $($refs.Count) template file references using XPath: $path" -ForegroundColor Gray
+        break
+      }
+    }
+    catch {
+      # Try next path
+    }
+  }
+
+  # Also check the main file itself for any direct content
+  Write-Host "Processing main template file for direct content..." -ForegroundColor Gray
+  $mainTemplate = Parse-PnPProvisioningTemplate -XmlContent $XmlContent
+  if ($mainTemplate.Lists.Count -gt 0) {
+    Write-Host "Found $($mainTemplate.Lists.Count) lists in main template file" -ForegroundColor Green
+    $combinedTemplate.Lists += $mainTemplate.Lists
+  }
+
+  # Process each referenced template file
+  foreach ($templateRef in $templateFileRefs) {
+    try {
+      # Get the file reference - try different attribute names
+      $filePath = ""
+      if ($templateRef.File) {
+        $filePath = $templateRef.File
+      }
+      elseif ($templateRef.GetAttribute("File")) {
+        $filePath = $templateRef.GetAttribute("File")
+      }
+      elseif ($templateRef.Src) {
+        $filePath = $templateRef.Src
+      }
+      elseif ($templateRef.GetAttribute("Src")) {
+        $filePath = $templateRef.GetAttribute("Src")
+      }
+
+      if ([string]::IsNullOrEmpty($filePath)) {
+        Write-Host "  Skipping template reference without file path" -ForegroundColor Yellow
+        continue
+      }
+
+      # Resolve relative path
+      if (-not [System.IO.Path]::IsPathRooted($filePath)) {
+        $filePath = Join-Path $baseDirectory $filePath
+      }
+
+      # Normalize path separators
+      $filePath = $filePath -replace '/', '\'
+
+      Write-Host "  Processing referenced template file: $filePath" -ForegroundColor White
+
+      if (-not (Test-Path $filePath)) {
+        Write-Host "    Referenced file not found: $filePath" -ForegroundColor Red
+        continue
+      }
+
+      # Load and parse the referenced template file
+      [xml]$referencedXmlContent = Get-Content $filePath -Raw
+      $referencedTemplate = Parse-PnPProvisioningTemplate -XmlContent $referencedXmlContent
+
+      if ($referencedTemplate.Lists.Count -gt 0) {
+        Write-Host "    Found $($referencedTemplate.Lists.Count) lists in referenced file" -ForegroundColor Green
+        $combinedTemplate.Lists += $referencedTemplate.Lists
+      }
+      else {
+        Write-Host "    No lists found in referenced file" -ForegroundColor Gray
+      }
+    }
+    catch {
+      Write-Host "  Error processing referenced template file: $($_.Exception.Message)" -ForegroundColor Red
+      continue
+    }
+  }
+
+  Write-Host "Multi-file template processing complete. Total lists found: $($combinedTemplate.Lists.Count)" -ForegroundColor Green
+  
+  return $combinedTemplate
 }
 
 function Parse-PnPProvisioningTemplate {
@@ -559,7 +680,7 @@ function Get-ViewsFromTemplate {
 function Generate-SampleTemplate {
   param([string]$OutputPath)
 
-  # Generate both JSON and PnP XML sample templates
+  # Generate both JSON and PnP XML sample templates, including multi-file example
   
   # JSON Sample Template
   $sampleTemplate = @{
@@ -598,34 +719,6 @@ function Generate-SampleTemplate {
             FieldType = "Choice"
             Hidden = $false
             ReadOnly = $false
-          },
-          @{
-            InternalName = "AssignedTo"
-            Title = "Assigned To"
-            FieldType = "User"
-            Hidden = $false
-            ReadOnly = $false
-          },
-          @{
-            InternalName = "DueDate"
-            Title = "Due Date"
-            FieldType = "DateTime"
-            Hidden = $false
-            ReadOnly = $false
-          },
-          @{
-            InternalName = "Created"
-            Title = "Created"
-            FieldType = "DateTime"
-            Hidden = $false
-            ReadOnly = $true
-          },
-          @{
-            InternalName = "Modified"
-            Title = "Modified"
-            FieldType = "DateTime"
-            Hidden = $false
-            ReadOnly = $true
           }
         )
         Views = @(
@@ -633,43 +726,6 @@ function Generate-SampleTemplate {
             Title = "All Items"
             Url = "/Lists/Sample List 1/AllItems.aspx"
             Hidden = $false
-          },
-          @{
-            Title = "Active Items"
-            Url = "/Lists/Sample List 1/ActiveItems.aspx"
-            Hidden = $false
-          }
-        )
-      },
-      @{
-        Title = "Sample List 2"
-        Url = "/Lists/Sample List 2"
-        Fields = @(
-          @{
-            InternalName = "ID"
-            Title = "ID"
-            FieldType = "Counter"
-          },
-          @{
-            InternalName = "Title"
-            Title = "Title"
-            FieldType = "Text"
-          },
-          @{
-            InternalName = "Description"
-            Title = "Description"
-            FieldType = "Note"
-          },
-          @{
-            InternalName = "Category"
-            Title = "Category"
-            FieldType = "Choice"
-          }
-        )
-        Views = @(
-          @{
-            Title = "All Items"
-            Url = "/Lists/Sample List 2/AllItems.aspx"
           }
         )
       }
@@ -688,7 +744,7 @@ function Generate-SampleTemplate {
   $templateJson | Out-File -FilePath $templatePath -Encoding UTF8
   Write-Host "JSON sample template generated: $templatePath" -ForegroundColor Green
 
-  # PnP XML Sample Template
+  # Single-file PnP XML Sample Template
   $pnpXmlTemplate = @"
 <?xml version="1.0"?>
 <pnp:Provisioning xmlns:pnp="http://schemas.dev.office.com/PnP/2021/03/ProvisioningSchema">
@@ -731,25 +787,6 @@ function Generate-SampleTemplate {
             </pnp:View>
           </pnp:Views>
         </pnp:ListInstance>
-        
-        <pnp:ListInstance Title="Project Documents" 
-                         Description="Document library for project files" 
-                         DocumentTemplate="" 
-                         OnQuickLaunch="true" 
-                         TemplateType="101" 
-                         Url="ProjectDocuments">
-          <pnp:Fields>
-            <pnp:Field InternalName="ProjectPhase" DisplayName="Project Phase" Type="Choice">
-              <pnp:Choices>
-                <pnp:Choice>Planning</pnp:Choice>
-                <pnp:Choice>Development</pnp:Choice>
-                <pnp:Choice>Testing</pnp:Choice>
-                <pnp:Choice>Deployment</pnp:Choice>
-              </pnp:Choices>
-            </pnp:Field>
-            <pnp:Field InternalName="DocumentOwner" DisplayName="Document Owner" Type="User" />
-          </pnp:Fields>
-        </pnp:ListInstance>
       </pnp:Lists>
     </pnp:ProvisioningTemplate>
   </pnp:Templates>
@@ -759,13 +796,192 @@ function Generate-SampleTemplate {
   $pnpTemplatePath = Join-Path $OutputPath "sample-pnp-template.xml"
   $pnpXmlTemplate | Out-File -FilePath $pnpTemplatePath -Encoding UTF8
   Write-Host "PnP XML sample template generated: $pnpTemplatePath" -ForegroundColor Green
+
+  # Multi-file PnP XML Sample Templates
+  # Main template file that references other files
+  $mainPnpTemplate = @"
+<?xml version="1.0"?>
+<pnp:Provisioning xmlns:pnp="http://schemas.dev.office.com/PnP/2021/03/ProvisioningSchema">
+  <pnp:Preferences Generator="SharePoint Constants Generator" />
+  <pnp:Templates ID="CONTAINER-TEMPLATE">
+    <pnp:ProvisioningTemplate ID="MAIN-TEMPLATE" Version="1.0">
+      <!-- Main template can have its own lists -->
+      <pnp:Lists>
+        <pnp:ListInstance Title="Main List" 
+                         Description="List defined in main template" 
+                         DocumentTemplate="" 
+                         OnQuickLaunch="true" 
+                         TemplateType="100" 
+                         Url="Lists/MainList">
+          <pnp:Fields>
+            <pnp:Field InternalName="MainStatus" DisplayName="Main Status" Type="Choice">
+              <pnp:Choices>
+                <pnp:Choice>Active</pnp:Choice>
+                <pnp:Choice>Inactive</pnp:Choice>
+              </pnp:Choices>
+            </pnp:Field>
+          </pnp:Fields>
+        </pnp:ListInstance>
+      </pnp:Lists>
+    </pnp:ProvisioningTemplate>
+    
+    <!-- References to other template files -->
+    <pnp:ProvisioningTemplateFile File="lists-template.xml" />
+    <pnp:ProvisioningTemplateFile File="documents-template.xml" />
+  </pnp:Templates>
+</pnp:Provisioning>
+"@
+
+  # Lists template file
+  $listsTemplateFile = @"
+<?xml version="1.0"?>
+<pnp:Provisioning xmlns:pnp="http://schemas.dev.office.com/PnP/2021/03/ProvisioningSchema">
+  <pnp:Templates ID="LISTS-TEMPLATE">
+    <pnp:ProvisioningTemplate ID="LISTS-TEMPLATE" Version="1.0">
+      <pnp:Lists>
+        <pnp:ListInstance Title="Project Tasks" 
+                         Description="Project task tracking list" 
+                         DocumentTemplate="" 
+                         OnQuickLaunch="true" 
+                         TemplateType="107" 
+                         Url="Lists/ProjectTasks">
+          <pnp:Fields>
+            <pnp:Field InternalName="ProjectPhase" DisplayName="Project Phase" Type="Choice">
+              <pnp:Choices>
+                <pnp:Choice>Planning</pnp:Choice>
+                <pnp:Choice>Development</pnp:Choice>
+                <pnp:Choice>Testing</pnp:Choice>
+                <pnp:Choice>Deployment</pnp:Choice>
+              </pnp:Choices>
+            </pnp:Field>
+            <pnp:Field InternalName="EstimatedHours" DisplayName="Estimated Hours" Type="Number" />
+            <pnp:Field InternalName="AssignedDeveloper" DisplayName="Assigned Developer" Type="User" />
+          </pnp:Fields>
+          <pnp:Views>
+            <pnp:View DisplayName="Planning Phase Tasks" DefaultView="false">
+              <pnp:Query>
+                <Where>
+                  <Eq>
+                    <FieldRef Name="ProjectPhase" />
+                    <Value Type="Choice">Planning</Value>
+                  </Eq>
+                </Where>
+              </pnp:Query>
+            </pnp:View>
+          </pnp:Views>
+        </pnp:ListInstance>
+        
+        <pnp:ListInstance Title="Team Members" 
+                         Description="Team member directory" 
+                         DocumentTemplate="" 
+                         OnQuickLaunch="true" 
+                         TemplateType="100" 
+                         Url="Lists/TeamMembers">
+          <pnp:Fields>
+            <pnp:Field InternalName="Role" DisplayName="Role" Type="Choice">
+              <pnp:Choices>
+                <pnp:Choice>Developer</pnp:Choice>
+                <pnp:Choice>Designer</pnp:Choice>
+                <pnp:Choice>Project Manager</pnp:Choice>
+                <pnp:Choice>Tester</pnp:Choice>
+              </pnp:Choices>
+            </pnp:Field>
+            <pnp:Field InternalName="Skills" DisplayName="Skills" Type="Note" />
+            <pnp:Field InternalName="Experience" DisplayName="Experience" Type="Number" />
+          </pnp:Fields>
+        </pnp:ListInstance>
+      </pnp:Lists>
+    </pnp:ProvisioningTemplate>
+  </pnp:Templates>
+</pnp:Provisioning>
+"@
+
+  # Documents template file
+  $documentsTemplateFile = @"
+<?xml version="1.0"?>
+<pnp:Provisioning xmlns:pnp="http://schemas.dev.office.com/PnP/2021/03/ProvisioningSchema">
+  <pnp:Templates ID="DOCUMENTS-TEMPLATE">
+    <pnp:ProvisioningTemplate ID="DOCUMENTS-TEMPLATE" Version="1.0">
+      <pnp:Lists>
+        <pnp:ListInstance Title="Project Documents" 
+                         Description="Document library for project files" 
+                         DocumentTemplate="" 
+                         OnQuickLaunch="true" 
+                         TemplateType="101" 
+                         Url="ProjectDocuments">
+          <pnp:Fields>
+            <pnp:Field InternalName="DocumentType" DisplayName="Document Type" Type="Choice">
+              <pnp:Choices>
+                <pnp:Choice>Specification</pnp:Choice>
+                <pnp:Choice>Design</pnp:Choice>
+                <pnp:Choice>Test Plan</pnp:Choice>
+                <pnp:Choice>User Guide</pnp:Choice>
+              </pnp:Choices>
+            </pnp:Field>
+            <pnp:Field InternalName="DocumentOwner" DisplayName="Document Owner" Type="User" />
+            <pnp:Field InternalName="ReviewDate" DisplayName="Review Date" Type="DateTime" />
+          </pnp:Fields>
+          <pnp:Views>
+            <pnp:View DisplayName="Pending Review" DefaultView="false">
+              <pnp:Query>
+                <Where>
+                  <Lt>
+                    <FieldRef Name="ReviewDate" />
+                    <Value Type="DateTime"><Today /></Value>
+                  </Lt>
+                </Where>
+              </pnp:Query>
+            </pnp:View>
+          </pnp:Views>
+        </pnp:ListInstance>
+        
+        <pnp:ListInstance Title="Meeting Notes" 
+                         Description="Meeting notes and minutes" 
+                         DocumentTemplate="" 
+                         OnQuickLaunch="true" 
+                         TemplateType="101" 
+                         Url="MeetingNotes">
+          <pnp:Fields>
+            <pnp:Field InternalName="MeetingType" DisplayName="Meeting Type" Type="Choice">
+              <pnp:Choices>
+                <pnp:Choice>Standup</pnp:Choice>
+                <pnp:Choice>Planning</pnp:Choice>
+                <pnp:Choice>Review</pnp:Choice>
+                <pnp:Choice>Retrospective</pnp:Choice>
+              </pnp:Choices>
+            </pnp:Field>
+            <pnp:Field InternalName="Facilitator" DisplayName="Facilitator" Type="User" />
+          </pnp:Fields>
+        </pnp:ListInstance>
+      </pnp:Lists>
+    </pnp:ProvisioningTemplate>
+  </pnp:Templates>
+</pnp:Provisioning>
+"@
+
+  # Save multi-file template files
+  $mainTemplatePath = Join-Path $OutputPath "sample-multifile-main.xml"
+  $listsTemplatePath = Join-Path $OutputPath "lists-template.xml"
+  $documentsTemplatePath = Join-Path $OutputPath "documents-template.xml"
+
+  $mainPnpTemplate | Out-File -FilePath $mainTemplatePath -Encoding UTF8
+  $listsTemplateFile | Out-File -FilePath $listsTemplatePath -Encoding UTF8
+  $documentsTemplateFile | Out-File -FilePath $documentsTemplatePath -Encoding UTF8
+
+  Write-Host "Multi-file PnP templates generated:" -ForegroundColor Green
+  Write-Host "  Main: sample-multifile-main.xml" -ForegroundColor White
+  Write-Host "  Lists: lists-template.xml" -ForegroundColor White
+  Write-Host "  Documents: documents-template.xml" -ForegroundColor White
   
   Write-Host "`nSample templates generated:" -ForegroundColor Cyan
   Write-Host "- JSON format: sample-template.json (custom format)" -ForegroundColor White
-  Write-Host "- XML format: sample-pnp-template.xml (PnP Provisioning Template)" -ForegroundColor White
-  Write-Host "`nYou can now:" -ForegroundColor Cyan
-  Write-Host "1. Use your existing PnP template: -TemplateFilePath 'C:\path\to\your-template.xml'" -ForegroundColor White
-  Write-Host "2. Modify the sample templates and use them" -ForegroundColor White
+  Write-Host "- XML format: sample-pnp-template.xml (single-file PnP template)" -ForegroundColor White
+  Write-Host "- Multi-file XML: sample-multifile-main.xml (with referenced files)" -ForegroundColor White
+  Write-Host "`nUsage examples:" -ForegroundColor Cyan
+  Write-Host "1. Single PnP template: -TemplateFilePath 'sample-pnp-template.xml'" -ForegroundColor White
+  Write-Host "2. Multi-file PnP template: -TemplateFilePath 'sample-multifile-main.xml'" -ForegroundColor White
+  Write-Host "3. Your existing template: -TemplateFilePath 'C:\path\to\your-template.xml'" -ForegroundColor White
+}groundColor White
 }
 
 # SHAREPOINT MODE FUNCTIONS (existing functions remain the same)
