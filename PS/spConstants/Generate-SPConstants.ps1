@@ -138,19 +138,308 @@ function Read-TemplateFile {
     return $null
   }
 
+  $fileExtension = [System.IO.Path]::GetExtension($FilePath).ToLower()
+  
   try {
-    $content = Get-Content $FilePath -Raw
-    $template = $content | ConvertFrom-Json
-
-    Write-Host "Template file loaded successfully" -ForegroundColor Green
-    Write-Host "Lists in template: $($template.Lists.Count)" -ForegroundColor Gray
-
-    return $template
+    if ($fileExtension -eq ".json") {
+      # Handle JSON template (custom format)
+      $content = Get-Content $FilePath -Raw
+      $template = $content | ConvertFrom-Json
+      
+      Write-Host "JSON template file loaded successfully" -ForegroundColor Green
+      Write-Host "Lists in template: $($template.Lists.Count)" -ForegroundColor Gray
+      
+      return $template
+    }
+    elseif ($fileExtension -eq ".xml") {
+      # Handle PnP Provisioning Template (XML format)
+      [xml]$xmlContent = Get-Content $FilePath -Raw
+      
+      Write-Host "PnP Provisioning Template loaded successfully" -ForegroundColor Green
+      
+      # Parse PnP Template XML structure
+      $template = Parse-PnPProvisioningTemplate -XmlContent $xmlContent
+      
+      Write-Host "Lists in PnP template: $($template.Lists.Count)" -ForegroundColor Gray
+      
+      return $template
+    }
+    else {
+      Write-Error "Unsupported template file format. Use .json or .xml (PnP Provisioning Template)"
+      return $null
+    }
   }
   catch {
     Write-Error "Failed to parse template file: $($_.Exception.Message)"
     return $null
   }
+}
+
+function Parse-PnPProvisioningTemplate {
+  param([xml]$XmlContent)
+
+  # Initialize the template structure
+  $template = [PSCustomObject]@{
+    Lists = @()
+    SchemaVersion = "PnP"
+    GeneratedOn = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
+    Description = "Parsed from PnP Provisioning Template"
+  }
+
+  # Find the Lists element - PnP templates can have different namespaces
+  $listsElement = $null
+  
+  # Try different possible XPath expressions for PnP templates
+  $possiblePaths = @(
+    "//pnp:Lists/pnp:ListInstance",
+    "//Lists/ListInstance", 
+    "//*[local-name()='Lists']/*[local-name()='ListInstance']",
+    "//ListInstance"
+  )
+
+  foreach ($path in $possiblePaths) {
+    try {
+      $listNodes = $XmlContent.SelectNodes($path)
+      if ($listNodes -and $listNodes.Count -gt 0) {
+        $listsElement = $listNodes
+        Write-Host "Found $($listNodes.Count) lists using XPath: $path" -ForegroundColor Gray
+        break
+      }
+    }
+    catch {
+      # Try next path
+    }
+  }
+
+  if (-not $listsElement -or $listsElement.Count -eq 0) {
+    Write-Host "No lists found in PnP template. Trying alternative approach..." -ForegroundColor Yellow
+    
+    # Alternative: look for any element with attributes that suggest it's a list
+    $listNodes = $XmlContent.SelectNodes("//*[@Title and @Url]")
+    if ($listNodes -and $listNodes.Count -gt 0) {
+      $listsElement = $listNodes
+      Write-Host "Found $($listNodes.Count) potential list elements" -ForegroundColor Gray
+    }
+  }
+
+  if (-not $listsElement -or $listsElement.Count -eq 0) {
+    Write-Warning "No lists found in PnP Provisioning Template"
+    return $template
+  }
+
+  # Process each list
+  foreach ($listNode in $listsElement) {
+    try {
+      # Get list properties
+      $listTitle = ""
+      $listUrl = ""
+      
+      if ($listNode.Title) {
+        $listTitle = $listNode.Title
+      }
+      elseif ($listNode.GetAttribute("Title")) {
+        $listTitle = $listNode.GetAttribute("Title")
+      }
+      
+      if ($listNode.Url) {
+        $listUrl = $listNode.Url
+      }
+      elseif ($listNode.GetAttribute("Url")) {
+        $listUrl = $listNode.GetAttribute("Url")
+      }
+      elseif ($listTitle) {
+        # Generate URL from title
+        $listUrl = "/Lists/$($listTitle -replace '\s+', '%20')"
+      }
+
+      if ([string]::IsNullOrEmpty($listTitle)) {
+        Write-Host "  Skipping list node without title" -ForegroundColor DarkGray
+        continue
+      }
+
+      Write-Host "  Processing list: $listTitle" -ForegroundColor Green
+
+      # Create list object
+      $listObj = [PSCustomObject]@{
+        Title = $listTitle
+        Url = $listUrl
+        Fields = @()
+        Views = @()
+      }
+
+      # Process Fields
+      $fieldsNodes = @()
+      
+      # Try to find field definitions in various possible locations
+      $fieldPaths = @(
+        ".//pnp:Field",
+        ".//Field",
+        ".//*[local-name()='Field']",
+        ".//pnp:FieldRef",
+        ".//FieldRef",
+        ".//*[local-name()='FieldRef']"
+      )
+
+      foreach ($fieldPath in $fieldPaths) {
+        try {
+          $foundFields = $listNode.SelectNodes($fieldPath)
+          if ($foundFields -and $foundFields.Count -gt 0) {
+            $fieldsNodes += $foundFields
+            Write-Host "    Found $($foundFields.Count) fields using path: $fieldPath" -ForegroundColor Gray
+          }
+        }
+        catch {
+          # Continue to next path
+        }
+      }
+
+      # Add default fields if none found
+      if ($fieldsNodes.Count -eq 0) {
+        Write-Host "    No fields found in template, adding default fields" -ForegroundColor Yellow
+        
+        $defaultFields = @("ID", "Title", "Created", "Modified", "Author", "Editor")
+        foreach ($fieldName in $defaultFields) {
+          $listObj.Fields += [PSCustomObject]@{
+            InternalName = $fieldName
+            Title = $fieldName
+            FieldType = "Text"
+            Hidden = $false
+            ReadOnly = ($fieldName -in @("ID", "Created", "Modified", "Author", "Editor"))
+          }
+        }
+      }
+      else {
+        # Process found fields
+        foreach ($fieldNode in $fieldsNodes) {
+          $internalName = ""
+          $displayName = ""
+          $fieldType = "Text"
+          
+          # Get field properties from various possible attributes
+          if ($fieldNode.InternalName) {
+            $internalName = $fieldNode.InternalName
+          }
+          elseif ($fieldNode.Name) {
+            $internalName = $fieldNode.Name
+          }
+          elseif ($fieldNode.GetAttribute("InternalName")) {
+            $internalName = $fieldNode.GetAttribute("InternalName")
+          }
+          elseif ($fieldNode.GetAttribute("Name")) {
+            $internalName = $fieldNode.GetAttribute("Name")
+          }
+
+          if ($fieldNode.DisplayName) {
+            $displayName = $fieldNode.DisplayName
+          }
+          elseif ($fieldNode.Title) {
+            $displayName = $fieldNode.Title  
+          }
+          elseif ($fieldNode.GetAttribute("DisplayName")) {
+            $displayName = $fieldNode.GetAttribute("DisplayName")
+          }
+          elseif ($fieldNode.GetAttribute("Title")) {
+            $displayName = $fieldNode.GetAttribute("Title")
+          }
+          else {
+            $displayName = $internalName
+          }
+
+          if ($fieldNode.Type) {
+            $fieldType = $fieldNode.Type
+          }
+          elseif ($fieldNode.GetAttribute("Type")) {
+            $fieldType = $fieldNode.GetAttribute("Type")
+          }
+
+          if (-not [string]::IsNullOrEmpty($internalName)) {
+            $listObj.Fields += [PSCustomObject]@{
+              InternalName = $internalName
+              Title = $displayName
+              FieldType = $fieldType
+              Hidden = $false
+              ReadOnly = $false
+            }
+          }
+        }
+      }
+
+      # Process Views (optional)
+      $viewsNodes = @()
+      $viewPaths = @(
+        ".//pnp:View",
+        ".//View", 
+        ".//*[local-name()='View']"
+      )
+
+      foreach ($viewPath in $viewPaths) {
+        try {
+          $foundViews = $listNode.SelectNodes($viewPath)
+          if ($foundViews -and $foundViews.Count -gt 0) {
+            $viewsNodes += $foundViews
+          }
+        }
+        catch {
+          # Continue to next path
+        }
+      }
+
+      foreach ($viewNode in $viewsNodes) {
+        $viewTitle = ""
+        $viewUrl = ""
+        
+        if ($viewNode.DisplayName) {
+          $viewTitle = $viewNode.DisplayName
+        }
+        elseif ($viewNode.Title) {
+          $viewTitle = $viewNode.Title
+        }
+        elseif ($viewNode.GetAttribute("DisplayName")) {
+          $viewTitle = $viewNode.GetAttribute("DisplayName")
+        }
+        elseif ($viewNode.GetAttribute("Title")) {
+          $viewTitle = $viewNode.GetAttribute("Title")
+        }
+
+        if (-not [string]::IsNullOrEmpty($viewTitle)) {
+          if ($viewNode.Url) {
+            $viewUrl = $viewNode.Url
+          }
+          elseif ($viewNode.GetAttribute("Url")) {
+            $viewUrl = $viewNode.GetAttribute("Url")
+          }
+          else {
+            $viewUrl = "$listUrl/$($viewTitle -replace '\s+', '').aspx"
+          }
+
+          $listObj.Views += [PSCustomObject]@{
+            Title = $viewTitle
+            Url = $viewUrl
+            Hidden = $false
+          }
+        }
+      }
+
+      # Add default "All Items" view if no views found
+      if ($listObj.Views.Count -eq 0) {
+        $listObj.Views += [PSCustomObject]@{
+          Title = "All Items"
+          Url = "$listUrl/AllItems.aspx"
+          Hidden = $false
+        }
+      }
+
+      Write-Host "    Processed: $($listObj.Fields.Count) fields, $($listObj.Views.Count) views" -ForegroundColor Gray
+
+      $template.Lists += $listObj
+    }
+    catch {
+      Write-Host "  Error processing list: $($_.Exception.Message)" -ForegroundColor Red
+      continue
+    }
+  }
+
+  return $template
 }
 
 function Get-ListsFromTemplate {
@@ -160,7 +449,7 @@ function Get-ListsFromTemplate {
   foreach ($listDef in $Template.Lists) {
     # Create mock list object similar to SharePoint list
     $mockList = [PSCustomObject]@{
-      Title      = $listDef.Title
+      Title = $listDef.Title
       RootFolder = [PSCustomObject]@{
         ServerRelativeUrl = $listDef.Url
       }
@@ -177,7 +466,7 @@ function Get-FieldsFromTemplate {
 
   # Find the list definition in template
   $listDef = $Template.Lists | Where-Object { $_.Title -eq $ListTitle }
-
+  
   if ($null -eq $listDef -or $null -eq $listDef.Fields) {
     Write-Host "    No fields found in template for '$ListTitle'" -ForegroundColor Yellow
     return @()
@@ -194,10 +483,10 @@ function Get-FieldsFromTemplate {
 
     # Create mock field object
     $mockField = [PSCustomObject]@{
-      InternalName  = $fieldDef.InternalName
-      Title         = if ($fieldDef.PSObject.Properties['Title']) { $fieldDef.Title } else { $fieldDef.InternalName }
+      InternalName = $fieldDef.InternalName
+      Title = if ($fieldDef.PSObject.Properties['Title']) { $fieldDef.Title } else { $fieldDef.InternalName }
       FieldTypeKind = if ($fieldDef.PSObject.Properties['FieldType']) { $fieldDef.FieldType } else { "Text" }
-      Hidden        = if ($fieldDef.PSObject.Properties['Hidden']) { $fieldDef.Hidden } else { $false }
+      Hidden = if ($fieldDef.PSObject.Properties['Hidden']) { $fieldDef.Hidden } else { $false }
       ReadOnlyField = if ($fieldDef.PSObject.Properties['ReadOnly']) { $fieldDef.ReadOnly } else { $false }
     }
 
@@ -240,7 +529,7 @@ function Get-ViewsFromTemplate {
 
   # Find the list definition in template
   $listDef = $Template.Lists | Where-Object { $_.Title -eq $ListTitle }
-
+  
   if ($null -eq $listDef -or $null -eq $listDef.Views) {
     Write-Host "    No views found in template for '$ListTitle'" -ForegroundColor Yellow
     return @()
@@ -255,9 +544,9 @@ function Get-ViewsFromTemplate {
 
     # Create mock view object
     $mockView = [PSCustomObject]@{
-      Title             = $viewDef.Title
+      Title = $viewDef.Title
       ServerRelativeUrl = if ($viewDef.PSObject.Properties['Url']) { $viewDef.Url } else { "/Lists/$($ListTitle -replace '\s+', '')/$($viewDef.Title -replace '\s+', '').aspx" }
-      Hidden            = if ($viewDef.PSObject.Properties['Hidden']) { $viewDef.Hidden } else { $false }
+      Hidden = if ($viewDef.PSObject.Properties['Hidden']) { $viewDef.Hidden } else { $false }
     }
 
     $views += $mockView
@@ -270,114 +559,117 @@ function Get-ViewsFromTemplate {
 function Generate-SampleTemplate {
   param([string]$OutputPath)
 
+  # Generate both JSON and PnP XML sample templates
+  
+  # JSON Sample Template
   $sampleTemplate = @{
     SchemaVersion = "1.0"
-    GeneratedOn   = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
-    Description   = "Sample template for SharePoint Constants Generator"
-    Lists         = @(
+    GeneratedOn = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
+    Description = "Sample JSON template for SharePoint Constants Generator"
+    Lists = @(
       @{
-        Title  = "Sample List 1"
-        Url    = "/Lists/Sample List 1"
+        Title = "Sample List 1"
+        Url = "/Lists/Sample List 1"
         Fields = @(
           @{
             InternalName = "ID"
-            Title        = "ID"
-            FieldType    = "Counter"
-            Hidden       = $false
-            ReadOnly     = $true
+            Title = "ID"
+            FieldType = "Counter"
+            Hidden = $false
+            ReadOnly = $true
           },
           @{
             InternalName = "Title"
-            Title        = "Title"
-            FieldType    = "Text"
-            Hidden       = $false
-            ReadOnly     = $false
+            Title = "Title"
+            FieldType = "Text"
+            Hidden = $false
+            ReadOnly = $false
           },
           @{
             InternalName = "Status"
-            Title        = "Status"
-            FieldType    = "Choice"
-            Hidden       = $false
-            ReadOnly     = $false
+            Title = "Status"
+            FieldType = "Choice"
+            Hidden = $false
+            ReadOnly = $false
           },
           @{
             InternalName = "Priority"
-            Title        = "Priority"
-            FieldType    = "Choice"
-            Hidden       = $false
-            ReadOnly     = $false
+            Title = "Priority"
+            FieldType = "Choice"
+            Hidden = $false
+            ReadOnly = $false
           },
           @{
             InternalName = "AssignedTo"
-            Title        = "Assigned To"
-            FieldType    = "User"
-            Hidden       = $false
-            ReadOnly     = $false
+            Title = "Assigned To"
+            FieldType = "User"
+            Hidden = $false
+            ReadOnly = $false
           },
           @{
             InternalName = "DueDate"
-            Title        = "Due Date"
-            FieldType    = "DateTime"
-            Hidden       = $false
-            ReadOnly     = $false
+            Title = "Due Date"
+            FieldType = "DateTime"
+            Hidden = $false
+            ReadOnly = $false
           },
           @{
             InternalName = "Created"
-            Title        = "Created"
-            FieldType    = "DateTime"
-            Hidden       = $false
-            ReadOnly     = $true
+            Title = "Created"
+            FieldType = "DateTime"
+            Hidden = $false
+            ReadOnly = $true
           },
           @{
             InternalName = "Modified"
-            Title        = "Modified"
-            FieldType    = "DateTime"
-            Hidden       = $false
-            ReadOnly     = $true
+            Title = "Modified"
+            FieldType = "DateTime"
+            Hidden = $false
+            ReadOnly = $true
           }
         )
-        Views  = @(
+        Views = @(
           @{
-            Title  = "All Items"
-            Url    = "/Lists/Sample List 1/AllItems.aspx"
+            Title = "All Items"
+            Url = "/Lists/Sample List 1/AllItems.aspx"
             Hidden = $false
           },
           @{
-            Title  = "Active Items"
-            Url    = "/Lists/Sample List 1/ActiveItems.aspx"
+            Title = "Active Items"
+            Url = "/Lists/Sample List 1/ActiveItems.aspx"
             Hidden = $false
           }
         )
       },
       @{
-        Title  = "Sample List 2"
-        Url    = "/Lists/Sample List 2"
+        Title = "Sample List 2"
+        Url = "/Lists/Sample List 2"
         Fields = @(
           @{
             InternalName = "ID"
-            Title        = "ID"
-            FieldType    = "Counter"
+            Title = "ID"
+            FieldType = "Counter"
           },
           @{
             InternalName = "Title"
-            Title        = "Title"
-            FieldType    = "Text"
+            Title = "Title"
+            FieldType = "Text"
           },
           @{
             InternalName = "Description"
-            Title        = "Description"
-            FieldType    = "Note"
+            Title = "Description"
+            FieldType = "Note"
           },
           @{
             InternalName = "Category"
-            Title        = "Category"
-            FieldType    = "Choice"
+            Title = "Category"
+            FieldType = "Choice"
           }
         )
-        Views  = @(
+        Views = @(
           @{
             Title = "All Items"
-            Url   = "/Lists/Sample List 2/AllItems.aspx"
+            Url = "/Lists/Sample List 2/AllItems.aspx"
           }
         )
       }
@@ -386,7 +678,7 @@ function Generate-SampleTemplate {
 
   $templateJson = $sampleTemplate | ConvertTo-Json -Depth 10
   $templatePath = Join-Path $OutputPath "sample-template.json"
-
+  
   # Create directory if it doesn't exist
   $templateDir = Split-Path $templatePath -Parent
   if (-not (Test-Path $templateDir)) {
@@ -394,8 +686,86 @@ function Generate-SampleTemplate {
   }
 
   $templateJson | Out-File -FilePath $templatePath -Encoding UTF8
-  Write-Host "Sample template generated: $templatePath" -ForegroundColor Green
-  Write-Host "You can modify this template and use it with -TemplateFilePath parameter" -ForegroundColor Cyan
+  Write-Host "JSON sample template generated: $templatePath" -ForegroundColor Green
+
+  # PnP XML Sample Template
+  $pnpXmlTemplate = @"
+<?xml version="1.0"?>
+<pnp:Provisioning xmlns:pnp="http://schemas.dev.office.com/PnP/2021/03/ProvisioningSchema">
+  <pnp:Preferences Generator="SharePoint Constants Generator" />
+  <pnp:Templates ID="CONTAINER-TEMPLATE">
+    <pnp:ProvisioningTemplate ID="SAMPLE-TEMPLATE" Version="1.0">
+      <pnp:Lists>
+        <pnp:ListInstance Title="Tasks List" 
+                         Description="Sample tasks list" 
+                         DocumentTemplate="" 
+                         OnQuickLaunch="true" 
+                         TemplateType="107" 
+                         Url="Lists/TasksList">
+          <pnp:Fields>
+            <pnp:Field InternalName="Priority" DisplayName="Priority" Type="Choice">
+              <pnp:Choices>
+                <pnp:Choice>High</pnp:Choice>
+                <pnp:Choice>Normal</pnp:Choice>
+                <pnp:Choice>Low</pnp:Choice>
+              </pnp:Choices>
+            </pnp:Field>
+            <pnp:Field InternalName="Department" DisplayName="Department" Type="Choice">
+              <pnp:Choices>
+                <pnp:Choice>IT</pnp:Choice>
+                <pnp:Choice>HR</pnp:Choice>
+                <pnp:Choice>Finance</pnp:Choice>
+              </pnp:Choices>
+            </pnp:Field>
+          </pnp:Fields>
+          <pnp:Views>
+            <pnp:View DisplayName="High Priority" DefaultView="false">
+              <pnp:Query>
+                <Where>
+                  <Eq>
+                    <FieldRef Name="Priority" />
+                    <Value Type="Choice">High</Value>
+                  </Eq>
+                </Where>
+              </pnp:Query>
+            </pnp:View>
+          </pnp:Views>
+        </pnp:ListInstance>
+        
+        <pnp:ListInstance Title="Project Documents" 
+                         Description="Document library for project files" 
+                         DocumentTemplate="" 
+                         OnQuickLaunch="true" 
+                         TemplateType="101" 
+                         Url="ProjectDocuments">
+          <pnp:Fields>
+            <pnp:Field InternalName="ProjectPhase" DisplayName="Project Phase" Type="Choice">
+              <pnp:Choices>
+                <pnp:Choice>Planning</pnp:Choice>
+                <pnp:Choice>Development</pnp:Choice>
+                <pnp:Choice>Testing</pnp:Choice>
+                <pnp:Choice>Deployment</pnp:Choice>
+              </pnp:Choices>
+            </pnp:Field>
+            <pnp:Field InternalName="DocumentOwner" DisplayName="Document Owner" Type="User" />
+          </pnp:Fields>
+        </pnp:ListInstance>
+      </pnp:Lists>
+    </pnp:ProvisioningTemplate>
+  </pnp:Templates>
+</pnp:Provisioning>
+"@
+
+  $pnpTemplatePath = Join-Path $OutputPath "sample-pnp-template.xml"
+  $pnpXmlTemplate | Out-File -FilePath $pnpTemplatePath -Encoding UTF8
+  Write-Host "PnP XML sample template generated: $pnpTemplatePath" -ForegroundColor Green
+  
+  Write-Host "`nSample templates generated:" -ForegroundColor Cyan
+  Write-Host "- JSON format: sample-template.json (custom format)" -ForegroundColor White
+  Write-Host "- XML format: sample-pnp-template.xml (PnP Provisioning Template)" -ForegroundColor White
+  Write-Host "`nYou can now:" -ForegroundColor Cyan
+  Write-Host "1. Use your existing PnP template: -TemplateFilePath 'C:\path\to\your-template.xml'" -ForegroundColor White
+  Write-Host "2. Modify the sample templates and use them" -ForegroundColor White
 }
 
 # SHAREPOINT MODE FUNCTIONS (existing functions remain the same)
@@ -584,8 +954,7 @@ function Generate-ListsFile {
   $content += "// Generated on: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')`n"
   if ($isTemplateMode) {
     $content += "// Source: Template file`n`n"
-  }
-  else {
+  } else {
     $content += "// Source: $SiteUrl`n`n"
   }
 
