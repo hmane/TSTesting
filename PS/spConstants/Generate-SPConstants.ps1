@@ -1,5 +1,5 @@
-# SharePoint Constants Generator - FINAL FIXED VERSION
-# Save as Generate-SPConstants-Final.ps1
+# SharePoint Constants Generator - WITH TEMPLATE MODE IMPLEMENTATION
+# Save as Generate-SPConstants-Complete.ps1
 
 param(
   [Parameter(Mandatory = $false)]
@@ -27,8 +27,8 @@ param(
   [string]$ClientId = "970bb320-0d49-4b4a-aa8f-c3f4b1e5928f"
 )
 
-Write-Host "SharePoint Constants Generator - FINAL FIXED VERSION" -ForegroundColor Cyan
-Write-Host "===================================================" -ForegroundColor Cyan
+Write-Host "SharePoint Constants Generator - WITH TEMPLATE MODE" -ForegroundColor Cyan
+Write-Host "======================================================" -ForegroundColor Cyan
 
 # Validation
 if ([string]::IsNullOrEmpty($SiteUrl) -and [string]::IsNullOrEmpty($TemplateFilePath)) {
@@ -127,6 +127,278 @@ function Get-SafePropertyName {
 
   return $cleaned
 }
+
+# TEMPLATE MODE FUNCTIONS
+
+function Read-TemplateFile {
+  param([string]$FilePath)
+
+  if (-not (Test-Path $FilePath)) {
+    Write-Error "Template file not found: $FilePath"
+    return $null
+  }
+
+  try {
+    $content = Get-Content $FilePath -Raw
+    $template = $content | ConvertFrom-Json
+
+    Write-Host "Template file loaded successfully" -ForegroundColor Green
+    Write-Host "Lists in template: $($template.Lists.Count)" -ForegroundColor Gray
+
+    return $template
+  }
+  catch {
+    Write-Error "Failed to parse template file: $($_.Exception.Message)"
+    return $null
+  }
+}
+
+function Get-ListsFromTemplate {
+  param([object]$Template)
+
+  $lists = @()
+  foreach ($listDef in $Template.Lists) {
+    # Create mock list object similar to SharePoint list
+    $mockList = [PSCustomObject]@{
+      Title      = $listDef.Title
+      RootFolder = [PSCustomObject]@{
+        ServerRelativeUrl = $listDef.Url
+      }
+    }
+    $lists += $mockList
+  }
+
+  Write-Host "Found $($lists.Count) lists in template" -ForegroundColor Yellow
+  return $lists
+}
+
+function Get-FieldsFromTemplate {
+  param([string]$ListTitle, [object]$Template)
+
+  # Find the list definition in template
+  $listDef = $Template.Lists | Where-Object { $_.Title -eq $ListTitle }
+
+  if ($null -eq $listDef -or $null -eq $listDef.Fields) {
+    Write-Host "    No fields found in template for '$ListTitle'" -ForegroundColor Yellow
+    return @()
+  }
+
+  Write-Host "    Processing $($listDef.Fields.Count) fields from template..." -ForegroundColor Gray
+
+  $fields = @()
+  foreach ($fieldDef in $listDef.Fields) {
+    # Skip excluded fields
+    if ($ExcludeFields -contains $fieldDef.InternalName) {
+      continue
+    }
+
+    # Create mock field object
+    $mockField = [PSCustomObject]@{
+      InternalName  = $fieldDef.InternalName
+      Title         = if ($fieldDef.PSObject.Properties['Title']) { $fieldDef.Title } else { $fieldDef.InternalName }
+      FieldTypeKind = if ($fieldDef.PSObject.Properties['FieldType']) { $fieldDef.FieldType } else { "Text" }
+      Hidden        = if ($fieldDef.PSObject.Properties['Hidden']) { $fieldDef.Hidden } else { $false }
+      ReadOnlyField = if ($fieldDef.PSObject.Properties['ReadOnly']) { $fieldDef.ReadOnly } else { $false }
+    }
+
+    $fields += $mockField
+  }
+
+  # Sort fields by priority (same logic as SharePoint mode)
+  $fieldsWithOrder = @()
+  foreach ($field in $fields) {
+    $internalName = $field.InternalName
+    $order = if ($FieldOrdering.ContainsKey($internalName)) {
+      $FieldOrdering[$internalName]
+    }
+    else {
+      # Custom fields get priority based on field type
+      if ($internalName -match "^(Choice|Multi|User|Person|Lookup|Number|Currency|DateTime|Boolean|URL|Image)") {
+        200  # Business fields get higher priority
+      }
+      else {
+        300  # Other custom fields
+      }
+    }
+
+    $fieldsWithOrder += [PSCustomObject]@{
+      Field        = $field
+      Order        = $order
+      InternalName = $internalName
+    }
+  }
+
+  # Sort by order, then by name
+  $sortedFields = $fieldsWithOrder | Sort-Object Order, InternalName | ForEach-Object { $_.Field }
+
+  Write-Host "    Final result: $($sortedFields.Count) usable fields from template" -ForegroundColor Gray
+  return $sortedFields
+}
+
+function Get-ViewsFromTemplate {
+  param([string]$ListTitle, [object]$Template)
+
+  # Find the list definition in template
+  $listDef = $Template.Lists | Where-Object { $_.Title -eq $ListTitle }
+
+  if ($null -eq $listDef -or $null -eq $listDef.Views) {
+    Write-Host "    No views found in template for '$ListTitle'" -ForegroundColor Yellow
+    return @()
+  }
+
+  $views = @()
+  foreach ($viewDef in $listDef.Views) {
+    # Skip hidden views
+    if ($viewDef.PSObject.Properties['Hidden'] -and $viewDef.Hidden) {
+      continue
+    }
+
+    # Create mock view object
+    $mockView = [PSCustomObject]@{
+      Title             = $viewDef.Title
+      ServerRelativeUrl = if ($viewDef.PSObject.Properties['Url']) { $viewDef.Url } else { "/Lists/$($ListTitle -replace '\s+', '')/$($viewDef.Title -replace '\s+', '').aspx" }
+      Hidden            = if ($viewDef.PSObject.Properties['Hidden']) { $viewDef.Hidden } else { $false }
+    }
+
+    $views += $mockView
+  }
+
+  Write-Host "    Found $($views.Count) views in template" -ForegroundColor Gray
+  return $views
+}
+
+function Generate-SampleTemplate {
+  param([string]$OutputPath)
+
+  $sampleTemplate = @{
+    SchemaVersion = "1.0"
+    GeneratedOn   = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
+    Description   = "Sample template for SharePoint Constants Generator"
+    Lists         = @(
+      @{
+        Title  = "Sample List 1"
+        Url    = "/Lists/Sample List 1"
+        Fields = @(
+          @{
+            InternalName = "ID"
+            Title        = "ID"
+            FieldType    = "Counter"
+            Hidden       = $false
+            ReadOnly     = $true
+          },
+          @{
+            InternalName = "Title"
+            Title        = "Title"
+            FieldType    = "Text"
+            Hidden       = $false
+            ReadOnly     = $false
+          },
+          @{
+            InternalName = "Status"
+            Title        = "Status"
+            FieldType    = "Choice"
+            Hidden       = $false
+            ReadOnly     = $false
+          },
+          @{
+            InternalName = "Priority"
+            Title        = "Priority"
+            FieldType    = "Choice"
+            Hidden       = $false
+            ReadOnly     = $false
+          },
+          @{
+            InternalName = "AssignedTo"
+            Title        = "Assigned To"
+            FieldType    = "User"
+            Hidden       = $false
+            ReadOnly     = $false
+          },
+          @{
+            InternalName = "DueDate"
+            Title        = "Due Date"
+            FieldType    = "DateTime"
+            Hidden       = $false
+            ReadOnly     = $false
+          },
+          @{
+            InternalName = "Created"
+            Title        = "Created"
+            FieldType    = "DateTime"
+            Hidden       = $false
+            ReadOnly     = $true
+          },
+          @{
+            InternalName = "Modified"
+            Title        = "Modified"
+            FieldType    = "DateTime"
+            Hidden       = $false
+            ReadOnly     = $true
+          }
+        )
+        Views  = @(
+          @{
+            Title  = "All Items"
+            Url    = "/Lists/Sample List 1/AllItems.aspx"
+            Hidden = $false
+          },
+          @{
+            Title  = "Active Items"
+            Url    = "/Lists/Sample List 1/ActiveItems.aspx"
+            Hidden = $false
+          }
+        )
+      },
+      @{
+        Title  = "Sample List 2"
+        Url    = "/Lists/Sample List 2"
+        Fields = @(
+          @{
+            InternalName = "ID"
+            Title        = "ID"
+            FieldType    = "Counter"
+          },
+          @{
+            InternalName = "Title"
+            Title        = "Title"
+            FieldType    = "Text"
+          },
+          @{
+            InternalName = "Description"
+            Title        = "Description"
+            FieldType    = "Note"
+          },
+          @{
+            InternalName = "Category"
+            Title        = "Category"
+            FieldType    = "Choice"
+          }
+        )
+        Views  = @(
+          @{
+            Title = "All Items"
+            Url   = "/Lists/Sample List 2/AllItems.aspx"
+          }
+        )
+      }
+    )
+  }
+
+  $templateJson = $sampleTemplate | ConvertTo-Json -Depth 10
+  $templatePath = Join-Path $OutputPath "sample-template.json"
+
+  # Create directory if it doesn't exist
+  $templateDir = Split-Path $templatePath -Parent
+  if (-not (Test-Path $templateDir)) {
+    New-Item -ItemType Directory -Path $templateDir -Force | Out-Null
+  }
+
+  $templateJson | Out-File -FilePath $templatePath -Encoding UTF8
+  Write-Host "Sample template generated: $templatePath" -ForegroundColor Green
+  Write-Host "You can modify this template and use it with -TemplateFilePath parameter" -ForegroundColor Cyan
+}
+
+# SHAREPOINT MODE FUNCTIONS (existing functions remain the same)
 
 function Get-ListsFromSharePoint {
   Write-Host "Getting SharePoint lists..." -ForegroundColor Yellow
@@ -303,12 +575,19 @@ function Get-ViewsFromSharePoint {
   }
 }
 
+# COMMON GENERATION FUNCTIONS (work for both modes)
+
 function Generate-ListsFile {
   param([array]$Lists, [string]$OutputPath)
 
   $content = "// Auto-generated SharePoint Lists constants`n"
   $content += "// Generated on: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')`n"
-  $content += "// Source: $SiteUrl`n`n"
+  if ($isTemplateMode) {
+    $content += "// Source: Template file`n`n"
+  }
+  else {
+    $content += "// Source: $SiteUrl`n`n"
+  }
 
   $content += "export const Lists = {`n"
 
@@ -557,8 +836,71 @@ try {
     New-Item -ItemType Directory -Path $OutputPath -Force | Out-Null
   }
 
-  if (-not $isTemplateMode) {
-    Write-Host "Connecting to SharePoint: $SiteUrl" -ForegroundColor Cyan
+  if ($isTemplateMode) {
+    Write-Host "Running in Template Mode" -ForegroundColor Cyan
+    Write-Host "Template file: $TemplateFilePath" -ForegroundColor Gray
+
+    # Check if user wants to generate a sample template
+    if ($TemplateFilePath -eq "sample" -or $TemplateFilePath -eq "generate-sample") {
+      Write-Host "Generating sample template..." -ForegroundColor Yellow
+      Generate-SampleTemplate -OutputPath $OutputPath
+      Write-Host "`nSample template generated successfully!" -ForegroundColor Green
+      Write-Host "Edit the template file and run again with -TemplateFilePath pointing to your template." -ForegroundColor Cyan
+      exit 0
+    }
+
+    # Load template
+    $template = Read-TemplateFile -FilePath $TemplateFilePath
+    if ($null -eq $template) {
+      exit 1
+    }
+
+    # Get lists from template
+    $lists = Get-ListsFromTemplate -Template $template
+
+    if ($lists.Count -eq 0) {
+      Write-Host "No lists found in template" -ForegroundColor Yellow
+      exit 0
+    }
+
+    # Generate Lists.ts
+    Generate-ListsFile -Lists $lists -OutputPath $OutputPath
+
+    # Generate field and view files
+    Write-Host "`nProcessing lists from template..." -ForegroundColor Yellow
+    $processedLists = @()
+
+    foreach ($list in $lists) {
+      $listTitle = $list.Title
+      Write-Host "  Processing: $listTitle" -ForegroundColor White
+
+      $fields = Get-FieldsFromTemplate -ListTitle $listTitle -Template $template
+      if ($fields.Count -gt 0) {
+        Generate-FieldsFile -ListTitle $listTitle -Fields $fields -OutputPath $OutputPath
+        $processedLists += $list
+      }
+
+      # Generate views if requested
+      if ($IncludeViews) {
+        $views = Get-ViewsFromTemplate -ListTitle $listTitle -Template $template
+        if ($views.Count -gt 0) {
+          Generate-ViewsFile -ListTitle $listTitle -Views $views -OutputPath $OutputPath
+        }
+      }
+    }
+
+    # Generate index files
+    Generate-IndexFiles -Lists $processedLists -OutputPath $OutputPath
+
+    Write-Host "`n=== Template Generation Complete ===" -ForegroundColor Cyan
+    Write-Host "Lists processed: $($processedLists.Count)" -ForegroundColor White
+    Write-Host "Output directory: $OutputPath" -ForegroundColor White
+    Write-Host "Source: Template file ($TemplateFilePath)" -ForegroundColor White
+
+  }
+  else {
+    Write-Host "Running in SharePoint Mode" -ForegroundColor Cyan
+    Write-Host "Connecting to SharePoint: $SiteUrl" -ForegroundColor Gray
 
     if (-not (Get-Module -ListAvailable -Name "PnP.PowerShell")) {
       Write-Error "PnP.PowerShell module not installed"
@@ -610,22 +952,20 @@ try {
     # Generate index files
     Generate-IndexFiles -Lists $processedLists -OutputPath $OutputPath
 
-    Write-Host "`n=== Generation Complete ===" -ForegroundColor Cyan
+    Write-Host "`n=== SharePoint Generation Complete ===" -ForegroundColor Cyan
     Write-Host "Lists processed: $($processedLists.Count)" -ForegroundColor White
     Write-Host "Output directory: $OutputPath" -ForegroundColor White
+    Write-Host "Source: $SiteUrl" -ForegroundColor White
 
     if ($IncludeViews) {
       Write-Host "Views included: Yes" -ForegroundColor White
     }
-
-  }
-  else {
-    Write-Host "Template mode not implemented" -ForegroundColor Yellow
   }
 
 }
 catch {
   Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
+  Write-Host "Stack Trace: $($_.Exception.StackTrace)" -ForegroundColor Red
 }
 finally {
   if (-not $isTemplateMode) {
