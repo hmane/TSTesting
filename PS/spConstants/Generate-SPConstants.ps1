@@ -228,55 +228,98 @@ function Get-MockFields {
     
     if ($listTemplate -and $listTemplate.Fields) {
       Write-Host "    Found $($listTemplate.Fields.Count) fields in template for '$ListTitle'" -ForegroundColor Gray
-      Write-Host "    Analyzing field properties..." -ForegroundColor Gray
+      Write-Host "    Parsing XML field definitions..." -ForegroundColor Gray
       
       foreach ($fieldDef in $listTemplate.Fields) {
-        $internalName = ""
-        $displayName = ""
-        
-        # Debug: Show all properties of the field
-        $properties = $fieldDef | Get-Member -MemberType Properties | Select-Object -ExpandProperty Name
-        Write-Host "      Field properties: $($properties -join ', ')" -ForegroundColor DarkGray
-        
-        # Try multiple possible property names for internal name
-        if ($fieldDef.InternalName) {
-          $internalName = $fieldDef.InternalName
-        } elseif ($fieldDef.StaticName) {
-          $internalName = $fieldDef.StaticName
-        } elseif ($fieldDef.Name) {
-          $internalName = $fieldDef.Name
-        } elseif ($fieldDef.ID) {
-          $internalName = $fieldDef.ID
-        }
-        
-        # Try multiple possible property names for display name
-        if ($fieldDef.DisplayName) {
-          $displayName = $fieldDef.DisplayName
-        } elseif ($fieldDef.Title) {
-          $displayName = $fieldDef.Title
-        } else {
-          $displayName = $internalName
-        }
-        
-        Write-Host "      Processing field: InternalName='$internalName', DisplayName='$displayName'" -ForegroundColor DarkGray
-        
-        if (-not [string]::IsNullOrEmpty($internalName)) {
-          # Skip excluded fields
-          if ($ExcludeFields -contains $internalName) {
-            Write-Host "        Skipping excluded field: $internalName" -ForegroundColor DarkGray
-            continue
+        try {
+          $internalName = ""
+          $displayName = ""
+          
+          # Check if field is an XML string that needs parsing
+          if ($fieldDef -is [string] -and $fieldDef.StartsWith("<Field")) {
+            Write-Host "      Parsing XML field definition" -ForegroundColor DarkGray
+            
+            # Parse the XML field definition
+            [xml]$fieldXml = $fieldDef
+            $fieldElement = $fieldXml.Field
+            
+            # Extract attributes from XML
+            $internalName = $fieldElement.Name
+            if ([string]::IsNullOrEmpty($internalName)) {
+              $internalName = $fieldElement.StaticName
+            }
+            if ([string]::IsNullOrEmpty($internalName)) {
+              $internalName = $fieldElement.InternalName
+            }
+            
+            $displayName = $fieldElement.DisplayName
+            if ([string]::IsNullOrEmpty($displayName)) {
+              $displayName = $fieldElement.Title
+            }
+            if ([string]::IsNullOrEmpty($displayName)) {
+              $displayName = $internalName
+            }
+            
+            Write-Host "      XML Field - Name: '$internalName', DisplayName: '$displayName', Type: '$($fieldElement.Type)'" -ForegroundColor DarkGray
+          }
+          else {
+            # Handle as object (try multiple property names)
+            Write-Host "      Processing field object" -ForegroundColor DarkGray
+            
+            if ($fieldDef.InternalName) {
+              $internalName = $fieldDef.InternalName
+            } elseif ($fieldDef.StaticName) {
+              $internalName = $fieldDef.StaticName
+            } elseif ($fieldDef.Name) {
+              $internalName = $fieldDef.Name
+            } elseif ($fieldDef.ID) {
+              $internalName = $fieldDef.ID
+            }
+            
+            if ($fieldDef.DisplayName) {
+              $displayName = $fieldDef.DisplayName
+            } elseif ($fieldDef.Title) {
+              $displayName = $fieldDef.Title
+            } else {
+              $displayName = $internalName
+            }
+            
+            Write-Host "      Object Field - InternalName: '$internalName', DisplayName: '$displayName'" -ForegroundColor DarkGray
           }
           
-          $mockFields += [PSCustomObject]@{
-            InternalName = $internalName
-            Title = $displayName
-            Hidden = $false
-            ReadOnlyField = $false
+          if (-not [string]::IsNullOrEmpty($internalName)) {
+            # Skip excluded fields
+            if ($ExcludeFields -contains $internalName) {
+              Write-Host "        Skipping excluded field: $internalName" -ForegroundColor DarkGray
+              continue
+            }
+            
+            # Skip fields starting with underscore (except important ones)
+            if ($internalName.StartsWith("_") -and $internalName -notmatch "^(ID|Title|Created|Modified|Author|Editor|ContentType)$") {
+              Write-Host "        Skipping underscore field: $internalName" -ForegroundColor DarkGray
+              continue
+            }
+            
+            $mockFields += [PSCustomObject]@{
+              InternalName = $internalName
+              Title = $displayName
+              Hidden = $false
+              ReadOnlyField = $false
+            }
+            
+            Write-Host "        Added field: $internalName" -ForegroundColor Green
+          } else {
+            Write-Host "        Skipping field - no internal name found" -ForegroundColor Yellow
+            if ($fieldDef -is [string]) {
+              Write-Host "        Field content: $($fieldDef.Substring(0, [Math]::Min(100, $fieldDef.Length)))..." -ForegroundColor DarkGray
+            }
           }
-          
-          Write-Host "        Added field: $internalName" -ForegroundColor Green
-        } else {
-          Write-Host "        Skipping field with no internal name" -ForegroundColor Yellow
+        }
+        catch {
+          Write-Host "        Error parsing field: $($_.Exception.Message)" -ForegroundColor Red
+          if ($fieldDef -is [string]) {
+            Write-Host "        Field content: $($fieldDef.Substring(0, [Math]::Min(100, $fieldDef.Length)))..." -ForegroundColor DarkGray
+          }
         }
       }
     } else {
