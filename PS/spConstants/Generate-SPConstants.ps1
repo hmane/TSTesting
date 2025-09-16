@@ -386,10 +386,10 @@ try {
     Write-Host "Template Mode: Processing $TemplateFilePath" -ForegroundColor Cyan
     
     # Use PnP PowerShell to read the template
-    $template = Read-PnPProvisioningTemplate -Path $TemplateFilePath
+    $template = Read-PnPSiteTemplate -Path $TemplateFilePath
     
     if (-not $template) {
-      Write-Error "Could not read PnP Provisioning Template"
+      Write-Error "Could not read PnP Site Template"
       exit 1
     }
     
