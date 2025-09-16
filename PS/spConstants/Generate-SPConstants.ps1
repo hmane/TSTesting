@@ -464,7 +464,12 @@ export const $($safeName)Fields = {
   $fieldItems = @()
   foreach ($field in $Fields) {
     $internalName = $field.InternalName
+    
+    # Use the InternalName directly for the TypeScript property name (with proper casing)
     $propertyName = Get-SafePropertyName -InputName $internalName
+    
+    Write-Host "      Field mapping: $propertyName = '$internalName'" -ForegroundColor DarkGray
+    
     $fieldItems += "  $propertyName`: '$internalName'"
   }
   
