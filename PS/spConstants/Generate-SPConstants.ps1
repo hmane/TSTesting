@@ -58,13 +58,28 @@ function Get-SafePropertyName {
   if ([string]::IsNullOrEmpty($InputName)) { return "DefaultField" }
   
   # Clean SharePoint encodings and special characters
-  $cleaned = $InputName -replace '_x0020_', '' -replace '_x002e_', '' -replace '_x002d_', ''
-  $cleaned = $cleaned -replace '[^a-zA-Z0-9]', ''
+  $cleaned = $InputName -replace '_x0020_', ' ' -replace '_x002e_', '.' -replace '_x002d_', '-'
   
-  if ([string]::IsNullOrEmpty($cleaned)) { return "Field" }
+  # Split by spaces and capitalize each word (Pascal Case)
+  $words = $cleaned -split '\s+'
+  $pascalCase = ""
   
-  # Capitalize first letter
-  return $cleaned.Substring(0, 1).ToUpper() + $cleaned.Substring(1).ToLower()
+  foreach ($word in $words) {
+    if (-not [string]::IsNullOrEmpty($word)) {
+      # Remove non-alphanumeric characters from each word
+      $cleanWord = $word -replace '[^a-zA-Z0-9]', ''
+      if (-not [string]::IsNullOrEmpty($cleanWord)) {
+        # Capitalize first letter, keep rest as-is
+        $pascalCase += $cleanWord.Substring(0, 1).ToUpper() + $cleanWord.Substring(1).ToLower()
+      }
+    }
+  }
+  
+  if ([string]::IsNullOrEmpty($pascalCase)) {
+    return "Field"
+  }
+  
+  return $pascalCase
 }
 
 function Get-FilteredLists {
@@ -168,8 +183,8 @@ function Generate-TypeScriptFiles {
     Write-Host "  Processing: $($list.Title)" -ForegroundColor White
     
     if ($isTemplateMode) {
-      # For template mode, create mock fields since we can't query SharePoint
-      $fields = Get-MockFields -ListTitle $list.Title
+      # For template mode, get fields from template data
+      $fields = Get-MockFields -ListTitle $list.Title -Template $template
     } else {
       # For SharePoint mode, get actual fields
       $fields = Get-FilteredFields -ListTitle $list.Title
@@ -203,29 +218,101 @@ function Generate-TypeScriptFiles {
 }
 
 function Get-MockFields {
-  param([string]$ListTitle)
+  param([string]$ListTitle, [object]$Template)
   
-  # Create mock fields for template mode
   $mockFields = @()
   
-  # Standard fields every list should have
-  $standardFields = @(
-    @{InternalName="ID"; Title="ID"},
-    @{InternalName="Title"; Title="Title"},
-    @{InternalName="Created"; Title="Created"},
-    @{InternalName="Modified"; Title="Modified"},
-    @{InternalName="Author"; Title="Created By"},
-    @{InternalName="Editor"; Title="Modified By"}
-  )
-  
-  foreach ($fieldDef in $standardFields) {
-    $mockFields += [PSCustomObject]@{
-      InternalName = $fieldDef.InternalName
-      Title = $fieldDef.Title
+  # Try to find the list in the template and extract its actual fields
+  if ($Template -and $Template.Lists) {
+    $listTemplate = $Template.Lists | Where-Object { $_.Title -eq $ListTitle }
+    
+    if ($listTemplate -and $listTemplate.Fields) {
+      Write-Host "    Found $($listTemplate.Fields.Count) fields in template for '$ListTitle'" -ForegroundColor Gray
+      
+      foreach ($fieldDef in $listTemplate.Fields) {
+        $internalName = ""
+        $displayName = ""
+        
+        # Get field internal name
+        if ($fieldDef.InternalName) {
+          $internalName = $fieldDef.InternalName
+        } elseif ($fieldDef.Name) {
+          $internalName = $fieldDef.Name
+        }
+        
+        # Get display name
+        if ($fieldDef.DisplayName) {
+          $displayName = $fieldDef.DisplayName
+        } elseif ($fieldDef.Title) {
+          $displayName = $fieldDef.Title
+        } else {
+          $displayName = $internalName
+        }
+        
+        if (-not [string]::IsNullOrEmpty($internalName)) {
+          $mockFields += [PSCustomObject]@{
+            InternalName = $internalName
+            Title = $displayName
+            Hidden = $false
+            ReadOnlyField = $false
+          }
+        }
+      }
     }
   }
   
-  Write-Host "    Generated $($mockFields.Count) mock fields" -ForegroundColor Gray
+  # If no fields found in template, add standard fields
+  if ($mockFields.Count -eq 0) {
+    Write-Host "    No fields found in template, adding standard fields for '$ListTitle'" -ForegroundColor Yellow
+    
+    $standardFields = @(
+      @{InternalName="ID"; Title="ID"},
+      @{InternalName="Title"; Title="Title"},
+      @{InternalName="Created"; Title="Created"},
+      @{InternalName="Modified"; Title="Modified"},
+      @{InternalName="Author"; Title="Created By"},
+      @{InternalName="Editor"; Title="Modified By"}
+    )
+    
+    foreach ($fieldDef in $standardFields) {
+      $mockFields += [PSCustomObject]@{
+        InternalName = $fieldDef.InternalName
+        Title = $fieldDef.Title
+        Hidden = $false
+        ReadOnlyField = ($fieldDef.InternalName -in @("ID", "Created", "Modified", "Author", "Editor"))
+      }
+    }
+  } else {
+    # Add standard fields if they're not already present
+    $existingInternalNames = $mockFields | ForEach-Object { $_.InternalName }
+    
+    $standardFields = @("ID", "Title", "Created", "Modified", "Author", "Editor")
+    foreach ($standardField in $standardFields) {
+      if ($existingInternalNames -notcontains $standardField) {
+        $mockFields += [PSCustomObject]@{
+          InternalName = $standardField
+          Title = $standardField
+          Hidden = $false
+          ReadOnlyField = ($standardField -in @("ID", "Created", "Modified", "Author", "Editor"))
+        }
+      }
+    }
+    
+    # Sort fields: standard fields first, then custom fields
+    $sortedFields = $mockFields | Sort-Object {
+      switch ($_.InternalName) {
+        "ID" { 1 }
+        "Title" { 2 }
+        "ContentType" { 3 }
+        { $_ -match "^(Created|Modified|Author|Editor)$" } { 500 }
+        default { 100 }
+      }
+    }, InternalName
+    
+    $mockFields = $sortedFields
+  }
+  
+  Write-Host "    Generated $($mockFields.Count) total fields for '$ListTitle'" -ForegroundColor Gray
   return $mockFields
 }
 
@@ -405,6 +492,8 @@ try {
           RootFolder = [PSCustomObject]@{
             ServerRelativeUrl = $listTemplate.Url
           }
+          # Store template reference for field extraction
+          TemplateData = $listTemplate
         }
         $lists += $mockList
       }
