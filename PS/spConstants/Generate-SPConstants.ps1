@@ -228,19 +228,21 @@ function Get-MockFields {
     
     if ($listTemplate -and $listTemplate.Fields) {
       Write-Host "    Found $($listTemplate.Fields.Count) fields in template for '$ListTitle'" -ForegroundColor Gray
-      Write-Host "    Parsing XML field definitions..." -ForegroundColor Gray
+      Write-Host "    Parsing field definitions from SchemaXml..." -ForegroundColor Gray
       
       foreach ($fieldDef in $listTemplate.Fields) {
         try {
           $internalName = ""
           $displayName = ""
           
-          # Check if field is an XML string that needs parsing
-          if ($fieldDef -is [string] -and $fieldDef.StartsWith("<Field")) {
-            Write-Host "      Parsing XML field definition" -ForegroundColor DarkGray
+          # Get the XML schema from the field definition
+          $schemaXml = $fieldDef.SchemaXml
+          
+          if (-not [string]::IsNullOrEmpty($schemaXml)) {
+            Write-Host "      Parsing SchemaXml for field" -ForegroundColor DarkGray
             
             # Parse the XML field definition
-            [xml]$fieldXml = $fieldDef
+            [xml]$fieldXml = $schemaXml
             $fieldElement = $fieldXml.Field
             
             # Extract attributes from XML
@@ -263,8 +265,8 @@ function Get-MockFields {
             Write-Host "      XML Field - Name: '$internalName', DisplayName: '$displayName', Type: '$($fieldElement.Type)'" -ForegroundColor DarkGray
           }
           else {
-            # Handle as object (try multiple property names)
-            Write-Host "      Processing field object" -ForegroundColor DarkGray
+            # Fallback: try to get properties directly from field object
+            Write-Host "      No SchemaXml found, trying field object properties" -ForegroundColor DarkGray
             
             if ($fieldDef.InternalName) {
               $internalName = $fieldDef.InternalName
@@ -272,8 +274,6 @@ function Get-MockFields {
               $internalName = $fieldDef.StaticName
             } elseif ($fieldDef.Name) {
               $internalName = $fieldDef.Name
-            } elseif ($fieldDef.ID) {
-              $internalName = $fieldDef.ID
             }
             
             if ($fieldDef.DisplayName) {
@@ -310,16 +310,11 @@ function Get-MockFields {
             Write-Host "        Added field: $internalName" -ForegroundColor Green
           } else {
             Write-Host "        Skipping field - no internal name found" -ForegroundColor Yellow
-            if ($fieldDef -is [string]) {
-              Write-Host "        Field content: $($fieldDef.Substring(0, [Math]::Min(100, $fieldDef.Length)))..." -ForegroundColor DarkGray
-            }
           }
         }
         catch {
           Write-Host "        Error parsing field: $($_.Exception.Message)" -ForegroundColor Red
-          if ($fieldDef -is [string]) {
-            Write-Host "        Field content: $($fieldDef.Substring(0, [Math]::Min(100, $fieldDef.Length)))..." -ForegroundColor DarkGray
-          }
+          Write-Host "        SchemaXml content: $($fieldDef.SchemaXml.Substring(0, [Math]::Min(100, $fieldDef.SchemaXml.Length)))..." -ForegroundColor DarkGray
         }
       }
     } else {
