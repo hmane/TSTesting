@@ -228,19 +228,28 @@ function Get-MockFields {
     
     if ($listTemplate -and $listTemplate.Fields) {
       Write-Host "    Found $($listTemplate.Fields.Count) fields in template for '$ListTitle'" -ForegroundColor Gray
+      Write-Host "    Analyzing field properties..." -ForegroundColor Gray
       
       foreach ($fieldDef in $listTemplate.Fields) {
         $internalName = ""
         $displayName = ""
         
-        # Get field internal name
+        # Debug: Show all properties of the field
+        $properties = $fieldDef | Get-Member -MemberType Properties | Select-Object -ExpandProperty Name
+        Write-Host "      Field properties: $($properties -join ', ')" -ForegroundColor DarkGray
+        
+        # Try multiple possible property names for internal name
         if ($fieldDef.InternalName) {
           $internalName = $fieldDef.InternalName
+        } elseif ($fieldDef.StaticName) {
+          $internalName = $fieldDef.StaticName
         } elseif ($fieldDef.Name) {
           $internalName = $fieldDef.Name
+        } elseif ($fieldDef.ID) {
+          $internalName = $fieldDef.ID
         }
         
-        # Get display name
+        # Try multiple possible property names for display name
         if ($fieldDef.DisplayName) {
           $displayName = $fieldDef.DisplayName
         } elseif ($fieldDef.Title) {
@@ -249,21 +258,39 @@ function Get-MockFields {
           $displayName = $internalName
         }
         
+        Write-Host "      Processing field: InternalName='$internalName', DisplayName='$displayName'" -ForegroundColor DarkGray
+        
         if (-not [string]::IsNullOrEmpty($internalName)) {
+          # Skip excluded fields
+          if ($ExcludeFields -contains $internalName) {
+            Write-Host "        Skipping excluded field: $internalName" -ForegroundColor DarkGray
+            continue
+          }
+          
           $mockFields += [PSCustomObject]@{
             InternalName = $internalName
             Title = $displayName
             Hidden = $false
             ReadOnlyField = $false
           }
+          
+          Write-Host "        Added field: $internalName" -ForegroundColor Green
+        } else {
+          Write-Host "        Skipping field with no internal name" -ForegroundColor Yellow
         }
+      }
+    } else {
+      Write-Host "    No Fields property found for list '$ListTitle'" -ForegroundColor Yellow
+      if ($listTemplate) {
+        $listProperties = $listTemplate | Get-Member -MemberType Properties | Select-Object -ExpandProperty Name
+        Write-Host "    Available list properties: $($listProperties -join ', ')" -ForegroundColor DarkGray
       }
     }
   }
   
   # If no fields found in template, add standard fields
   if ($mockFields.Count -eq 0) {
-    Write-Host "    No fields found in template, adding standard fields for '$ListTitle'" -ForegroundColor Yellow
+    Write-Host "    No custom fields found in template, adding standard fields for '$ListTitle'" -ForegroundColor Yellow
     
     $standardFields = @(
       @{InternalName="ID"; Title="ID"},
@@ -295,6 +322,7 @@ function Get-MockFields {
           Hidden = $false
           ReadOnlyField = ($standardField -in @("ID", "Created", "Modified", "Author", "Editor"))
         }
+        Write-Host "        Added missing standard field: $standardField" -ForegroundColor Cyan
       }
     }
     
