@@ -1,0 +1,271 @@
+<!-- ========================================= -->
+<!-- main-template.xml - Master Template File -->
+<!-- ========================================= -->
+<?xml version="1.0"?>
+<pnp:Provisioning xmlns:pnp="http://schemas.dev.office.com/PnP/2021/03/ProvisioningSchema">
+  <pnp:Preferences Generator="Enterprise Template Generator" />
+  
+  <pnp:Templates ID="ENTERPRISE-CONTAINER">
+    <!-- Reference external component files -->
+    <pnp:ProvisioningTemplateFile File="clientsidepages.xml" />
+    <pnp:ProvisioningTemplateFile File="security.xml" />
+    
+    <!-- Reference all list files in the lists folder -->
+    <pnp:ProvisioningTemplateFile File="lists/tasks-list.xml" />
+    <pnp:ProvisioningTemplateFile File="lists/team-list.xml" />
+    <pnp:ProvisioningTemplateFile File="lists/projects-list.xml" />
+    <pnp:ProvisioningTemplateFile File="lists/documents-library.xml" />
+  </pnp:Templates>
+</pnp:Provisioning>
+
+<!-- ========================================= -->
+<!-- clientsidepages.xml - Pages and Navigation -->
+<!-- ========================================= -->
+<?xml version="1.0"?>
+<pnp:Provisioning xmlns:pnp="http://schemas.dev.office.com/PnP/2021/03/ProvisioningSchema">
+  <pnp:Templates ID="PAGES-TEMPLATE">
+    <pnp:ProvisioningTemplate ID="SITE-PAGES" Version="1.0">
+      <pnp:Pages>
+        <pnp:ClientSidePage PageName="ProjectDashboard.aspx" Title="Project Dashboard" Layout="Article">
+          <pnp:Header Type="Default" />
+          <pnp:Sections>
+            <pnp:Section Order="1" Type="OneColumn">
+              <pnp:Controls>
+                <pnp:CanvasControl WebPartType="List" Order="1" />
+              </pnp:Controls>
+            </pnp:Section>
+          </pnp:Sections>
+        </pnp:ClientSidePage>
+        
+        <pnp:ClientSidePage PageName="TeamDirectory.aspx" Title="Team Directory" Layout="Article">
+          <pnp:Header Type="Default" />
+          <pnp:Sections>
+            <pnp:Section Order="1" Type="TwoColumn">
+              <pnp:Controls>
+                <pnp:CanvasControl WebPartType="List" Order="1" />
+              </pnp:Controls>
+            </pnp:Section>
+          </pnp:Sections>
+        </pnp:ClientSidePage>
+      </pnp:Pages>
+      
+      <pnp:Navigation>
+        <pnp:CurrentNavigation NavigationType="StructuralLocal">
+          <pnp:StructuralNavigation RemoveExistingNodes="true">
+            <pnp:NavigationNode Title="Dashboard" Url="/SitePages/ProjectDashboard.aspx" />
+            <pnp:NavigationNode Title="Team" Url="/SitePages/TeamDirectory.aspx" />
+            <pnp:NavigationNode Title="Lists">
+              <pnp:NavigationNode Title="Tasks" Url="/Lists/ProjectTasks" />
+              <pnp:NavigationNode Title="Projects" Url="/Lists/Projects" />
+            </pnp:NavigationNode>
+          </pnp:StructuralNavigation>
+        </pnp:CurrentNavigation>
+      </pnp:Navigation>
+    </pnp:ProvisioningTemplate>
+  </pnp:Templates>
+</pnp:Provisioning>
+
+<!-- ========================================= -->
+<!-- security.xml - Permissions and Groups -->
+<!-- ========================================= -->
+<?xml version="1.0"?>
+<pnp:Provisioning xmlns:pnp="http://schemas.dev.office.com/PnP/2021/03/ProvisioningSchema">
+  <pnp:Templates ID="SECURITY-TEMPLATE">
+    <pnp:ProvisioningTemplate ID="SITE-SECURITY" Version="1.0">
+      <pnp:Security>
+        <pnp:AdditionalAdministrators>
+          <pnp:User Name="admin@company.com" />
+        </pnp:AdditionalAdministrators>
+        
+        <pnp:SiteGroups>
+          <pnp:SiteGroup Title="Project Managers" Description="Project management team" Owner="admin@company.com">
+            <pnp:Members>
+              <pnp:User Name="pm1@company.com" />
+              <pnp:User Name="pm2@company.com" />
+            </pnp:Members>
+          </pnp:SiteGroup>
+          
+          <pnp:SiteGroup Title="Developers" Description="Development team" Owner="admin@company.com">
+            <pnp:Members>
+              <pnp:User Name="dev1@company.com" />
+              <pnp:User Name="dev2@company.com" />
+            </pnp:Members>
+          </pnp:SiteGroup>
+        </pnp:SiteGroups>
+        
+        <pnp:SiteSecurityPermissions>
+          <pnp:RoleAssignments>
+            <pnp:RoleAssignment Principal="Project Managers" RoleDefinition="Full Control" />
+            <pnp:RoleAssignment Principal="Developers" RoleDefinition="Contribute" />
+          </pnp:RoleAssignments>
+        </pnp:SiteSecurityPermissions>
+      </pnp:Security>
+    </pnp:ProvisioningTemplate>
+  </pnp:Templates>
+</pnp:Provisioning>
+
+<!-- ========================================= -->
+<!-- lists/tasks-list.xml - Project Tasks List -->
+<!-- ========================================= -->
+<?xml version="1.0"?>
+<pnp:Provisioning xmlns:pnp="http://schemas.dev.office.com/PnP/2021/03/ProvisioningSchema">
+  <pnp:Templates ID="TASKS-TEMPLATE">
+    <pnp:ProvisioningTemplate ID="TASKS-LIST" Version="1.0">
+      <pnp:Lists>
+        <pnp:ListInstance Title="Project Tasks" 
+                         Description="Track project tasks and assignments" 
+                         DocumentTemplate="" 
+                         OnQuickLaunch="true" 
+                         TemplateType="107" 
+                         Url="Lists/ProjectTasks">
+          <pnp:Fields>
+            <pnp:Field InternalName="Priority" DisplayName="Priority" Type="Choice">
+              <pnp:Choices>
+                <pnp:Choice>Critical</pnp:Choice>
+                <pnp:Choice>High</pnp:Choice>
+                <pnp:Choice>Medium</pnp:Choice>
+                <pnp:Choice>Low</pnp:Choice>
+              </pnp:Choices>
+            </pnp:Field>
+            <pnp:Field InternalName="ProjectPhase" DisplayName="Project Phase" Type="Choice">
+              <pnp:Choices>
+                <pnp:Choice>Planning</pnp:Choice>
+                <pnp:Choice>Development</pnp:Choice>
+                <pnp:Choice>Testing</pnp:Choice>
+                <pnp:Choice>Deployment</pnp:Choice>
+              </pnp:Choices>
+            </pnp:Field>
+            <pnp:Field InternalName="EstimatedHours" DisplayName="Estimated Hours" Type="Number" />
+          </pnp:Fields>
+        </pnp:ListInstance>
+      </pnp:Lists>
+    </pnp:ProvisioningTemplate>
+  </pnp:Templates>
+</pnp:Provisioning>
+
+<!-- ========================================= -->
+<!-- lists/team-list.xml - Team Members List -->
+<!-- ========================================= -->
+<?xml version="1.0"?>
+<pnp:Provisioning xmlns:pnp="http://schemas.dev.office.com/PnP/2021/03/ProvisioningSchema">
+  <pnp:Templates ID="TEAM-TEMPLATE">
+    <pnp:ProvisioningTemplate ID="TEAM-LIST" Version="1.0">
+      <pnp:Lists>
+        <pnp:ListInstance Title="Team Members" 
+                         Description="Team member directory and roles" 
+                         DocumentTemplate="" 
+                         OnQuickLaunch="true" 
+                         TemplateType="100" 
+                         Url="Lists/TeamMembers">
+          <pnp:Fields>
+            <pnp:Field InternalName="Role" DisplayName="Role" Type="Choice">
+              <pnp:Choices>
+                <pnp:Choice>Project Manager</pnp:Choice>
+                <pnp:Choice>Lead Developer</pnp:Choice>
+                <pnp:Choice>Developer</pnp:Choice>
+                <pnp:Choice>QA Tester</pnp:Choice>
+                <pnp:Choice>Business Analyst</pnp:Choice>
+              </pnp:Choices>
+            </pnp:Field>
+            <pnp:Field InternalName="Skills" DisplayName="Skills" Type="Note" />
+            <pnp:Field InternalName="YearsExperience" DisplayName="Years Experience" Type="Number" />
+          </pnp:Fields>
+        </pnp:ListInstance>
+      </pnp:Lists>
+    </pnp:ProvisioningTemplate>
+  </pnp:Templates>
+</pnp:Provisioning>
+
+<!-- ========================================= -->
+<!-- lists/projects-list.xml - Projects List -->
+<!-- ========================================= -->
+<?xml version="1.0"?>
+<pnp:Provisioning xmlns:pnp="http://schemas.dev.office.com/PnP/2021/03/ProvisioningSchema">
+  <pnp:Templates ID="PROJECTS-TEMPLATE">
+    <pnp:ProvisioningTemplate ID="PROJECTS-LIST" Version="1.0">
+      <pnp:Lists>
+        <pnp:ListInstance Title="Projects" 
+                         Description="Project portfolio and status tracking" 
+                         DocumentTemplate="" 
+                         OnQuickLaunch="true" 
+                         TemplateType="100" 
+                         Url="Lists/Projects">
+          <pnp:Fields>
+            <pnp:Field InternalName="ProjectStatus" DisplayName="Status" Type="Choice">
+              <pnp:Choices>
+                <pnp:Choice>Planning</pnp:Choice>
+                <pnp:Choice>Active</pnp:Choice>
+                <pnp:Choice>On Hold</pnp:Choice>
+                <pnp:Choice>Completed</pnp:Choice>
+                <pnp:Choice>Cancelled</pnp:Choice>
+              </pnp:Choices>
+            </pnp:Field>
+            <pnp:Field InternalName="StartDate" DisplayName="Start Date" Type="DateTime" />
+            <pnp:Field InternalName="EndDate" DisplayName="End Date" Type="DateTime" />
+            <pnp:Field InternalName="Budget" DisplayName="Budget" Type="Currency" />
+          </pnp:Fields>
+        </pnp:ListInstance>
+      </pnp:Lists>
+    </pnp:ProvisioningTemplate>
+  </pnp:Templates>
+</pnp:Provisioning>
+
+<!-- ========================================= -->
+<!-- lists/documents-library.xml - Document Library -->
+<!-- ========================================= -->
+<?xml version="1.0"?>
+<pnp:Provisioning xmlns:pnp="http://schemas.dev.office.com/PnP/2021/03/ProvisioningSchema">
+  <pnp:Templates ID="DOCUMENTS-TEMPLATE">
+    <pnp:ProvisioningTemplate ID="DOCUMENTS-LIBRARY" Version="1.0">
+      <pnp:Lists>
+        <pnp:ListInstance Title="Project Documents" 
+                         Description="Shared project documentation and files" 
+                         DocumentTemplate="" 
+                         OnQuickLaunch="true" 
+                         TemplateType="101" 
+                         Url="ProjectDocuments">
+          <pnp:Fields>
+            <pnp:Field InternalName="DocumentType" DisplayName="Document Type" Type="Choice">
+              <pnp:Choices>
+                <pnp:Choice>Requirements</pnp:Choice>
+                <pnp:Choice>Design</pnp:Choice>
+                <pnp:Choice>Test Plan</pnp:Choice>
+                <pnp:Choice>User Manual</pnp:Choice>
+                <pnp:Choice>Presentation</pnp:Choice>
+              </pnp:Choices>
+            </pnp:Field>
+            <pnp:Field InternalName="ReviewDate" DisplayName="Review Date" Type="DateTime" />
+            <pnp:Field InternalName="DocumentOwner" DisplayName="Document Owner" Type="User" />
+          </pnp:Fields>
+          <pnp:Views>
+            <pnp:View DisplayName="By Document Type" DefaultView="false">
+              <pnp:Query>
+                <GroupBy>
+                  <FieldRef Name="DocumentType" />
+                </GroupBy>
+                <OrderBy>
+                  <FieldRef Name="Modified" Ascending="false" />
+                </OrderBy>
+              </pnp:Query>
+            </pnp:View>
+          </pnp:Views>
+        </pnp:ListInstance>
+      </pnp:Lists>
+    </pnp:ProvisioningTemplate>
+  </pnp:Templates>
+</pnp:Provisioning>
+
+<!-- ========================================= -->
+<!-- FOLDER STRUCTURE -->
+<!-- ========================================= -->
+<!--
+Templates/
+├── main-template.xml              # Master template with all references
+├── clientsidepages.xml           # Site pages and navigation
+├── security.xml                  # Security groups and permissions
+└── lists/                        # Folder containing all list templates
+    ├── tasks-list.xml            # Project tasks list
+    ├── team-list.xml             # Team members list
+    ├── projects-list.xml         # Projects portfolio list
+    └── documents-library.xml     # Document library
+-->
