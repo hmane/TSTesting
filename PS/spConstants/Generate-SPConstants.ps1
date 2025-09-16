@@ -60,26 +60,39 @@ function Get-SafePropertyName {
   # Clean SharePoint encodings and special characters
   $cleaned = $InputName -replace '_x0020_', ' ' -replace '_x002e_', '.' -replace '_x002d_', '-'
   
-  # Split by spaces and capitalize each word (Pascal Case)
-  $words = $cleaned -split '\s+'
-  $pascalCase = ""
-  
-  foreach ($word in $words) {
-    if (-not [string]::IsNullOrEmpty($word)) {
-      # Remove non-alphanumeric characters from each word
-      $cleanWord = $word -replace '[^a-zA-Z0-9]', ''
-      if (-not [string]::IsNullOrEmpty($cleanWord)) {
-        # Capitalize first letter, keep rest as-is
-        $pascalCase += $cleanWord.Substring(0, 1).ToUpper() + $cleanWord.Substring(1).ToLower()
+  # Check if it's a single word (no spaces after cleaning)
+  if ($cleaned -notmatch '\s') {
+    # Single word: just capitalize first letter, keep rest as-is
+    $cleanedWord = $cleaned -replace '[^a-zA-Z0-9]', ''
+    if ([string]::IsNullOrEmpty($cleanedWord)) {
+      return "Field"
+    }
+    
+    # Just capitalize first letter, preserve the rest (including existing camelCase/PascalCase)
+    return $cleanedWord.Substring(0, 1).ToUpper() + $cleanedWord.Substring(1)
+  }
+  else {
+    # Multiple words: apply Pascal case
+    $words = $cleaned -split '\s+'
+    $pascalCase = ""
+    
+    foreach ($word in $words) {
+      if (-not [string]::IsNullOrEmpty($word)) {
+        # Remove non-alphanumeric characters from each word
+        $cleanWord = $word -replace '[^a-zA-Z0-9]', ''
+        if (-not [string]::IsNullOrEmpty($cleanWord)) {
+          # Capitalize first letter, lowercase the rest for multi-word scenarios
+          $pascalCase += $cleanWord.Substring(0, 1).ToUpper() + $cleanWord.Substring(1).ToLower()
+        }
       }
     }
+    
+    if ([string]::IsNullOrEmpty($pascalCase)) {
+      return "Field"
+    }
+    
+    return $pascalCase
   }
-  
-  if ([string]::IsNullOrEmpty($pascalCase)) {
-    return "Field"
-  }
-  
-  return $pascalCase
 }
 
 function Get-FilteredLists {
