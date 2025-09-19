@@ -555,8 +555,14 @@ export const $($safeName)Fields = {
   foreach ($field in $Fields) {
     $internalName = $field.InternalName
     
-    # Use the InternalName directly for the TypeScript property name (with proper casing)
-    $propertyName = Get-SafePropertyName -InputName $internalName
+    # Use the InternalName for the TypeScript property name (with proper casing)
+    # but for Title field, use the actual display name if it's different
+    if ($internalName -eq "Title") {
+      $displayName = if ($field.Title -and $field.Title -ne "Title") { $field.Title } else { "Title" }
+      $propertyName = Get-SafePropertyName -InputName $displayName
+    } else {
+      $propertyName = Get-SafePropertyName -InputName $internalName
+    }
     
     $fieldItems += "  $propertyName`: '$internalName'"
   }
