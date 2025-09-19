@@ -157,24 +157,26 @@ function Get-FilteredFields {
     
     # Sort fields with proper ordering
     $sortedFields = $filteredFields | Sort-Object {
-      $internalName = $_.InternalName
+      $field = $_
+      $internalName = if ($field.InternalName) { $field.InternalName } else { "" }
+      $displayName = if ($field.Title) { $field.Title } else { $internalName }
       
       # Fixed priority ordering
       switch ($internalName) {
         "ID" { return "001" }
         "Title" { return "002" }
         "ContentType" { return "003" }
-        { $_ -match "^(Created|Modified|Author|Editor)$" } { 
-          switch ($internalName) {
-            "Created" { return "997" }
-            "Author" { return "998" }
-            "Modified" { return "999" }
-            "Editor" { return "1000" }
-          }
-        }
+        "Created" { return "997" }
+        "Author" { return "998" }
+        "Modified" { return "999" }
+        "Editor" { return "1000" }
         default { 
           # Custom fields get middle priority based on display name for consistency
-          return "100" + $_.Title.PadLeft(50, '0')
+          if ([string]::IsNullOrEmpty($displayName)) {
+            return "500" + $internalName.PadLeft(50, '0')
+          } else {
+            return "100" + $displayName.PadLeft(50, '0')
+          }
         }
       }
     }
@@ -334,23 +336,21 @@ function Get-MockFields {
   
   # Sort fields: ID, Title, ContentType, then template order, then metadata
   $sortedFields = $mockFields | Sort-Object {
-    $internalName = $_.InternalName
+    $field = $_
+    $internalName = if ($field.InternalName) { $field.InternalName } else { "" }
+    $templateOrder = if ($field.TemplateOrder -ne $null) { $field.TemplateOrder } else { 500 }
     
     switch ($internalName) {
       "ID" { return "001" }
       "Title" { return "002" }
       "ContentType" { return "003" }
-      { $_ -match "^(Created|Modified|Author|Editor)$" } { 
-        switch ($internalName) {
-          "Created" { return "997" }
-          "Author" { return "998" }
-          "Modified" { return "999" }
-          "Editor" { return "1000" }
-        }
-      }
+      "Created" { return "997" }
+      "Author" { return "998" }
+      "Modified" { return "999" }
+      "Editor" { return "1000" }
       default { 
         # For template fields, use their original order
-        return "100" + $_.TemplateOrder.ToString().PadLeft(3, '0')
+        return "100" + $templateOrder.ToString().PadLeft(3, '0')
       }
     }
   }
