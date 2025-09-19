@@ -161,21 +161,21 @@ function Get-FilteredFields {
       $internalName = if ($field.InternalName) { $field.InternalName } else { "" }
       $displayName = if ($field.Title) { $field.Title } else { $internalName }
       
-      # Fixed priority ordering
+      # Fixed priority ordering: ContentType -> ID -> Title -> Custom -> Created -> Author -> Modified -> Editor
       switch ($internalName) {
-        "ContentType" { return "001" }
-        "ID" { return "002" }
-        "Title" { return "003" }
-        "Created" { return "997" }
-        "Author" { return "998" }
-        "Modified" { return "999" }
-        "Editor" { return "1000" }
+        "ContentType" { return "001_ContentType" }
+        "ID" { return "002_ID" }
+        "Title" { return "003_Title" }
+        "Created" { return "997_Created" }
+        "Author" { return "998_Author" }
+        "Modified" { return "999_Modified" }
+        "Editor" { return "1000_Editor" }
         default { 
           # Custom fields get middle priority based on display name for consistency
           if ([string]::IsNullOrEmpty($displayName)) {
-            return "500" + $internalName.PadLeft(50, '0')
+            return "500_" + $internalName.PadLeft(50, '0')
           } else {
-            return "100" + $displayName.PadLeft(50, '0')
+            return "100_" + $displayName.PadLeft(50, '0')
           }
         }
       }
@@ -340,17 +340,18 @@ function Get-MockFields {
     $internalName = if ($field.InternalName) { $field.InternalName } else { "" }
     $templateOrder = if ($field.TemplateOrder -ne $null) { $field.TemplateOrder } else { 500 }
     
+    # Fixed priority ordering: ContentType -> ID -> Title -> Custom -> Created -> Author -> Modified -> Editor
     switch ($internalName) {
-      "ContentType" { return "001" }
-      "ID" { return "002" }
-      "Title" { return "003" }
-      "Created" { return "997" }
-      "Author" { return "998" }
-      "Modified" { return "999" }
-      "Editor" { return "1000" }
+      "ContentType" { return "001_ContentType" }
+      "ID" { return "002_ID" }
+      "Title" { return "003_Title" }
+      "Created" { return "997_Created" }
+      "Author" { return "998_Author" }
+      "Modified" { return "999_Modified" }
+      "Editor" { return "1000_Editor" }
       default { 
         # For template fields, use their original order
-        return "100" + $templateOrder.ToString().PadLeft(3, '0')
+        return "100_" + $templateOrder.ToString().PadLeft(3, '0')
       }
     }
   }
