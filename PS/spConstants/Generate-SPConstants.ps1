@@ -163,9 +163,9 @@ function Get-FilteredFields {
       
       # Fixed priority ordering
       switch ($internalName) {
-        "ID" { return "001" }
-        "Title" { return "002" }
-        "ContentType" { return "003" }
+        "ContentType" { return "001" }
+        "ID" { return "002" }
+        "Title" { return "003" }
         "Created" { return "997" }
         "Author" { return "998" }
         "Modified" { return "999" }
@@ -313,9 +313,9 @@ function Get-MockFields {
   
   # Add missing standard fields with proper positioning
   $standardFields = @(
-    @{InternalName="ID"; Title="ID"; Order=1},
-    @{InternalName="Title"; Title="Title"; Order=2},
-    @{InternalName="ContentType"; Title="Content Type"; Order=3},
+    @{InternalName="ContentType"; Title="Content Type"; Order=1},
+    @{InternalName="ID"; Title="ID"; Order=2},
+    @{InternalName="Title"; Title="Title"; Order=3},
     @{InternalName="Created"; Title="Created"; Order=997},
     @{InternalName="Modified"; Title="Modified"; Order=999},
     @{InternalName="Author"; Title="Created By"; Order=998},
@@ -334,16 +334,16 @@ function Get-MockFields {
     }
   }
   
-  # Sort fields: ID, Title, ContentType, then template order, then metadata
+  # Sort fields: ContentType, ID, Title, then template order, then metadata
   $sortedFields = $mockFields | Sort-Object {
     $field = $_
     $internalName = if ($field.InternalName) { $field.InternalName } else { "" }
     $templateOrder = if ($field.TemplateOrder -ne $null) { $field.TemplateOrder } else { 500 }
     
     switch ($internalName) {
-      "ID" { return "001" }
-      "Title" { return "002" }
-      "ContentType" { return "003" }
+      "ContentType" { return "001" }
+      "ID" { return "002" }
+      "Title" { return "003" }
       "Created" { return "997" }
       "Author" { return "998" }
       "Modified" { return "999" }
