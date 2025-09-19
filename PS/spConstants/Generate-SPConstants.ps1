@@ -1,4 +1,4 @@
-# SharePoint Constants Generator - SIMPLIFIED VERSION
+# SharePoint Constants Generator - ENHANCED VERSION
 # Uses PnP PowerShell for both SharePoint and Template processing
 
 param(
@@ -9,7 +9,7 @@ param(
   [string]$TemplateFilePath = "",
 
   [Parameter(Mandatory = $false)]
-  [string]$OutputPath = ".\generated",
+  [string]$OutputPath = ".\sp",
 
   [Parameter(Mandatory = $false)]
   [string[]]$IncludeOOBLists = @(),
@@ -18,11 +18,14 @@ param(
   [switch]$IncludeViews = $false,
 
   [Parameter(Mandatory = $false)]
+  [switch]$IncludeGroups = $false,
+
+  [Parameter(Mandatory = $false)]
   [string]$ClientId = "970bb320-0d49-4b4a-aa8f-c3f4b1e5928f"
 )
 
-Write-Host "SharePoint Constants Generator - SIMPLIFIED" -ForegroundColor Cyan
-Write-Host "===========================================" -ForegroundColor Cyan
+Write-Host "SharePoint Constants Generator - ENHANCED" -ForegroundColor Cyan
+Write-Host "==========================================" -ForegroundColor Cyan
 
 # Validation
 if ([string]::IsNullOrEmpty($SiteUrl) -and [string]::IsNullOrEmpty($TemplateFilePath)) {
@@ -41,7 +44,8 @@ $isTemplateMode = -not [string]::IsNullOrEmpty($TemplateFilePath)
 # Lists to exclude by default
 $DefaultExcludeOOBLists = @(
   "Documents", "Shared Documents", "Site Pages", "Site Assets", "Style Library",
-  "Master Page Gallery", "Web Part Gallery", "User Information List", "Workflow History"
+  "Master Page Gallery", "Web Part Gallery", "User Information List", "Workflow History",
+  "Apps for SharePoint", "App Catalog", "Form Templates", "Solution Gallery"
 )
 
 # Fields to exclude
@@ -50,6 +54,11 @@ $ExcludeFields = @(
   "UniqueId", "CheckedOutUserId", "Modified_x0020_By", "Created_x0020_By",
   "File_x0020_Type", "_SourceUrl", "ServerUrl", "EncodedAbsUrl", "BaseName",
   "MetaInfo", "_Level", "Attachments", "owshiddenversion", "_UIVersion", "InstanceID"
+)
+
+# Groups to exclude by default
+$ExcludeGroups = @(
+  "Limited Access System Group", "Style Resource Readers", "Web Part Readers"
 )
 
 function Get-SafePropertyName {
@@ -146,14 +155,26 @@ function Get-FilteredFields {
       $filteredFields += $field
     }
     
-    # Sort fields: ID, Title, ContentType first, then custom fields, then system fields
+    # Get form field order for better sorting
+    $formFieldOrder = Get-FormFieldOrder -ListTitle $ListTitle
+    
+    # Sort fields with enhanced ordering
     $sortedFields = $filteredFields | Sort-Object {
-      switch ($_.InternalName) {
-        "ID" { 1 }
-        "Title" { 2 }
-        "ContentType" { 3 }
-        { $_ -match "^(Created|Modified|Author|Editor)$" } { 500 }
-        default { 100 }
+      $internalName = $_.InternalName
+      
+      # Priority ordering
+      switch ($internalName) {
+        "ID" { return 1 }
+        "Title" { return 2 }
+        "ContentType" { return 3 }
+        { $_ -match "^(Created|Modified|Author|Editor)$" } { return 1000 }
+        default { 
+          # Use form order if available
+          if ($formFieldOrder.ContainsKey($internalName)) {
+            return 100 + $formFieldOrder[$internalName]
+          }
+          return 500
+        }
       }
     }, InternalName
     
@@ -166,68 +187,61 @@ function Get-FilteredFields {
   }
 }
 
-function Generate-TypeScriptFiles {
-  param([array]$Lists, [string]$OutputPath)
+function Get-FormFieldOrder {
+  param([string]$ListTitle)
   
-  # Create output directories
-  if (-not (Test-Path $OutputPath)) {
-    New-Item -ItemType Directory -Path $OutputPath -Force | Out-Null
-  }
+  $fieldOrder = @{}
   
-  $listFieldsDir = Join-Path $OutputPath "listFields"
-  if (-not (Test-Path $listFieldsDir)) {
-    New-Item -ItemType Directory -Path $listFieldsDir -Force | Out-Null
-  }
-  
-  if ($IncludeViews) {
-    $listViewsDir = Join-Path $OutputPath "listViews"
-    if (-not (Test-Path $listViewsDir)) {
-      New-Item -ItemType Directory -Path $listViewsDir -Force | Out-Null
-    }
-  }
-  
-  # Generate Lists.ts
-  Generate-ListsFile -Lists $Lists -OutputPath $OutputPath
-  
-  # Generate individual list field files
-  $processedLists = @()
-  
-  foreach ($list in $Lists) {
-    Write-Host "  Processing: $($list.Title)" -ForegroundColor White
-    
-    if ($isTemplateMode) {
-      # For template mode, get fields from template data
-      $fields = Get-MockFields -ListTitle $list.Title -Template $template
-    } else {
-      # For SharePoint mode, get actual fields
-      $fields = Get-FilteredFields -ListTitle $list.Title
-    }
-    
-    if ($fields.Count -gt 0) {
-      Generate-FieldsFile -ListTitle $list.Title -Fields $fields -OutputPath $OutputPath
-      $processedLists += $list
-    }
-    
-    # Generate views if requested
-    if ($IncludeViews) {
-      if ($isTemplateMode) {
-        $views = Get-MockViews -ListTitle $list.Title
-      } else {
-        $views = Get-PnPView -List $list.Title | Where-Object { -not $_.Hidden }
+  try {
+    # Try to get the default content type form fields order
+    $contentTypes = Get-PnPContentType -List $ListTitle -ErrorAction SilentlyContinue
+    if ($contentTypes -and $contentTypes.Count -gt 0) {
+      $defaultContentType = $contentTypes | Where-Object { $_.Name -eq "Item" -or $_.Name -like "*Item*" } | Select-Object -First 1
+      if (-not $defaultContentType) {
+        $defaultContentType = $contentTypes[0]
       }
       
-      if ($views.Count -gt 0) {
-        Generate-ViewsFile -ListTitle $list.Title -Views $views -OutputPath $OutputPath
+      if ($defaultContentType -and $defaultContentType.FieldLinks) {
+        $order = 0
+        foreach ($fieldLink in $defaultContentType.FieldLinks) {
+          if (-not [string]::IsNullOrEmpty($fieldLink.Name)) {
+            $fieldOrder[$fieldLink.Name] = $order
+            $order++
+          }
+        }
       }
     }
   }
+  catch {
+    Write-Host "    Could not get form field order, using default sorting" -ForegroundColor DarkGray
+  }
   
-  # Generate index files
-  Generate-IndexFiles -Lists $processedLists -OutputPath $OutputPath
-  
-  Write-Host "`n=== Generation Complete ===" -ForegroundColor Green
-  Write-Host "Lists processed: $($processedLists.Count)" -ForegroundColor White
-  Write-Host "Output directory: $OutputPath" -ForegroundColor White
+  return $fieldOrder
+}
+
+function Get-FilteredGroups {
+  try {
+    $allGroups = Get-PnPGroup -ErrorAction Stop
+    $filteredGroups = @()
+    
+    foreach ($group in $allGroups) {
+      # Skip system groups
+      if ($ExcludeGroups -contains $group.Title) { continue }
+      
+      # Skip hidden or system groups (usually contain $ or have specific naming patterns)
+      if ($group.Title -match '\$|SharingLinks|Everyone|NT AUTHORITY') { continue }
+      
+      Write-Host "  Including group: $($group.Title)" -ForegroundColor Green
+      $filteredGroups += $group
+    }
+    
+    Write-Host "Found $($filteredGroups.Count) user groups" -ForegroundColor Yellow
+    return $filteredGroups
+  }
+  catch {
+    Write-Host "Error getting groups: $($_.Exception.Message)" -ForegroundColor Red
+    return @()
+  }
 }
 
 function Get-MockFields {
@@ -241,6 +255,9 @@ function Get-MockFields {
     
     if ($listTemplate -and $listTemplate.Fields) {
       Write-Host "    Parsing $($listTemplate.Fields.Count) fields from template..." -ForegroundColor Gray
+      
+      # Maintain template field order
+      $fieldOrder = 0
       
       foreach ($fieldDef in $listTemplate.Fields) {
         try {
@@ -305,7 +322,10 @@ function Get-MockFields {
               Title = $displayName
               Hidden = $false
               ReadOnlyField = $false
+              TemplateOrder = $fieldOrder
             }
+            
+            $fieldOrder++
           }
         }
         catch {
@@ -318,12 +338,12 @@ function Get-MockFields {
   # If no fields found in template, add standard fields
   if ($mockFields.Count -eq 0) {
     $standardFields = @(
-      @{InternalName="ID"; Title="ID"},
-      @{InternalName="Title"; Title="Title"},
-      @{InternalName="Created"; Title="Created"},
-      @{InternalName="Modified"; Title="Modified"},
-      @{InternalName="Author"; Title="Created By"},
-      @{InternalName="Editor"; Title="Modified By"}
+      @{InternalName="ID"; Title="ID"; Order=1},
+      @{InternalName="Title"; Title="Title"; Order=2},
+      @{InternalName="Created"; Title="Created"; Order=100},
+      @{InternalName="Modified"; Title="Modified"; Order=101},
+      @{InternalName="Author"; Title="Created By"; Order=102},
+      @{InternalName="Editor"; Title="Modified By"; Order=103}
     )
     
     foreach ($fieldDef in $standardFields) {
@@ -332,34 +352,46 @@ function Get-MockFields {
         Title = $fieldDef.Title
         Hidden = $false
         ReadOnlyField = ($fieldDef.InternalName -in @("ID", "Created", "Modified", "Author", "Editor"))
+        TemplateOrder = $fieldDef.Order
       }
     }
   } else {
-    # Add standard fields if they're not already present
+    # Add standard fields if they're not already present and sort properly
     $existingInternalNames = $mockFields | ForEach-Object { $_.InternalName }
     
     $standardFields = @("ID", "Title", "Created", "Modified", "Author", "Editor")
     foreach ($standardField in $standardFields) {
       if ($existingInternalNames -notcontains $standardField) {
+        $order = switch ($standardField) {
+          "ID" { 1 }
+          "Title" { 2 }
+          "Created" { 1000 }
+          "Modified" { 1001 }
+          "Author" { 1002 }
+          "Editor" { 1003 }
+          default { 500 }
+        }
+        
         $mockFields += [PSCustomObject]@{
           InternalName = $standardField
           Title = $standardField
           Hidden = $false
           ReadOnlyField = ($standardField -in @("ID", "Created", "Modified", "Author", "Editor"))
+          TemplateOrder = $order
         }
       }
     }
     
-    # Sort fields: standard fields first, then custom fields
+    # Sort fields maintaining template order but with standard fields in correct positions
     $sortedFields = $mockFields | Sort-Object {
       switch ($_.InternalName) {
-        "ID" { 1 }
-        "Title" { 2 }
-        "ContentType" { 3 }
-        { $_ -match "^(Created|Modified|Author|Editor)$" } { 500 }
-        default { 100 }
+        "ID" { return 1 }
+        "Title" { return 2 }
+        "ContentType" { return 3 }
+        { $_ -match "^(Created|Modified|Author|Editor)$" } { return 1000 + $_.TemplateOrder }
+        default { return 100 + $_.TemplateOrder }
       }
-    }, InternalName
+    }
     
     $mockFields = $sortedFields
   }
@@ -376,6 +408,96 @@ function Get-MockViews {
     Title = "All Items"
     ServerRelativeUrl = "/Lists/$($ListTitle -replace '\s+', '')/AllItems.aspx"
   })
+}
+
+function Get-MockGroups {
+  param([object]$Template)
+  
+  $mockGroups = @()
+  
+  if ($Template -and $Template.Security -and $Template.Security.SiteGroups) {
+    foreach ($groupTemplate in $Template.Security.SiteGroups) {
+      $mockGroups += [PSCustomObject]@{
+        Title = $groupTemplate.Title
+        Description = $groupTemplate.Description
+        Owner = $groupTemplate.Owner
+      }
+    }
+  }
+  
+  return $mockGroups
+}
+
+function Generate-TypeScriptFiles {
+  param([array]$Lists, [array]$Groups, [string]$OutputPath)
+  
+  # Create output directories
+  if (-not (Test-Path $OutputPath)) {
+    New-Item -ItemType Directory -Path $OutputPath -Force | Out-Null
+  }
+  
+  $listFieldsDir = Join-Path $OutputPath "listFields"
+  if (-not (Test-Path $listFieldsDir)) {
+    New-Item -ItemType Directory -Path $listFieldsDir -Force | Out-Null
+  }
+  
+  if ($IncludeViews) {
+    $listViewsDir = Join-Path $OutputPath "listViews"
+    if (-not (Test-Path $listViewsDir)) {
+      New-Item -ItemType Directory -Path $listViewsDir -Force | Out-Null
+    }
+  }
+  
+  # Generate Lists.ts
+  Generate-ListsFile -Lists $Lists -OutputPath $OutputPath
+  
+  # Generate Groups.ts if requested
+  if ($IncludeGroups -and $Groups.Count -gt 0) {
+    Generate-GroupsFile -Groups $Groups -OutputPath $OutputPath
+  }
+  
+  # Generate individual list field files
+  $processedLists = @()
+  
+  foreach ($list in $Lists) {
+    Write-Host "  Processing: $($list.Title)" -ForegroundColor White
+    
+    if ($isTemplateMode) {
+      # For template mode, get fields from template data
+      $fields = Get-MockFields -ListTitle $list.Title -Template $template
+    } else {
+      # For SharePoint mode, get actual fields
+      $fields = Get-FilteredFields -ListTitle $list.Title
+    }
+    
+    if ($fields.Count -gt 0) {
+      Generate-FieldsFile -ListTitle $list.Title -Fields $fields -OutputPath $OutputPath
+      $processedLists += $list
+    }
+    
+    # Generate views if requested
+    if ($IncludeViews) {
+      if ($isTemplateMode) {
+        $views = Get-MockViews -ListTitle $list.Title
+      } else {
+        $views = Get-PnPView -List $list.Title | Where-Object { -not $_.Hidden }
+      }
+      
+      if ($views.Count -gt 0) {
+        Generate-ViewsFile -ListTitle $list.Title -Views $views -OutputPath $OutputPath
+      }
+    }
+  }
+  
+  # Generate index files
+  Generate-IndexFiles -Lists $processedLists -Groups $Groups -OutputPath $OutputPath
+  
+  Write-Host "`n=== Generation Complete ===" -ForegroundColor Green
+  Write-Host "Lists processed: $($processedLists.Count)" -ForegroundColor White
+  if ($IncludeGroups) {
+    Write-Host "Groups processed: $($Groups.Count)" -ForegroundColor White
+  }
+  Write-Host "Output directory: $OutputPath" -ForegroundColor White
 }
 
 function Generate-ListsFile {
@@ -417,6 +539,41 @@ export const Lists = {
   $filePath = Join-Path $OutputPath "Lists.ts"
   $content | Out-File -FilePath $filePath -Encoding UTF8
   Write-Host "Generated: Lists.ts" -ForegroundColor Green
+}
+
+function Generate-GroupsFile {
+  param([array]$Groups, [string]$OutputPath)
+  
+  if ($Groups.Count -eq 0) { return }
+  
+  $content = @"
+// Auto-generated SharePoint Groups constants
+// Generated on: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
+
+export const Groups = {
+"@
+  
+  $groupItems = @()
+  foreach ($group in $Groups) {
+    $safeName = Get-SafePropertyName -InputName $group.Title
+    
+    $description = ""
+    if ($group.Description) {
+      $description = $group.Description -replace "'", "\'"
+    }
+    
+    if ([string]::IsNullOrEmpty($description)) {
+      $groupItems += "  $safeName`: {`n    Title: '$($group.Title)'`n  }"
+    } else {
+      $groupItems += "  $safeName`: {`n    Title: '$($group.Title)',`n    Description: '$description'`n  }"
+    }
+  }
+  
+  $content += "`n" + ($groupItems -join ",`n") + "`n} as const;`n"
+  
+  $filePath = Join-Path $OutputPath "Groups.ts"
+  $content | Out-File -FilePath $filePath -Encoding UTF8
+  Write-Host "Generated: Groups.ts" -ForegroundColor Green
 }
 
 function Generate-FieldsFile {
@@ -480,10 +637,16 @@ export const $($safeName)Views = {
 }
 
 function Generate-IndexFiles {
-  param([array]$Lists, [string]$OutputPath)
+  param([array]$Lists, [array]$Groups, [string]$OutputPath)
   
   # Main index file
-  $content = "// Auto-generated index file`nexport { Lists } from './Lists';`n`n"
+  $content = "// Auto-generated index file`nexport { Lists } from './Lists';`n"
+  
+  if ($IncludeGroups -and $Groups.Count -gt 0) {
+    $content += "export { Groups } from './Groups';`n"
+  }
+  
+  $content += "`n"
   
   foreach ($list in $Lists) {
     $safeName = Get-SafePropertyName -InputName $list.Title
@@ -556,13 +719,20 @@ try {
     
     Write-Host "Found $($lists.Count) lists in template" -ForegroundColor Yellow
     
+    # Extract groups from template
+    $groups = @()
+    if ($IncludeGroups) {
+      $groups = Get-MockGroups -Template $template
+      Write-Host "Found $($groups.Count) groups in template" -ForegroundColor Yellow
+    }
+    
     if ($lists.Count -eq 0) {
       Write-Host "No lists found in template" -ForegroundColor Yellow
       exit 0
     }
     
     $filteredLists = Get-FilteredLists -AllLists $lists
-    Generate-TypeScriptFiles -Lists $filteredLists -OutputPath $OutputPath
+    Generate-TypeScriptFiles -Lists $filteredLists -Groups $groups -OutputPath $OutputPath
   }
   else {
     Write-Host "SharePoint Mode: Connecting to $SiteUrl" -ForegroundColor Cyan
@@ -575,14 +745,24 @@ try {
     $allLists = Get-PnPList
     Write-Host "Found $($allLists.Count) total lists" -ForegroundColor Yellow
     
+    # Get groups if requested
+    $groups = @()
+    if ($IncludeGroups) {
+      $groups = Get-FilteredGroups
+    }
+    
     $filteredLists = Get-FilteredLists -AllLists $allLists
     
     if ($filteredLists.Count -eq 0) {
       Write-Host "No lists to process" -ForegroundColor Yellow
+      if ($IncludeGroups -and $groups.Count -gt 0) {
+        # Still generate groups even if no lists
+        Generate-TypeScriptFiles -Lists @() -Groups $groups -OutputPath $OutputPath
+      }
       exit 0
     }
     
-    Generate-TypeScriptFiles -Lists $filteredLists -OutputPath $OutputPath
+    Generate-TypeScriptFiles -Lists $filteredLists -Groups $groups -OutputPath $OutputPath
   }
 }
 catch {
