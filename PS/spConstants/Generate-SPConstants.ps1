@@ -155,28 +155,29 @@ function Get-FilteredFields {
       $filteredFields += $field
     }
     
-    # Get form field order for better sorting
-    $formFieldOrder = Get-FormFieldOrder -ListTitle $ListTitle
-    
-    # Sort fields with enhanced ordering
+    # Sort fields with proper ordering
     $sortedFields = $filteredFields | Sort-Object {
       $internalName = $_.InternalName
       
-      # Priority ordering
+      # Fixed priority ordering
       switch ($internalName) {
-        "ID" { return 1 }
-        "Title" { return 2 }
-        "ContentType" { return 3 }
-        { $_ -match "^(Created|Modified|Author|Editor)$" } { return 1000 }
-        default { 
-          # Use form order if available
-          if ($formFieldOrder.ContainsKey($internalName)) {
-            return 100 + $formFieldOrder[$internalName]
+        "ID" { return "001" }
+        "Title" { return "002" }
+        "ContentType" { return "003" }
+        { $_ -match "^(Created|Modified|Author|Editor)$" } { 
+          switch ($internalName) {
+            "Created" { return "997" }
+            "Author" { return "998" }
+            "Modified" { return "999" }
+            "Editor" { return "1000" }
           }
-          return 500
+        }
+        default { 
+          # Custom fields get middle priority based on display name for consistency
+          return "100" + $_.Title.PadLeft(50, '0')
         }
       }
-    }, InternalName
+    }
     
     Write-Host "    Found $($sortedFields.Count) usable fields" -ForegroundColor Gray
     return $sortedFields
@@ -187,37 +188,7 @@ function Get-FilteredFields {
   }
 }
 
-function Get-FormFieldOrder {
-  param([string]$ListTitle)
-  
-  $fieldOrder = @{}
-  
-  try {
-    # Try to get the default content type form fields order
-    $contentTypes = Get-PnPContentType -List $ListTitle -ErrorAction SilentlyContinue
-    if ($contentTypes -and $contentTypes.Count -gt 0) {
-      $defaultContentType = $contentTypes | Where-Object { $_.Name -eq "Item" -or $_.Name -like "*Item*" } | Select-Object -First 1
-      if (-not $defaultContentType) {
-        $defaultContentType = $contentTypes[0]
-      }
-      
-      if ($defaultContentType -and $defaultContentType.FieldLinks) {
-        $order = 0
-        foreach ($fieldLink in $defaultContentType.FieldLinks) {
-          if (-not [string]::IsNullOrEmpty($fieldLink.Name)) {
-            $fieldOrder[$fieldLink.Name] = $order
-            $order++
-          }
-        }
-      }
-    }
-  }
-  catch {
-    Write-Host "    Could not get form field order, using default sorting" -ForegroundColor DarkGray
-  }
-  
-  return $fieldOrder
-}
+# Removed Get-FormFieldOrder function as it was unreliable
 
 function Get-FilteredGroups {
   try {
@@ -256,7 +227,7 @@ function Get-MockFields {
     if ($listTemplate -and $listTemplate.Fields) {
       Write-Host "    Parsing $($listTemplate.Fields.Count) fields from template..." -ForegroundColor Gray
       
-      # Maintain template field order
+      # Maintain template field order exactly as defined
       $fieldOrder = 0
       
       foreach ($fieldDef in $listTemplate.Fields) {
@@ -335,18 +306,22 @@ function Get-MockFields {
     }
   }
   
-  # If no fields found in template, add standard fields
-  if ($mockFields.Count -eq 0) {
-    $standardFields = @(
-      @{InternalName="ID"; Title="ID"; Order=1},
-      @{InternalName="Title"; Title="Title"; Order=2},
-      @{InternalName="Created"; Title="Created"; Order=100},
-      @{InternalName="Modified"; Title="Modified"; Order=101},
-      @{InternalName="Author"; Title="Created By"; Order=102},
-      @{InternalName="Editor"; Title="Modified By"; Order=103}
-    )
-    
-    foreach ($fieldDef in $standardFields) {
+  # Always ensure we have standard fields
+  $existingInternalNames = $mockFields | ForEach-Object { $_.InternalName }
+  
+  # Add missing standard fields with proper positioning
+  $standardFields = @(
+    @{InternalName="ID"; Title="ID"; Order=1},
+    @{InternalName="Title"; Title="Title"; Order=2},
+    @{InternalName="ContentType"; Title="Content Type"; Order=3},
+    @{InternalName="Created"; Title="Created"; Order=997},
+    @{InternalName="Modified"; Title="Modified"; Order=999},
+    @{InternalName="Author"; Title="Created By"; Order=998},
+    @{InternalName="Editor"; Title="Modified By"; Order=1000}
+  )
+  
+  foreach ($fieldDef in $standardFields) {
+    if ($existingInternalNames -notcontains $fieldDef.InternalName) {
       $mockFields += [PSCustomObject]@{
         InternalName = $fieldDef.InternalName
         Title = $fieldDef.Title
@@ -355,49 +330,33 @@ function Get-MockFields {
         TemplateOrder = $fieldDef.Order
       }
     }
-  } else {
-    # Add standard fields if they're not already present and sort properly
-    $existingInternalNames = $mockFields | ForEach-Object { $_.InternalName }
-    
-    $standardFields = @("ID", "Title", "Created", "Modified", "Author", "Editor")
-    foreach ($standardField in $standardFields) {
-      if ($existingInternalNames -notcontains $standardField) {
-        $order = switch ($standardField) {
-          "ID" { 1 }
-          "Title" { 2 }
-          "Created" { 1000 }
-          "Modified" { 1001 }
-          "Author" { 1002 }
-          "Editor" { 1003 }
-          default { 500 }
-        }
-        
-        $mockFields += [PSCustomObject]@{
-          InternalName = $standardField
-          Title = $standardField
-          Hidden = $false
-          ReadOnlyField = ($standardField -in @("ID", "Created", "Modified", "Author", "Editor"))
-          TemplateOrder = $order
-        }
-      }
-    }
-    
-    # Sort fields maintaining template order but with standard fields in correct positions
-    $sortedFields = $mockFields | Sort-Object {
-      switch ($_.InternalName) {
-        "ID" { return 1 }
-        "Title" { return 2 }
-        "ContentType" { return 3 }
-        { $_ -match "^(Created|Modified|Author|Editor)$" } { return 1000 + $_.TemplateOrder }
-        default { return 100 + $_.TemplateOrder }
-      }
-    }
-    
-    $mockFields = $sortedFields
   }
   
-  Write-Host "    Found $($mockFields.Count) total fields" -ForegroundColor Gray
-  return $mockFields
+  # Sort fields: ID, Title, ContentType, then template order, then metadata
+  $sortedFields = $mockFields | Sort-Object {
+    $internalName = $_.InternalName
+    
+    switch ($internalName) {
+      "ID" { return "001" }
+      "Title" { return "002" }
+      "ContentType" { return "003" }
+      { $_ -match "^(Created|Modified|Author|Editor)$" } { 
+        switch ($internalName) {
+          "Created" { return "997" }
+          "Author" { return "998" }
+          "Modified" { return "999" }
+          "Editor" { return "1000" }
+        }
+      }
+      default { 
+        # For template fields, use their original order
+        return "100" + $_.TemplateOrder.ToString().PadLeft(3, '0')
+      }
+    }
+  }
+  
+  Write-Host "    Found $($sortedFields.Count) total fields" -ForegroundColor Gray
+  return $sortedFields
 }
 
 function Get-MockViews {
