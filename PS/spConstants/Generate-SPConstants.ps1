@@ -163,19 +163,19 @@ function Get-FilteredFields {
       
       # Fixed priority ordering: ContentType -> ID -> Title -> Custom -> Created -> Author -> Modified -> Editor
       switch ($internalName) {
-        "ContentType" { return "001_ContentType" }
-        "ID" { return "002_ID" }
-        "Title" { return "003_Title" }
-        "Created" { return "997_Created" }
-        "Author" { return "998_Author" }
-        "Modified" { return "999_Modified" }
-        "Editor" { return "1000_Editor" }
+        "ContentType" { return "0001_ContentType" }
+        "ID" { return "0002_ID" }
+        "Title" { return "0003_Title" }
+        "Created" { return "9997_Created" }
+        "Author" { return "9998_Author" }
+        "Modified" { return "9999_Modified" }
+        "Editor" { return "9999_ZEditor" }
         default { 
           # Custom fields get middle priority based on display name for consistency
           if ([string]::IsNullOrEmpty($displayName)) {
-            return "500_" + $internalName.PadLeft(50, '0')
+            return "5000_" + $internalName.PadLeft(50, '0')
           } else {
-            return "100_" + $displayName.PadLeft(50, '0')
+            return "1000_" + $displayName.PadLeft(50, '0')
           }
         }
       }
@@ -342,16 +342,16 @@ function Get-MockFields {
     
     # Fixed priority ordering: ContentType -> ID -> Title -> Custom -> Created -> Author -> Modified -> Editor
     switch ($internalName) {
-      "ContentType" { return "001_ContentType" }
-      "ID" { return "002_ID" }
-      "Title" { return "003_Title" }
-      "Created" { return "997_Created" }
-      "Author" { return "998_Author" }
-      "Modified" { return "999_Modified" }
-      "Editor" { return "1000_Editor" }
+      "ContentType" { return "0001_ContentType" }
+      "ID" { return "0002_ID" }
+      "Title" { return "0003_Title" }
+      "Created" { return "9997_Created" }
+      "Author" { return "9998_Author" }
+      "Modified" { return "9999_Modified" }
+      "Editor" { return "9999_ZEditor" }
       default { 
         # For template fields, use their original order
-        return "100_" + $templateOrder.ToString().PadLeft(3, '0')
+        return "1000_" + $templateOrder.ToString().PadLeft(4, '0')
       }
     }
   }
