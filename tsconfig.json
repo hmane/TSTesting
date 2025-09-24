@@ -91,3 +91,15 @@
     "excludeDirectories": ["**/node_modules", "**/lib", "**/temp"]
   }
 }
+
+
+
+
+
+{
+  "key": "ctrl+shift+g",
+  "command": "workbench.action.terminal.sendSequence",
+  "args": {
+    "text": "powershell -Command \"[System.Guid]::NewGuid().ToString()\" | clip\u000D"
+  }
+}
