@@ -97,10 +97,10 @@
 
 
 {
-  "key": "ctrl+shift+g",
-  "command": "workbench.action.terminal.sendSequence",
+  "key": "ctrl+shift+g", 
+  "command": "workbench.action.tasks.runTask",
   "args": {
-        "text": "powershell -NoNewLine -Command \"$g=[System.Guid]::NewGuid().ToString();Set-Clipboard $g;$g\"\u000D"
-
+    "type": "shell",
+    "command": "powershell -Command \"$g=[System.Guid]::NewGuid().ToString();Set-Clipboard $g\""
   }
 }
