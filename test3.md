@@ -1083,84 +1083,146 @@ export const RequestTypeSelector: React.FC<RequestTypeSelectorProps> = ({
     return (
       <Stack
         style={{
-          padding: '20px',
-          border: isSelected ? '2px solid var(--themePrimary)' : '2px solid var(--neutralLight)',
-          borderRadius: '8px',
-          backgroundColor: isSelected ? 'var(--themeLighterAlt)' : 'white',
+          padding: '24px',
+          margin: '8px 0', // Add vertical margin for better spacing
+          border: isSelected && item.enabled 
+            ? '2px solid var(--themePrimary)' 
+            : '2px solid var(--neutralLight)',
+          borderRadius: '12px', // Slightly more rounded corners
+          backgroundColor: isSelected && item.enabled 
+            ? 'var(--themeLighterAlt)' 
+            : 'white',
           cursor: item.enabled ? 'pointer' : 'not-allowed',
           opacity: item.enabled ? 1 : 0.6,
-          transition: 'all 0.2s ease',
-          position: 'relative'
+          transition: 'all 0.3s ease', // Smoother transition
+          position: 'relative',
+          boxShadow: isSelected && item.enabled 
+            ? '0 4px 12px rgba(0, 106, 100, 0.15)' 
+            : '0 2px 4px rgba(0, 0, 0, 0.08)', // Subtle shadows
+          ':hover': item.enabled ? {
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12)',
+            transform: 'translateY(-2px)'
+          } : {}
         }}
-        tokens={{ childrenGap: 12 }}
+        tokens={{ childrenGap: 16 }}
       >
         {/* Coming Soon Badge */}
         {item.comingSoon && (
           <div
             style={{
               position: 'absolute',
-              top: '12px',
-              right: '12px',
-              background: 'var(--yellow)',
+              top: '16px',
+              right: '16px',
+              background: 'linear-gradient(45deg, var(--yellow), var(--yellowLight))',
               color: 'var(--yellowDark)',
-              padding: '4px 8px',
-              borderRadius: '4px',
+              padding: '6px 12px',
+              borderRadius: '20px', // Pill shape
               fontSize: '12px',
-              fontWeight: 600
+              fontWeight: 600,
+              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
             }}
           >
             Coming Soon
           </div>
         )}
 
-        {/* Header */}
-        <Stack horizontal tokens={{ childrenGap: 12 }} verticalAlign="center">
-          <Icon
-            iconName={item.icon || 'Document'}
+        {/* Header with Icon and Title */}
+        <Stack horizontal tokens={{ childrenGap: 16 }} verticalAlign="start">
+          <div
             style={{
-              fontSize: '24px',
-              color: item.enabled ? 'var(--themePrimary)' : 'var(--neutralSecondary)'
+              minWidth: '48px',
+              height: '48px',
+              borderRadius: '12px',
+              backgroundColor: item.enabled 
+                ? 'var(--themeLighterAlt)' 
+                : 'var(--neutralLighter)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: `1px solid ${item.enabled ? 'var(--themeLight)' : 'var(--neutralLight)'}`,
+              marginTop: '4px' // Slight adjustment to align with title
             }}
-          />
-          <Stack>
+          >
+            <Icon
+              iconName={item.icon || 'Document'}
+              style={{
+                fontSize: '24px',
+                color: item.enabled ? 'var(--themePrimary)' : 'var(--neutralSecondary)'
+              }}
+            />
+          </div>
+          
+          <Stack tokens={{ childrenGap: 8 }} style={{ flex: 1 }}>
             <Text
-              variant="large"
+              variant="xLarge" // Slightly larger title
               style={{
                 fontWeight: 600,
-                color: item.enabled ? 'var(--neutralPrimary)' : 'var(--neutralSecondary)'
+                color: item.enabled ? 'var(--neutralPrimary)' : 'var(--neutralSecondary)',
+                lineHeight: '1.3'
               }}
             >
               {item.title}
             </Text>
             {item.estimatedTime && (
-              <Text
-                variant="small"
-                style={{ color: 'var(--neutralSecondary)' }}
-              >
-                Typical turnaround: {item.estimatedTime}
-              </Text>
+              <Stack horizontal tokens={{ childrenGap: 8 }} verticalAlign="center">
+                <Icon 
+                  iconName="Clock" 
+                  style={{ 
+                    fontSize: '14px', 
+                    color: 'var(--neutralSecondary)' 
+                  }} 
+                />
+                <Text
+                  variant="small"
+                  style={{ 
+                    color: 'var(--neutralSecondary)',
+                    fontWeight: 500
+                  }}
+                >
+                  Typical turnaround: {item.estimatedTime}
+                </Text>
+              </Stack>
             )}
           </Stack>
         </Stack>
 
-        {/* Description */}
-        <Text
-          variant="medium"
-          style={{
-            color: item.enabled ? 'var(--neutralPrimary)' : 'var(--neutralSecondary)',
-            lineHeight: '1.4'
-          }}
-        >
-          {item.description}
-        </Text>
+        {/* Description - properly aligned */}
+        <Stack style={{ marginLeft: '64px' }}> {/* Align with title text */}
+          <Text
+            variant="medium"
+            style={{
+              color: item.enabled ? 'var(--neutralPrimary)' : 'var(--neutralSecondary)',
+              lineHeight: '1.5'
+            }}
+          >
+            {item.description}
+          </Text>
+        </Stack>
 
         {/* Selection Indicator */}
         {isSelected && item.enabled && (
-          <Stack horizontal verticalAlign="center" tokens={{ childrenGap: 8 }}>
-            <Icon
-              iconName="CheckMark"
-              style={{ color: 'var(--themePrimary)', fontSize: '16px' }}
-            />
+          <Stack 
+            horizontal 
+            verticalAlign="center" 
+            tokens={{ childrenGap: 8 }}
+            style={{ marginLeft: '64px' }} // Align with description
+          >
+            <div
+              style={{
+                width: '20px',
+                height: '20px',
+                borderRadius: '50%',
+                backgroundColor: 'var(--themePrimary)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              <Icon
+                iconName="CheckMark"
+                style={{ color: 'white', fontSize: '12px' }}
+              />
+            </div>
             <Text
               variant="medium"
               style={{ color: 'var(--themePrimary)', fontWeight: 600 }}
@@ -1173,11 +1235,15 @@ export const RequestTypeSelector: React.FC<RequestTypeSelectorProps> = ({
     );
   };
 
-  // Handle item selection
-  const handleItemClick = (item: RequestType) => {
+  // Handle item selection - only allow selection of enabled items
+  const handleItemClick = (e: any) => {
+    const item = e.itemData;
     if (item.enabled) {
-      setSelectedRequestType(item);
+      setSelectedRequestType(prevSelected => 
+        prevSelected?.id === item.id ? prevSelected : item
+      );
     }
+    // Do nothing if item is disabled
   };
 
   // Handle continue
@@ -1188,29 +1254,57 @@ export const RequestTypeSelector: React.FC<RequestTypeSelectorProps> = ({
   };
 
   return (
-    <Stack tokens={{ childrenGap: 24 }} style={{ width: '100%', maxWidth: '1200px', margin: '0 auto', padding: '20px' }}>
+    <Stack 
+      tokens={{ childrenGap: 32 }} 
+      style={{ 
+        width: '100%', 
+        maxWidth: '1200px', 
+        margin: '0 auto', 
+        padding: '24px',
+        minHeight: '100vh' // Ensure full height
+      }}
+    >
       
       {/* Header */}
-      <Stack horizontalAlign="center" tokens={{ childrenGap: 16 }}>
-        <Text variant="xxLarge" style={{ fontWeight: 600, textAlign: 'center' }}>
+      <Stack horizontalAlign="center" tokens={{ childrenGap: 20 }}>
+        <Text 
+          variant="xxLarge" 
+          style={{ 
+            fontWeight: 700, 
+            textAlign: 'center',
+            background: 'linear-gradient(45deg, var(--themePrimary), var(--themeSecondary))',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            marginTop: '20px' // Extra top margin to prevent header cutoff
+          }}
+        >
           Start a New Request
         </Text>
-        <Text variant="large" style={{ color: 'var(--neutralSecondary)', textAlign: 'center', maxWidth: '600px' }}>
+        <Text 
+          variant="large" 
+          style={{ 
+            color: 'var(--neutralSecondary)', 
+            textAlign: 'center', 
+            maxWidth: '700px',
+            lineHeight: '1.5'
+          }}
+        >
           Choose the type of request you'd like to submit. Each request type follows a specific workflow designed for optimal review and approval.
         </Text>
       </Stack>
 
       {/* Workflow Preview */}
-      <Stack tokens={{ childrenGap: 12 }}>
-        <Text variant="large" style={{ fontWeight: 600, textAlign: 'center' }}>
+      <Stack tokens={{ childrenGap: 16 }}>
+        <Text variant="xLarge" style={{ fontWeight: 600, textAlign: 'center' }}>
           Review Process Overview
         </Text>
         <div
           style={{
             background: 'white',
-            padding: '20px',
-            borderRadius: '8px',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+            padding: '24px',
+            borderRadius: '12px',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.1)',
+            border: '1px solid var(--neutralLight)'
           }}
         >
           <WorkflowStepper
@@ -1220,73 +1314,126 @@ export const RequestTypeSelector: React.FC<RequestTypeSelectorProps> = ({
             selectedStepId="draft"
           />
         </div>
-        <Text variant="medium" style={{ color: 'var(--neutralSecondary)', textAlign: 'center' }}>
+        <Text 
+          variant="medium" 
+          style={{ 
+            color: 'var(--neutralSecondary)', 
+            textAlign: 'center',
+            fontStyle: 'italic'
+          }}
+        >
           This is the standard workflow for all request types. Some steps may be skipped based on your request details.
         </Text>
       </Stack>
 
       {/* Request Type Selection */}
-      <Stack tokens={{ childrenGap: 16 }}>
-        <Text variant="large" style={{ fontWeight: 600 }}>
+      <Stack tokens={{ childrenGap: 20 }}>
+        <Text variant="xLarge" style={{ fontWeight: 600 }}>
           Select Request Type
         </Text>
         
         {/* Info Message */}
-        <MessageBar messageBarType={MessageBarType.info}>
+        <MessageBar 
+          messageBarType={MessageBarType.info}
+          styles={{
+            root: {
+              borderRadius: '8px',
+              border: '1px solid var(--themeLight)'
+            }
+          }}
+        >
           <Text variant="medium">
             <strong>Communication Request</strong> is currently available. Additional request types are coming soon and will provide specialized workflows for different document types.
           </Text>
         </MessageBar>
 
-        {/* DevExtreme List */}
-        <div style={{ background: 'white', borderRadius: '8px', padding: '8px' }}>
+        {/* DevExtreme List with proper disabled handling */}
+        <div 
+          style={{ 
+            background: 'white', 
+            borderRadius: '12px', 
+            padding: '16px',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+            border: '1px solid var(--neutralLight)'
+          }}
+        >
           <List
             dataSource={requestTypes}
             itemRender={renderRequestTypeItem}
-            onItemClick={(e) => handleItemClick(e.itemData)}
+            onItemClick={handleItemClick}
             searchEnabled={false}
+            focusStateEnabled={false} // Disable focus state to prevent unwanted selections
+            hoverStateEnabled={true}
             style={{
               border: 'none',
-              borderRadius: '8px'
+              borderRadius: '12px'
+            }}
+            elementAttr={{
+              style: {
+                outline: 'none' // Remove any default outline
+              }
             }}
           />
         </div>
       </Stack>
 
-      {/* Selection Summary */}
+      {/* Selection Summary - Enhanced */}
       {selectedRequestType && (
         <Stack
           style={{
-            background: 'var(--themeLighterAlt)',
-            border: '1px solid var(--themeLight)',
-            borderRadius: '8px',
-            padding: '20px'
+            background: 'linear-gradient(135deg, var(--themeLighterAlt), var(--neutralLighterAlt))',
+            border: '2px solid var(--themeLight)',
+            borderRadius: '12px',
+            padding: '24px',
+            boxShadow: '0 4px 12px rgba(0, 106, 100, 0.1)'
           }}
-          tokens={{ childrenGap: 12 }}
+          tokens={{ childrenGap: 16 }}
         >
-          <Stack horizontal tokens={{ childrenGap: 8 }} verticalAlign="center">
-            <Icon iconName="CheckMark" style={{ color: 'var(--themePrimary)' }} />
-            <Text variant="large" style={{ fontWeight: 600 }}>
+          <Stack horizontal tokens={{ childrenGap: 12 }} verticalAlign="center">
+            <div
+              style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '50%',
+                backgroundColor: 'var(--themePrimary)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              <Icon iconName="CheckMark" style={{ color: 'white', fontSize: '16px' }} />
+            </div>
+            <Text variant="xLarge" style={{ fontWeight: 600, color: 'var(--themePrimary)' }}>
               Ready to Continue
             </Text>
           </Stack>
-          <Text variant="medium">
+          <Text variant="medium" style={{ lineHeight: '1.5' }}>
             You've selected <strong>{selectedRequestType.title}</strong>. 
             Click Continue to start creating your request with the information and documents needed for review.
           </Text>
-          <Text variant="small" style={{ color: 'var(--neutralSecondary)' }}>
-            Estimated processing time: {selectedRequestType.estimatedTime}
-          </Text>
+          <Stack horizontal tokens={{ childrenGap: 8 }} verticalAlign="center">
+            <Icon iconName="Clock" style={{ color: 'var(--neutralSecondary)', fontSize: '16px' }} />
+            <Text variant="small" style={{ color: 'var(--neutralSecondary)', fontWeight: 500 }}>
+              Estimated processing time: {selectedRequestType.estimatedTime}
+            </Text>
+          </Stack>
         </Stack>
       )}
 
       {/* Action Buttons */}
-      <Stack horizontal horizontalAlign="center" tokens={{ childrenGap: 16 }}>
+      <Stack horizontal horizontalAlign="center" tokens={{ childrenGap: 20 }}>
         {onCancel && (
           <DefaultButton
             text="Cancel"
             iconProps={{ iconName: 'Cancel' }}
             onClick={onCancel}
+            styles={{
+              root: {
+                minWidth: '120px',
+                height: '40px',
+                borderRadius: '8px'
+              }
+            }}
           />
         )}
         <PrimaryButton
@@ -1294,15 +1441,33 @@ export const RequestTypeSelector: React.FC<RequestTypeSelectorProps> = ({
           iconProps={{ iconName: 'ChevronRight' }}
           onClick={handleContinue}
           disabled={!selectedRequestType}
-          style={{
-            minWidth: '120px'
+          styles={{
+            root: {
+              minWidth: '140px',
+              height: '40px',
+              borderRadius: '8px',
+              background: selectedRequestType 
+                ? 'linear-gradient(45deg, var(--themePrimary), var(--themeSecondary))'
+                : undefined
+            },
+            rootDisabled: {
+              background: 'var(--neutralLight)',
+              border: 'none'
+            }
           }}
         />
       </Stack>
 
       {/* Help Text */}
-      <Stack horizontalAlign="center">
-        <Text variant="small" style={{ color: 'var(--neutralSecondary)', textAlign: 'center' }}>
+      <Stack horizontalAlign="center" style={{ marginTop: '20px' }}>
+        <Text 
+          variant="small" 
+          style={{ 
+            color: 'var(--neutralSecondary)', 
+            textAlign: 'center',
+            fontStyle: 'italic'
+          }}
+        >
           Need help choosing the right request type? Contact the Legal team for guidance.
         </Text>
       </Stack>
