@@ -7,7 +7,8 @@ import {
   DefaultButton,
   MessageBar,
   MessageBarType,
-  Icon
+  Icon,
+  useTheme
 } from '@fluentui/react';
 import { WorkflowStepper, StepData } from '../WorkflowStepper';
 
@@ -30,6 +31,7 @@ export const RequestTypeSelector: React.FC<RequestTypeSelectorProps> = ({
   onRequestTypeSelected,
   onCancel
 }) => {
+  const theme = useTheme();
   const [selectedRequestType, setSelectedRequestType] = useState<RequestType | null>(null);
   const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
 
@@ -131,21 +133,21 @@ export const RequestTypeSelector: React.FC<RequestTypeSelectorProps> = ({
     const isHovered = hoveredItemId === item.id;
     
     // Determine background color based on state
-    let backgroundColor = 'white';
+    let backgroundColor = theme.palette.white;
     if (isSelected && item.enabled) {
-      backgroundColor = 'var(--neutralLighter)'; // Keep selected background even when not hovered
+      backgroundColor = theme.palette.neutralLighter; // Selected background
     } else if (isHovered && item.enabled) {
-      backgroundColor = 'var(--neutralLighterAlt)';
+      backgroundColor = theme.palette.neutralLighterAlt; // Hover background
     }
     
     // Determine border color based on state
-    let borderColor = 'var(--neutralLight)';
+    let borderColor = theme.palette.neutralLight;
     let borderWidth = '1px';
     if (isSelected && item.enabled) {
-      borderColor = 'var(--neutralSecondary)';
+      borderColor = theme.palette.neutralTertiary;
       borderWidth = '2px';
     } else if (isHovered && item.enabled) {
-      borderColor = 'var(--neutralTertiary)';
+      borderColor = theme.palette.neutralTertiary;
     }
     
     // Determine shadow based on state
@@ -200,7 +202,7 @@ export const RequestTypeSelector: React.FC<RequestTypeSelectorProps> = ({
             iconName={item.icon || 'Document'}
             style={{
               fontSize: '24px',
-              color: item.enabled ? 'var(--neutralPrimary)' : 'var(--neutralSecondary)',
+              color: item.enabled ? theme.palette.neutralPrimary : theme.palette.neutralSecondary,
               marginTop: '4px'
             }}
           />
@@ -210,7 +212,7 @@ export const RequestTypeSelector: React.FC<RequestTypeSelectorProps> = ({
               variant="large"
               style={{
                 fontWeight: 600,
-                color: item.enabled ? 'var(--neutralPrimary)' : 'var(--neutralSecondary)'
+                color: item.enabled ? theme.palette.neutralPrimary : theme.palette.neutralSecondary
               }}
             >
               {item.title}
