@@ -31,6 +31,7 @@ export const RequestTypeSelector: React.FC<RequestTypeSelectorProps> = ({
   onCancel
 }) => {
   const [selectedRequestType, setSelectedRequestType] = useState<RequestType | null>(null);
+  const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
 
   // Available request types
   const requestTypes: RequestType[] = [
@@ -127,32 +128,50 @@ export const RequestTypeSelector: React.FC<RequestTypeSelectorProps> = ({
   // Render a single request type item
   const renderRequestTypeItem = (item: RequestType) => {
     const isSelected = selectedRequestType?.id === item.id;
+    const isHovered = hoveredItemId === item.id;
+    
+    // Determine background color based on state
+    let backgroundColor = 'white';
+    if (isSelected && item.enabled) {
+      backgroundColor = 'var(--neutralLighter)';
+    } else if (isHovered && item.enabled) {
+      backgroundColor = 'var(--neutralLighterAlt)';
+    }
+    
+    // Determine border color based on state
+    let borderColor = 'var(--neutralLight)';
+    let borderWidth = '1px';
+    if (isSelected && item.enabled) {
+      borderColor = 'var(--neutralSecondary)';
+      borderWidth = '2px';
+    } else if (isHovered && item.enabled) {
+      borderColor = 'var(--neutralTertiary)';
+    }
+    
+    // Determine shadow based on state
+    let boxShadow = '0 2px 4px rgba(0, 0, 0, 0.08)';
+    if (isHovered && item.enabled) {
+      boxShadow = '0 4px 8px rgba(0, 0, 0, 0.12)';
+    }
     
     return (
       <Stack
         key={item.id}
         onClick={() => handleItemClick(item)}
+        onMouseEnter={() => item.enabled && setHoveredItemId(item.id)}
+        onMouseLeave={() => setHoveredItemId(null)}
         style={{
           padding: '20px',
           margin: '8px 0',
-          border: isSelected && item.enabled 
-            ? '2px solid var(--neutralSecondary)' 
-            : '1px solid var(--neutralLight)',
+          border: `${borderWidth} solid ${borderColor}`,
           borderRadius: '8px',
-          backgroundColor: isSelected && item.enabled 
-            ? 'var(--neutralLighter)' 
-            : 'white',
+          backgroundColor,
           cursor: item.enabled ? 'pointer' : 'not-allowed',
           opacity: item.enabled ? 1 : 0.6,
           transition: 'all 0.2s ease',
           position: 'relative',
-          boxShadow: '0 2px 4px rgba(0, 0, 0, 0.08)',
-          ':hover': item.enabled ? {
-            backgroundColor: isSelected ? 'var(--neutralLighter)' : 'var(--neutralLighterAlt)',
-            borderColor: 'var(--neutralTertiary)',
-            boxShadow: '0 4px 8px rgba(0, 0, 0, 0.12)',
-            transform: 'translateY(-1px)'
-          } : {}
+          boxShadow,
+          transform: isHovered && item.enabled ? 'translateY(-1px)' : 'translateY(0)'
         }}
         tokens={{ childrenGap: 12 }}
       >
