@@ -1,240 +1,388 @@
-<Field ID="{12345678-1234-1234-1234-123456789001}"
-       Type="TaxonomyFieldTypeMulti"
-       Name="AccountNumbers"
-       StaticName="AccountNumbers"
-       DisplayName="Account Numbers"
-       ClientSideComponentId="12345678-1234-1234-1234-123456789abc"
-       ClientSideComponentProperties='{"maxDisplayCount":8,"maxLines":2,"preferredSeparator":", "}'>
-</Field>
+// components/RequestForm/RequestTypeSelector.tsx
+import React, { useState } from 'react';
+import {
+  Stack,
+  Text,
+  PrimaryButton,
+  DefaultButton,
+  MessageBar,
+  MessageBarType,
+  Icon
+} from '@fluentui/react';
+import { WorkflowStepper, StepData } from '../WorkflowStepper';
 
-
-const accounts: string[] = this.parseAccountValues(event.fieldValue);
-    const maxDisplayCount = this.properties.maxDisplayCount || 10;
-    const maxLines = this.properties.maxLines || 3;
-    const preferredSeparator = this.properties.preferredSeparator || ', ';
-
-    const accountField: React.ReactElement<IAccountFieldProps> = React.createElement(AccountField, {
-      accounts: accounts,
-      maxDisplayCount: maxDisplayCount,
-      context: this.context,
-      maxLines: maxLines,
-      preferredSeparator: preferredSeparator
-    });
-
-    ReactDOM.render(accountField, event.domElement);
-
-
-
-
-
-import * as React from 'react';
-import { useState, useEffect, useRef } from 'react';
-import { BaseComponentContext } from '@microsoft/sp-component-base';
-import { TooltipHost, ITooltipHostStyles } from '@fluentui/react/lib/Tooltip';
-import { Link } from '@fluentui/react/lib/Link';
-import { DirectionalHint } from '@fluentui/react/lib/common/DirectionalHint';
-
-export interface IAccountFieldProps {
-  accounts: string[];
-  maxDisplayCount: number;
-  context: BaseComponentContext;
-  maxLines?: number;           // Maximum lines before truncating
-  preferredSeparator?: string; // Separator to use (default: ', ')
+interface RequestType {
+  id: string;
+  title: string;
+  description: string;
+  enabled: boolean;
+  comingSoon?: boolean;
+  icon?: string;
+  estimatedTime?: string;
 }
 
-const AccountField: React.FC<IAccountFieldProps> = ({ 
-  accounts, 
-  maxDisplayCount, 
-  context,
-  maxLines = 3,
-  preferredSeparator = ', '
+interface RequestTypeSelectorProps {
+  onRequestTypeSelected: (requestType: string) => void;
+  onCancel?: () => void;
+}
+
+export const RequestTypeSelector: React.FC<RequestTypeSelectorProps> = ({
+  onRequestTypeSelected,
+  onCancel
 }) => {
-  const [showAll, setShowAll] = useState<boolean>(false);
-  const [isOverflowing, setIsOverflowing] = useState<boolean>(false);
-  const contentRef = useRef<HTMLDivElement>(null);
+  const [selectedRequestType, setSelectedRequestType] = useState<RequestType | null>(null);
 
-  if (!accounts || accounts.length === 0) {
-    return <span>-</span>;
-  }
-
-  // Check if content is overflowing based on maxLines or width
-  useEffect(() => {
-    if (contentRef.current && !showAll) {
-      const element = contentRef.current;
-      const lineHeight = 1.4; // em
-      const maxHeight = maxLines * lineHeight;
-      const elementHeight = element.scrollHeight / parseFloat(getComputedStyle(element).fontSize);
-      
-      const isHeightOverflow = elementHeight > maxHeight;
-      const isWidthOverflow = element.scrollWidth > element.clientWidth;
-      
-      setIsOverflowing(isHeightOverflow || isWidthOverflow);
-    } else {
-      setIsOverflowing(false);
+  // Available request types
+  const requestTypes: RequestType[] = [
+    {
+      id: 'communication',
+      title: 'Communication Request',
+      description: 'Submit marketing materials, communications, and promotional content for legal and compliance review. Includes white papers, brochures, presentations, and digital content.',
+      enabled: true,
+      icon: 'MegaphoneOutline',
+      estimatedTime: '5-7 business days'
+    },
+    {
+      id: 'general-review',
+      title: 'General Review',
+      description: 'Submit general documents and materials for legal review that don\'t fall under specific communication or IMA categories.',
+      enabled: false,
+      comingSoon: true,
+      icon: 'DocumentSearch',
+      estimatedTime: '3-5 business days'
+    },
+    {
+      id: 'ima-review',
+      title: 'IMA Review',
+      description: 'Submit Investment Management Agreement documents and related materials for specialized legal review and compliance checking.',
+      enabled: false,
+      comingSoon: true,
+      icon: 'Financial',
+      estimatedTime: '7-10 business days'
     }
-  }, [accounts, showAll, maxLines]);
+  ];
 
-  const displayAccounts = showAll ? accounts : accounts.slice(0, maxDisplayCount);
-  const hasMore = accounts.length > maxDisplayCount;
-  const shouldShowTooltip = !showAll && (hasMore || isOverflowing);
+  // Workflow steps to show the complete process
+  const getWorkflowSteps = (): StepData[] => [
+    {
+      id: 'draft',
+      title: 'Draft',
+      description1: 'Create request',
+      description2: 'Add details & documents',
+      status: 'pending'
+    },
+    {
+      id: 'legal-intake',
+      title: 'Legal Intake',
+      description1: 'Attorney assignment',
+      description2: 'Initial review',
+      status: 'pending'
+    },
+    {
+      id: 'assign-attorney',
+      title: 'Assign Attorney',
+      description1: 'Committee review',
+      description2: 'Attorney selection',
+      status: 'pending'
+    },
+    {
+      id: 'in-review',
+      title: 'In Review',
+      description1: 'Legal & compliance',
+      description2: 'Detailed analysis',
+      status: 'pending'
+    },
+    {
+      id: 'closeout',
+      title: 'Closeout',
+      description1: 'Final tracking',
+      description2: 'Documentation',
+      status: 'pending'
+    },
+    {
+      id: 'completed',
+      title: 'Completed',
+      description1: 'Ready for use',
+      description2: 'Process complete',
+      status: 'pending'
+    }
+  ];
 
-  const handleShowAllClick = (event: React.MouseEvent<HTMLElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    setShowAll(true);
-  };
-
-  const renderAccountsWithWrapping = (accountsToRender: string[]) => {
-    if (showAll) {
-      // When showing all, display in a more structured way with no line limits
-      return (
-        <div style={{ 
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '4px 0',
-          lineHeight: '1.3'
-        }}>
-          {accountsToRender.map((account, index) => (
-            <React.Fragment key={index}>
-              <span style={{ 
-                wordBreak: 'break-word',
-                whiteSpace: 'nowrap'
-              }}>
-                {account.trim()}
-              </span>
-              {index < accountsToRender.length - 1 && (
-                <span style={{ marginRight: '4px' }}>{preferredSeparator.trim()}</span>
-              )}
-            </React.Fragment>
-          ))}
-        </div>
+  // Handle item selection - only allow selection of enabled items
+  const handleItemClick = (item: RequestType) => {
+    if (item.enabled) {
+      setSelectedRequestType(prevSelected => 
+        prevSelected?.id === item.id ? prevSelected : item
       );
-    } else {
-      // When showing limited accounts, use natural text flow with line clamping
-      const accountText = accountsToRender.map(account => account.trim()).join(preferredSeparator);
-      return (
-        <div style={{ 
-          wordWrap: 'break-word',
-          overflowWrap: 'anywhere',
-          whiteSpace: 'normal',
-          lineHeight: '1.4',
-          display: '-webkit-box',
-          WebkitLineClamp: maxLines,
-          WebkitBoxOrient: 'vertical' as any,
-          overflow: 'hidden'
-        }}>
-          {accountText}
-        </div>
-      );
     }
   };
 
-  const renderTooltipContent = () => (
-    <div style={{ 
-      maxWidth: '320px', 
-      maxHeight: '250px', 
-      overflowY: 'auto',
-      padding: '4px'
-    }}>
-      <div style={{ 
-        fontWeight: '600', 
-        marginBottom: '6px',
-        fontSize: '13px'
-      }}>
-        All Accounts ({accounts.length}):
-      </div>
-      <div style={{ 
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
-        gap: '4px',
-        fontSize: '12px',
-        lineHeight: '1.4'
-      }}>
-        {accounts.map((account, index) => (
-          <div 
-            key={index} 
-            style={{ 
-              padding: '2px 4px',
-              backgroundColor: '#f8f9fa',
-              borderRadius: '3px',
-              wordBreak: 'break-word'
-            }}
-          >
-            {account.trim()}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-
-  const tooltipStyles: Partial<ITooltipHostStyles> = {
-    root: {
-      display: 'block',
-      width: '100%',
-      cursor: shouldShowTooltip ? 'help' : 'default'
+  // Handle continue
+  const handleContinue = () => {
+    if (selectedRequestType) {
+      onRequestTypeSelected(selectedRequestType.id);
     }
   };
 
-  const mainContent = (
-    <div style={{ width: '100%' }}>
-      <div 
-        ref={contentRef}
-        style={{ 
-          width: '100%'
+  // Render a single request type item
+  const renderRequestTypeItem = (item: RequestType) => {
+    const isSelected = selectedRequestType?.id === item.id;
+    
+    return (
+      <Stack
+        key={item.id}
+        onClick={() => handleItemClick(item)}
+        style={{
+          padding: '20px',
+          margin: '8px 0',
+          border: isSelected && item.enabled 
+            ? '2px solid var(--neutralSecondary)' 
+            : '1px solid var(--neutralLight)',
+          borderRadius: '8px',
+          backgroundColor: isSelected && item.enabled 
+            ? 'var(--neutralLighter)' 
+            : 'white',
+          cursor: item.enabled ? 'pointer' : 'not-allowed',
+          opacity: item.enabled ? 1 : 0.6,
+          transition: 'all 0.2s ease',
+          position: 'relative'
         }}
+        tokens={{ childrenGap: 12 }}
       >
-        {renderAccountsWithWrapping(displayAccounts)}
-      </div>
-      
-      {hasMore && !showAll && (
-        <div style={{ 
-          marginTop: '6px',
-          borderTop: '1px solid #edebe9',
-          paddingTop: '4px'
-        }}>
-          <Link 
-            onClick={handleShowAllClick}
-            styles={{
-              root: {
-                fontSize: '11px',
-                fontWeight: '600',
-                textDecoration: 'underline',
-                whiteSpace: 'nowrap',
-                color: '#0078d4',
-                display: 'inline-block'
-              }
+        {/* Coming Soon Badge */}
+        {item.comingSoon && (
+          <div
+            style={{
+              position: 'absolute',
+              top: '12px',
+              right: '12px',
+              background: 'var(--yellow)',
+              color: 'var(--yellowDark)',
+              padding: '4px 8px',
+              borderRadius: '4px',
+              fontSize: '12px',
+              fontWeight: 600
             }}
           >
-            + Show {accounts.length - maxDisplayCount} more
-          </Link>
-        </div>
-      )}
-    </div>
-  );
+            Coming Soon
+          </div>
+        )}
+
+        {/* Header with Icon and Title */}
+        <Stack horizontal tokens={{ childrenGap: 12 }} verticalAlign="start">
+          <Icon
+            iconName={item.icon || 'Document'}
+            style={{
+              fontSize: '24px',
+              color: item.enabled ? 'var(--neutralPrimary)' : 'var(--neutralSecondary)',
+              marginTop: '4px'
+            }}
+          />
+          
+          <Stack tokens={{ childrenGap: 8 }} style={{ flex: 1 }}>
+            <Text
+              variant="large"
+              style={{
+                fontWeight: 600,
+                color: item.enabled ? 'var(--neutralPrimary)' : 'var(--neutralSecondary)'
+              }}
+            >
+              {item.title}
+            </Text>
+            
+            {item.estimatedTime && (
+              <Text
+                variant="small"
+                style={{ 
+                  color: 'var(--neutralSecondary)',
+                  fontWeight: 500
+                }}
+              >
+                Typical turnaround: {item.estimatedTime}
+              </Text>
+            )}
+          </Stack>
+        </Stack>
+
+        {/* Description - aligned under the title */}
+        <Stack style={{ marginLeft: '36px' }}>
+          <Text
+            variant="medium"
+            style={{
+              color: item.enabled ? 'var(--neutralPrimary)' : 'var(--neutralSecondary)',
+              lineHeight: '1.4'
+            }}
+          >
+            {item.description}
+          </Text>
+        </Stack>
+
+        {/* Selection Indicator */}
+        {isSelected && item.enabled && (
+          <Stack 
+            horizontal 
+            verticalAlign="center" 
+            tokens={{ childrenGap: 8 }}
+            style={{ marginLeft: '36px' }}
+          >
+            <Icon
+              iconName="CheckMark"
+              style={{ 
+                color: 'var(--neutralDark)', 
+                fontSize: '16px' 
+              }}
+            />
+            <Text
+              variant="medium"
+              style={{ 
+                color: 'var(--neutralDark)', 
+                fontWeight: 600 
+              }}
+            >
+              Selected
+            </Text>
+          </Stack>
+        )}
+      </Stack>
+    );
+  };
 
   return (
-    <div style={{ 
-      width: '100%',
-      minHeight: '24px',
-      padding: '4px 2px',
-      fontSize: '13px',
-      fontFamily: '"Segoe UI", "Segoe UI Web (West European)", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif'
-    }}>
-      {shouldShowTooltip ? (
-        <TooltipHost
-          content={renderTooltipContent()}
-          directionalHint={DirectionalHint.topLeftEdge}
-          styles={tooltipStyles}
-          delay={300}
-          maxWidth={350}
+    <Stack 
+      tokens={{ childrenGap: 24 }} 
+      style={{ 
+        width: '100%', 
+        maxWidth: '1200px', 
+        margin: '0 auto', 
+        padding: '20px'
+      }}
+    >
+      
+      {/* Header */}
+      <Stack horizontalAlign="center" tokens={{ childrenGap: 16 }}>
+        <Text 
+          variant="xxLarge" 
+          style={{ 
+            fontWeight: 600, 
+            textAlign: 'center',
+            marginTop: '20px'
+          }}
         >
-          {mainContent}
-        </TooltipHost>
-      ) : (
-        mainContent
+          Start a New Request
+        </Text>
+        <Text 
+          variant="large" 
+          style={{ 
+            color: 'var(--neutralSecondary)', 
+            textAlign: 'center', 
+            maxWidth: '600px'
+          }}
+        >
+          Choose the type of request you'd like to submit. Each request type follows a specific workflow designed for optimal review and approval.
+        </Text>
+      </Stack>
+
+      {/* Workflow Preview */}
+      <Stack tokens={{ childrenGap: 12 }}>
+        <Text variant="large" style={{ fontWeight: 600, textAlign: 'center' }}>
+          Review Process Overview
+        </Text>
+        <div
+          style={{
+            background: 'white',
+            padding: '20px',
+            borderRadius: '8px',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+          }}
+        >
+          <WorkflowStepper
+            steps={getWorkflowSteps()}
+            mode="fullSteps"
+            minStepWidth={160}
+            selectedStepId="draft"
+          />
+        </div>
+        <Text variant="medium" style={{ color: 'var(--neutralSecondary)', textAlign: 'center' }}>
+          This is the standard workflow for all request types. Some steps may be skipped based on your request details.
+        </Text>
+      </Stack>
+
+      {/* Request Type Selection */}
+      <Stack tokens={{ childrenGap: 16 }}>
+        <Text variant="large" style={{ fontWeight: 600 }}>
+          Select Request Type
+        </Text>
+        
+        {/* Info Message */}
+        <MessageBar messageBarType={MessageBarType.info}>
+          <Text variant="medium">
+            <strong>Communication Request</strong> is currently available. Additional request types are coming soon and will provide specialized workflows for different document types.
+          </Text>
+        </MessageBar>
+
+        {/* Request Type Items */}
+        <div style={{ background: 'white', borderRadius: '8px', padding: '8px' }}>
+          {requestTypes.map(item => renderRequestTypeItem(item))}
+        </div>
+      </Stack>
+
+      {/* Selection Summary */}
+      {selectedRequestType && (
+        <Stack
+          style={{
+            background: 'var(--neutralLighter)',
+            border: '1px solid var(--neutralLight)',
+            borderRadius: '8px',
+            padding: '20px'
+          }}
+          tokens={{ childrenGap: 12 }}
+        >
+          <Stack horizontal tokens={{ childrenGap: 8 }} verticalAlign="center">
+            <Icon 
+              iconName="CheckMark" 
+              style={{ color: 'var(--neutralDark)' }} 
+            />
+            <Text variant="large" style={{ fontWeight: 600 }}>
+              Ready to Continue
+            </Text>
+          </Stack>
+          <Text variant="medium">
+            You've selected <strong>{selectedRequestType.title}</strong>. 
+            Click Continue to start creating your request with the information and documents needed for review.
+          </Text>
+          <Text variant="small" style={{ color: 'var(--neutralSecondary)' }}>
+            Estimated processing time: {selectedRequestType.estimatedTime}
+          </Text>
+        </Stack>
       )}
-    </div>
+
+      {/* Action Buttons */}
+      <Stack horizontal horizontalAlign="center" tokens={{ childrenGap: 16 }}>
+        {onCancel && (
+          <DefaultButton
+            text="Cancel"
+            iconProps={{ iconName: 'Cancel' }}
+            onClick={onCancel}
+          />
+        )}
+        <PrimaryButton
+          text="Continue"
+          iconProps={{ iconName: 'ChevronRight' }}
+          onClick={handleContinue}
+          disabled={!selectedRequestType}
+          style={{
+            minWidth: '120px'
+          }}
+        />
+      </Stack>
+
+      {/* Help Text */}
+      <Stack horizontalAlign="center">
+        <Text variant="small" style={{ color: 'var(--neutralSecondary)', textAlign: 'center' }}>
+          Need help choosing the right request type? Contact the Legal team for guidance.
+        </Text>
+      </Stack>
+
+    </Stack>
   );
 };
-
-export { AccountField };
