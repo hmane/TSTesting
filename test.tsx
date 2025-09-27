@@ -133,7 +133,7 @@ export const RequestTypeSelector: React.FC<RequestTypeSelectorProps> = ({
     // Determine background color based on state
     let backgroundColor = 'white';
     if (isSelected && item.enabled) {
-      backgroundColor = 'var(--neutralLighter)';
+      backgroundColor = 'var(--neutralLighter)'; // Keep selected background even when not hovered
     } else if (isHovered && item.enabled) {
       backgroundColor = 'var(--neutralLighterAlt)';
     }
