@@ -145,7 +145,14 @@ export const RequestTypeSelector: React.FC<RequestTypeSelectorProps> = ({
           cursor: item.enabled ? 'pointer' : 'not-allowed',
           opacity: item.enabled ? 1 : 0.6,
           transition: 'all 0.2s ease',
-          position: 'relative'
+          position: 'relative',
+          boxShadow: '0 2px 4px rgba(0, 0, 0, 0.08)',
+          ':hover': item.enabled ? {
+            backgroundColor: isSelected ? 'var(--neutralLighter)' : 'var(--neutralLighterAlt)',
+            borderColor: 'var(--neutralTertiary)',
+            boxShadow: '0 4px 8px rgba(0, 0, 0, 0.12)',
+            transform: 'translateY(-1px)'
+          } : {}
         }}
         tokens={{ childrenGap: 12 }}
       >
@@ -320,10 +327,19 @@ export const RequestTypeSelector: React.FC<RequestTypeSelectorProps> = ({
           </Text>
         </MessageBar>
 
-        {/* Request Type Items */}
-        <div style={{ background: 'white', borderRadius: '8px', padding: '8px' }}>
+        {/* Request Type Items - Card Container */}
+        <Stack
+          style={{
+            background: 'var(--neutralLighterAlt)',
+            borderRadius: '12px',
+            padding: '16px',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+            border: '1px solid var(--neutralLight)'
+          }}
+          tokens={{ childrenGap: 8 }}
+        >
           {requestTypes.map(item => renderRequestTypeItem(item))}
-        </div>
+        </Stack>
       </Stack>
 
       {/* Selection Summary */}
