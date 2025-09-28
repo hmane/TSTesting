@@ -1,727 +1,781 @@
-// components/RequestForm/RequestContainer.tsx
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+// components/RequestForm/Approvals.tsx
+import * as React from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import {
   Stack,
+  Text,
+  IconButton,
+  Separator,
+  Icon,
+  TooltipHost,
+  useTheme,
   MessageBar,
   MessageBarType,
-  Text,
-  Icon,
-  IconButton,
-  Spinner,
-  SpinnerSize,
-  Panel,
-  PanelType
+  DefaultButton,
+  PrimaryButton,
+  Dropdown,
+  IDropdownOption,
+  Toggle,
+  DocumentCard,
+  DocumentCardTitle,
+  DocumentCardDetails,
+  DocumentCardActions,
 } from '@fluentui/react';
-import { useForm } from 'react-hook-form';
-import { debounce, isEqual } from '@microsoft/sp-lodash-subset';
-import { Request, NewRequest, RequestStatus } from '../../models/Request';
-import { useRequestForm, useFormValidation } from '../../hooks';
-import { WorkflowStepper, StepData } from '../WorkflowStepper';
-import { ManageAccessComponent } from '../ManageAccess';
-import { RequestTypeSelector } from './RequestTypeSelector';
-import { RequestInfo } from './RequestInfo';
+import { Control, FieldErrors, useWatch } from 'react-hook-form';
+import { Request, NewRequest } from '../../models/Request';
+import { RequestAccess } from '../../models/RequestAccess';
+import { Card, Header, Content } from 'spfx-toolkit/lib/components/Card';
+import {
+  FormItem,
+  FormLabel,
+  FormValue,
+  FormError,
+  FormDescription,
+  DevExtremeDateBox,
+  PnPPeoplePicker,
+  DevExtremeTextBox,
+} from 'spfx-toolkit/lib/components/spForm';
 
-interface RequestContainerProps {
-  itemId?: number;
-  onSaveSuccess?: (savedRequest: Request) => void;
-  onSubmitSuccess?: (submittedRequest: Request) => void;
-  onCancel?: () => void;
+interface ApprovalsProps {
+  control: Control<Request | NewRequest>;
+  errors: FieldErrors<Request | NewRequest>;
+  requestAccess: RequestAccess;
+  isSubmitted: boolean;
 }
 
-export const RequestContainer: React.FC<RequestContainerProps> = ({
-  itemId,
-  onSaveSuccess,
-  onSubmitSuccess,
-  onCancel
+// Available approval types
+const APPROVAL_TYPES = [
+  {
+    key: 'portfolio',
+    text: 'Portfolio Manager Approval',
+    description: 'Required for investment-related materials',
+    icon: 'Financial',
+    fields: {
+      dateField: 'PortfolioApprovalDate',
+      approverField: 'PortfolioApprover',
+      requiredField: 'RequirePortfolioApproval'
+    }
+  },
+  {
+    key: 'research',
+    text: 'Research Analyst Approval',
+    description: 'Required for research reports and analysis',
+    icon: 'Research',
+    fields: {
+      dateField: 'ResearchAnalystApprovalDate',
+      approverField: 'ResearchAnalyst',
+      requiredField: 'RequireResearchAnalystApproval'
+    }
+  },
+  {
+    key: 'sme',
+    text: 'Subject Matter Expert (SME) Approval',
+    description: 'Required for technical or specialized content',
+    icon: 'ContactCard',
+    fields: {
+      dateField: 'SMEApprovalDate',
+      approverField: 'SME',
+      requiredField: 'RequireSMEApproval'
+    }
+  },
+  {
+    key: 'performance',
+    text: 'Performance Review Approval',
+    description: 'Required for performance data and metrics',
+    icon: 'BarChart4',
+    fields: {
+      dateField: 'PerformanceReviewApprovalDate',
+      approverField: 'PerformanceReviewApprover',
+      requiredField: 'RequirePerformanceApproval'
+    }
+  },
+  {
+    key: 'other',
+    text: 'Other Approval',
+    description: 'Custom approval type with specified title',
+    icon: 'More',
+    fields: {
+      titleField: 'OtherApproverTitle',
+      dateField: 'OtherApprovalDate',
+      approverField: 'OtherApprover',
+      requiredField: 'RequireOtherApproval'
+    }
+  }
+];
+
+const Approvals: React.FC<ApprovalsProps> = ({
+  control,
+  errors,
+  requestAccess,
+  isSubmitted,
 }) => {
-  // Hooks must be called before any early returns
-  const requestForm = useRequestForm();
-  const formValidation = useFormValidation();
-  
-  // State
-  const [commentsExpanded, setCommentsExpanded] = useState(false); // Collapsed by default
-  const [selectedRequestType, setSelectedRequestType] = useState<string | null>(null);
-  const [isFormInitialized, setIsFormInitialized] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  const theme = useTheme();
+  const [isEditMode, setIsEditMode] = useState(!isSubmitted);
+  const [selectedApprovalType, setSelectedApprovalType] = useState<string>('');
 
-  // Check if mobile view
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth <= 1024);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  // React Hook Form setup with proper default values
-  const form = useForm<Request | NewRequest>({
-    mode: 'onChange',
-    reValidateMode: 'onChange',
-    defaultValues: useMemo(() => ({
-      RequestTitle: '',
-      Department: '',
-      RequestType: 'Communication',
-      Purpose: '',
-      SubmissionType: 'New',
-      SubmissionItem: '',
-      DistributionMethod: [],
-      TargetReturnDate: null,
-      ReviewAudience: 'Legal',
-      AdditionalParty: [],
-      PriorSubmissionNotes: '',
-      DateOfFirstUse: null,
-      RushRational: '',
-    }), [])
+  // Watch communication approval requirement
+  const requireCommunicationApproval = useWatch({
+    control,
+    name: 'RequireCommunicationApproval'
   });
 
-  const { control, handleSubmit, reset, formState: { errors, isDirty }, getValues } = form;
+  // Watch all approval requirements to track which are selected
+  const approvalRequirements = useWatch({
+    control,
+    name: [
+      'RequireCommunicationApproval',
+      'RequirePortfolioApproval',
+      'RequireResearchAnalystApproval',
+      'RequireSMEApproval',
+      'RequirePerformanceApproval',
+      'RequireOtherApproval'
+    ]
+  });
 
-  // Debounced auto-save function
-  const debouncedAutoSave = useMemo(
-    () => debounce((formData: Partial<Request | NewRequest>) => {
-      if (isDirty && !requestForm.isSaving && isFormInitialized) {
-        console.log('Auto-saving form data...');
-        requestForm.updateFields(formData);
-      }
-    }, 2000), // 2 second debounce
-    [requestForm, isDirty, isFormInitialized]
-  );
-
-  // Debounced comparison for form changes
-  const debouncedFormCheck = useMemo(
-    () => debounce((newFormData: any, currentStoreData: any) => {
-      if (!isEqual(newFormData, currentStoreData)) {
-        debouncedAutoSave(newFormData);
-      }
-    }, 1000),
-    [debouncedAutoSave]
-  );
-
-  // Initialize form on mount
-  useEffect(() => {
-    let isMounted = true;
-
-    const initializeForm = async () => {
-      try {
-        if (itemId) {
-          // Existing request - load directly
-          await requestForm.initializeForm(itemId);
-          setSelectedRequestType('communication'); // Will be updated from loaded data
-        }
-        
-        if (isMounted) {
-          setIsFormInitialized(true);
-        }
-      } catch (error) {
-        console.error('Failed to initialize form:', error);
-      }
-    };
-
-    initializeForm();
-
-    return () => {
-      isMounted = false;
-      debouncedAutoSave.cancel();
-    };
-  }, [itemId, requestForm, debouncedAutoSave]);
-
-  // Sync store data TO form (one direction only)
-  useEffect(() => {
-    if (requestForm.currentRequest && requestForm.isInitialized && isFormInitialized) {
-      console.log('Syncing store data to form...');
-      
-      // Use isEqual to check if data actually changed
-      const currentFormData = getValues();
-      if (!isEqual(currentFormData, requestForm.currentRequest)) {
-        reset(requestForm.currentRequest);
-      }
-    }
-  }, [requestForm.currentRequest, requestForm.isInitialized, isFormInitialized, reset, getValues]);
-
-  // Handle request type selection for new requests
-  const handleRequestTypeSelected = useCallback(async (requestType: string) => {
-    setSelectedRequestType(requestType);
+  // Calculate selected approvals
+  const selectedApprovals = useMemo(() => {
+    const approvals = [];
     
-    try {
-      // Initialize new request with selected type
-      await requestForm.initializeForm();
-      
-      // Set the request type in the form
-      const requestTypeValue = requestType === 'communication' ? 'Communication' : requestType;
-      
-      // Update both form and store
-      reset(prev => ({
-        ...prev,
-        RequestType: requestTypeValue
+    if (requireCommunicationApproval) {
+      approvals.push('communication');
+    }
+    
+    APPROVAL_TYPES.forEach((type, index) => {
+      if (approvalRequirements && approvalRequirements[index + 1]) {
+        approvals.push(type.key);
+      }
+    });
+    
+    return approvals;
+  }, [requireCommunicationApproval, approvalRequirements]);
+
+  // Check if at least one approval is selected
+  const hasRequiredApprovals = selectedApprovals.length > 0;
+
+  // Available approval types for dropdown (exclude already selected)
+  const availableApprovalTypes: IDropdownOption[] = useMemo(() => {
+    return APPROVAL_TYPES
+      .filter(type => !selectedApprovals.includes(type.key))
+      .map(type => ({
+        key: type.key,
+        text: type.text,
+        data: type
       }));
-      
-      requestForm.updateField('RequestType', requestTypeValue);
-      setIsFormInitialized(true);
-    } catch (error) {
-      console.error('Failed to initialize new request:', error);
-    }
-  }, [requestForm, reset]);
+  }, [selectedApprovals]);
 
-  // Manual save handlers
-  const handleSaveDraft = useCallback(async () => {
-    const formData = getValues();
-    requestForm.updateFields(formData);
-    const success = await requestForm.saveAsDraft();
-    
-    if (success && onSaveSuccess) {
-      onSaveSuccess(requestForm.currentRequest as Request);
-    }
-  }, [getValues, requestForm, onSaveSuccess]);
+  // Handlers
+  const handleToggleEditMode = useCallback(() => {
+    setIsEditMode(prev => !prev);
+  }, []);
 
-  const handleSubmitRequest = useCallback(async (data: Request | NewRequest) => {
-    requestForm.updateFields(data);
-    const success = await requestForm.submitRequest();
-    
-    if (success && onSubmitSuccess) {
-      onSubmitSuccess(requestForm.currentRequest as Request);
-    }
-  }, [requestForm, onSubmitSuccess]);
-
-  // Auto-save on form changes (debounced with isEqual check)
-  const formValues = form.watch();
-  useEffect(() => {
-    if (isFormInitialized && isDirty && formValues && requestForm.currentRequest) {
-      debouncedFormCheck(formValues, requestForm.currentRequest);
-    }
-    
-    return () => {
-      debouncedFormCheck.cancel();
-    };
-  }, [formValues, isDirty, isFormInitialized, requestForm.currentRequest, debouncedFormCheck]);
-
-  // Workflow steps generator
-  const workflowSteps = useMemo((): StepData[] => {
-    const currentStatus = requestForm.getFieldValue('Status') || RequestStatus.Draft;
-    
-    const statusOrder = ['Draft', 'Legal Intake', 'Assign Attorney', 'In Review', 'Closeout', 'Completed'];
-    const currentIndex = statusOrder.indexOf(currentStatus);
-    
-    return [
-      { 
-        id: 'draft', 
-        title: 'Draft', 
-        status: currentIndex > 0 ? 'completed' : currentIndex === 0 ? 'current' : 'pending'
-      },
-      { 
-        id: 'legal-intake', 
-        title: 'Legal Intake', 
-        status: currentIndex > 1 ? 'completed' : currentIndex === 1 ? 'current' : 'pending'
-      },
-      { 
-        id: 'assign-attorney', 
-        title: 'Assign Attorney', 
-        status: currentIndex > 2 ? 'completed' : currentIndex === 2 ? 'current' : 'pending'
-      },
-      { 
-        id: 'in-review', 
-        title: 'In Review', 
-        status: currentIndex > 3 ? 'completed' : currentIndex === 3 ? 'current' : 'pending'
-      },
-      { 
-        id: 'closeout', 
-        title: 'Closeout', 
-        status: currentIndex > 4 ? 'completed' : currentIndex === 4 ? 'current' : 'pending'
-      },
-      { 
-        id: 'completed', 
-        title: 'Completed', 
-        status: currentIndex === 5 ? 'completed' : 'pending'
+  const handleAddApproval = useCallback(() => {
+    if (selectedApprovalType) {
+      const approvalType = APPROVAL_TYPES.find(type => type.key === selectedApprovalType);
+      if (approvalType) {
+        // Set the requirement field to true
+        // This would be handled by the form control
+        console.log('Adding approval:', approvalType);
+        setSelectedApprovalType('');
       }
-    ];
-  }, [requestForm]);
+    }
+  }, [selectedApprovalType]);
 
-  // Status banner component
-  const StatusBanner = useMemo(() => {
-    if (!requestForm.currentRequest || !('Status' in requestForm.currentRequest)) {
-      return null;
-    }
-    
-    const request = requestForm.currentRequest as Request;
-    
-    if (request.Status === RequestStatus.Cancelled) {
-      return (
-        <MessageBar messageBarType={MessageBarType.error} isMultiline>
-          <Stack horizontal verticalAlign="center" tokens={{ childrenGap: 8 }}>
-            <Icon iconName="StatusErrorFull" />
-            <Stack tokens={{ childrenGap: 4 }}>
-              <Text variant="medium" style={{ fontWeight: 600 }}>
-                Request Cancelled
-              </Text>
-              <Text variant="small">
-                Cancelled by {request.CancelledBy} on {new Date(request.CancelledOn).toLocaleDateString()}
-              </Text>
-              {request.CancelReason && (
-                <Text variant="small">Reason: {request.CancelReason}</Text>
-              )}
-            </Stack>
-          </Stack>
-        </MessageBar>
-      );
-    }
-    
-    if (request.Status === RequestStatus.OnHold) {
-      return (
-        <MessageBar messageBarType={MessageBarType.warning} isMultiline>
-          <Stack horizontal verticalAlign="center" tokens={{ childrenGap: 8 }}>
-            <Icon iconName="StatusCircleBlock2" />
-            <Stack tokens={{ childrenGap: 4 }}>
-              <Text variant="medium" style={{ fontWeight: 600 }}>
-                Request On Hold
-              </Text>
-              <Text variant="small">
-                Put on hold by {request.OnHoldBy} on {new Date(request.OnHoldOn).toLocaleDateString()}
-              </Text>
-              {request.OnHoldReason && (
-                <Text variant="small">Reason: {request.OnHoldReason}</Text>
-              )}
-            </Stack>
-            {requestForm.canPerformAction('showResumeRequest') && (
-              <IconButton
-                iconProps={{ iconName: 'Play' }}
-                title="Resume Request"
-                onClick={() => requestForm.resumeRequest()}
-                disabled={requestForm.isSaving}
+  const handleRemoveApproval = useCallback((approvalKey: string) => {
+    // Remove the approval by setting requirement to false
+    console.log('Removing approval:', approvalKey);
+  }, []);
+
+  // Only show if access is enabled
+  if (!requestAccess.enableRequestInfo) {
+    return null;
+  }
+
+  const canEdit = requestAccess.isCreator || requestAccess.isAdmin || requestAccess.isLegalAdmin;
+
+  return (
+    <Card
+      id="approvals-card"
+      variant={hasRequiredApprovals ? "default" : "warning"}
+      size="large"
+      allowExpand={true}
+      persist={true}
+    >
+      <Header>
+        <Stack horizontal horizontalAlign="space-between" verticalAlign="center">
+          <Stack horizontal tokens={{ childrenGap: 8 }} verticalAlign="center">
+            <Icon 
+              iconName="Permissions" 
+              style={{ color: theme.palette.themePrimary, fontSize: 16 }} 
+            />
+            <Text variant="medium" style={{ fontWeight: 600 }}>
+              Approvals Required
+            </Text>
+            {!hasRequiredApprovals && (
+              <Icon 
+                iconName="Warning" 
+                style={{ color: theme.palette.yellow, fontSize: 14 }} 
               />
             )}
           </Stack>
-        </MessageBar>
-      );
-    }
-
-    return null;
-  }, [requestForm]);
-
-  // Permission change handler
-  const handlePermissionChanged = useCallback(async (
-    operation: 'add' | 'remove',
-    principals: any[]
-  ): Promise<boolean> => {
-    try {
-      // TODO: Implement permission change logic
-      console.log('Permission change:', operation, principals);
-      return true;
-    } catch (error) {
-      console.error('Permission change failed:', error);
-      return false;
-    }
-  }, []);
-
-  // Toggle comments handler - proper panel behavior
-  const handleToggleComments = useCallback(() => {
-    setCommentsExpanded(prev => !prev);
-  }, []);
-
-  // Show request type selector for new requests
-  if (!itemId && !selectedRequestType) {
-    return (
-      <RequestTypeSelector
-        onRequestTypeSelected={handleRequestTypeSelected}
-        onCancel={onCancel}
-      />
-    );
-  }
-
-  // Loading state
-  if (requestForm.isLoading || !isFormInitialized) {
-    return (
-      <Stack horizontalAlign="center" verticalAlign="center" style={{ height: '400px' }}>
-        <Spinner size={SpinnerSize.large} label="Loading request..." />
-      </Stack>
-    );
-  }
-
-  // Error state
-  if (requestForm.error) {
-    return (
-      <Stack tokens={{ childrenGap: 16 }} style={{ padding: '20px' }}>
-        <MessageBar messageBarType={MessageBarType.error} isMultiline>
-          <Text variant="medium" style={{ fontWeight: 600 }}>
-            Error Loading Request
-          </Text>
-          <Text variant="small">{requestForm.error}</Text>
-        </MessageBar>
-        <IconButton
-          iconProps={{ iconName: 'Refresh' }}
-          text="Try Again"
-          onClick={() => requestForm.clearErrors()}
-        />
-      </Stack>
-    );
-  }
-
-  // Get display values
-  const requestTitle = requestForm.getFieldValue('RequestTitle') || 'New Request';
-  const requestId = requestForm.getFieldValue('Title');
-  const requestType = requestForm.getFieldValue('RequestType') || 'Communication';
-  const isSubmitted = requestForm.getFieldValue('Status') !== RequestStatus.Draft;
-
-  return (
-    <Stack tokens={{ childrenGap: 0 }} style={{ width: '100%', maxWidth: '1400px', margin: '0 auto' }}>
-      
-      {/* Status Banner */}
-      {StatusBanner}
-
-      {/* Header Section */}
-      <Stack 
-        tokens={{ childrenGap: 16 }} 
-        style={{ 
-          padding: '20px', 
-          background: 'white',
-          borderRadius: '8px',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-          marginBottom: '20px'
-        }}
-      >
-        {/* Workflow Progress */}
-        <WorkflowStepper
-          steps={workflowSteps}
-          mode="progress"
-          minStepWidth={120}
-        />
-        
-        {/* Request Info Bar */}
-        <Stack horizontal horizontalAlign="space-between" verticalAlign="center">
-          <Stack>
-            <Stack horizontal tokens={{ childrenGap: 12 }} verticalAlign="center">
-              <Text variant="xLarge" style={{ fontWeight: 600, color: 'var(--themePrimary)' }}>
-                {requestType} Request
-              </Text>
-              {requestId && (
-                <Text 
-                  variant="large" 
-                  style={{ 
-                    color: 'var(--neutralSecondary)',
-                    background: 'var(--neutralLighter)',
-                    padding: '4px 12px',
-                    borderRadius: '12px'
-                  }}
-                >
-                  #{requestId}
-                </Text>
-              )}
-            </Stack>
-            <Text variant="medium" style={{ color: 'var(--neutralSecondary)' }}>
-              {requestTitle}
-            </Text>
-          </Stack>
           
-          {/* Access Management */}
-          {requestForm.itemId && (
-            <ManageAccessComponent
-              spContext={window.spContext}
-              itemId={requestForm.itemId}
-              listId="your-list-guid" // TODO: Get from config
-              permissionTypes="both"
-              onPermissionChanged={handlePermissionChanged}
-              maxAvatars={4}
-            />
+          {/* Edit/View Toggle */}
+          {isSubmitted && canEdit && (
+            <TooltipHost content={isEditMode ? 'Switch to summary view' : 'Edit approvals'}>
+              <IconButton
+                iconProps={{ iconName: isEditMode ? 'ReadingMode' : 'Edit' }}
+                title={isEditMode ? 'View Summary' : 'Edit Approvals'}
+                onClick={handleToggleEditMode}
+                styles={{
+                  root: { 
+                    color: theme.palette.themePrimary,
+                    height: 32,
+                    width: 32,
+                  },
+                  rootHovered: { 
+                    backgroundColor: theme.palette.themeLighter,
+                    color: theme.palette.themeDark,
+                  }
+                }}
+              />
+            </TooltipHost>
           )}
         </Stack>
+      </Header>
+      
+      <Content padding="spacious">
+        {isEditMode ? (
+          <ApprovalsForm 
+            control={control}
+            errors={errors}
+            selectedApprovals={selectedApprovals}
+            availableApprovalTypes={availableApprovalTypes}
+            selectedApprovalType={selectedApprovalType}
+            onApprovalTypeChange={setSelectedApprovalType}
+            onAddApproval={handleAddApproval}
+            onRemoveApproval={handleRemoveApproval}
+            canEdit={canEdit}
+            theme={theme}
+          />
+        ) : (
+          <ApprovalsSummary 
+            selectedApprovals={selectedApprovals}
+            control={control}
+            theme={theme}
+          />
+        )}
+        
+        {/* Validation Message */}
+        {!hasRequiredApprovals && (
+          <MessageBar
+            messageBarType={MessageBarType.warning}
+            isMultiline={false}
+            styles={{ root: { marginTop: 16 } }}
+          >
+            <Stack horizontal tokens={{ childrenGap: 8 }} verticalAlign="center">
+              <Icon iconName="Warning" />
+              <Text variant="medium" style={{ fontWeight: 600 }}>
+                At least one approval is required before submission
+              </Text>
+            </Stack>
+          </MessageBar>
+        )}
+      </Content>
+    </Card>
+  );
+};
+
+// Edit Mode Component
+interface ApprovalsFormProps {
+  control: Control<Request | NewRequest>;
+  errors: FieldErrors<Request | NewRequest>;
+  selectedApprovals: string[];
+  availableApprovalTypes: IDropdownOption[];
+  selectedApprovalType: string;
+  onApprovalTypeChange: (value: string) => void;
+  onAddApproval: () => void;
+  onRemoveApproval: (key: string) => void;
+  canEdit: boolean;
+  theme: any;
+}
+
+const ApprovalsForm: React.FC<ApprovalsFormProps> = React.memo(({
+  control,
+  errors,
+  selectedApprovals,
+  availableApprovalTypes,
+  selectedApprovalType,
+  onApprovalTypeChange,
+  onAddApproval,
+  onRemoveApproval,
+  canEdit,
+  theme,
+}) => {
+  return (
+    <Stack tokens={{ childrenGap: 24 }}>
+      
+      {/* Communication Approval (Always Visible) */}
+      <Stack tokens={{ childrenGap: 16 }}>
+        <Stack horizontal tokens={{ childrenGap: 12 }} verticalAlign="center">
+          <Icon 
+            iconName="MegaphoneOutline" 
+            style={{ color: theme.palette.themePrimary, fontSize: 20 }} 
+          />
+          <Text 
+            variant="medium" 
+            style={{ 
+              fontWeight: 600, 
+              color: theme.palette.themePrimary,
+            }}
+          >
+            Communication Approval
+          </Text>
+        </Stack>
+        
+        <FormItem>
+          <FormLabel>Is Communication Approval Required?</FormLabel>
+          <FormValue>
+            <Toggle
+              onText="Yes"
+              offText="No"
+              // checked={requireCommunicationApproval}
+              // onChange={(ev, checked) => setValue('RequireCommunicationApproval', checked)}
+              disabled={!canEdit}
+            />
+          </FormValue>
+          <FormDescription>
+            Required for all marketing communications and promotional materials
+          </FormDescription>
+        </FormItem>
+
+        {selectedApprovals.includes('communication') && (
+          <CommunicationApprovalFields
+            control={control}
+            errors={errors}
+            canEdit={canEdit}
+            theme={theme}
+          />
+        )}
       </Stack>
 
-      {/* Main Content Layout with responsive comments panel */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'flex-start',
-          gap: '24px',
-          position: 'relative',
-          transition: 'all 0.3s ease'
-        }}
-      >
-        
-        {/* Left Column - Form Content */}
-        <div
-          style={{
-            flex: requestForm.itemId && commentsExpanded && !isMobile ? '0 0 calc(70% - 12px)' : '1 1 100%',
-            transition: 'all 0.3s ease',
-            minWidth: 0 // Important for flex child to shrink properly
+      <Separator />
+
+      {/* Additional Approvals Section */}
+      <Stack tokens={{ childrenGap: 16 }}>
+        <Text 
+          variant="medium" 
+          style={{ 
+            fontWeight: 600, 
+            color: theme.palette.themePrimary,
+            borderBottom: `1px solid ${theme.palette.neutralLighter}`,
+            paddingBottom: 8,
           }}
         >
-          <form onSubmit={handleSubmit(handleSubmitRequest)}>
-            
-            {/* Request Info Component */}
-            <RequestInfo
-              control={control}
-              errors={errors}
-              requestAccess={requestForm.requestAccess}
-              isSubmitted={isSubmitted}
-            />
-            
-            {/* TODO: Approvals Component */}
-            <div style={{ 
-              padding: '20px', 
-              background: 'white', 
-              borderRadius: '8px',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-              marginTop: '16px'
-            }}>
-              <Text variant="medium" style={{ fontWeight: 600 }}>
-                Approvals Component (Coming Soon)
-              </Text>
-            </div>
-            
-            {/* Conditional Components based on access */}
-            {requestForm.requestAccess.enableLegalIntake && (
-              <div style={{ 
-                padding: '20px', 
-                background: 'white', 
-                borderRadius: '8px',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                marginTop: '16px'
-              }}>
-                <Text variant="medium" style={{ fontWeight: 600 }}>
-                  Legal Intake Component
-                </Text>
-              </div>
-            )}
-            
-            {requestForm.requestAccess.enableLegalReview && (
-              <div style={{ 
-                padding: '20px', 
-                background: 'white', 
-                borderRadius: '8px',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                marginTop: '16px'
-              }}>
-                <Text variant="medium" style={{ fontWeight: 600 }}>
-                  Legal Review Component
-                </Text>
-              </div>
-            )}
-            
-            {requestForm.requestAccess.enableComplianceReview && (
-              <div style={{ 
-                padding: '20px', 
-                background: 'white', 
-                borderRadius: '8px',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                marginTop: '16px'
-              }}>
-                <Text variant="medium" style={{ fontWeight: 600 }}>
-                  Compliance Review Component
-                </Text>
-              </div>
-            )}
-            
-            {requestForm.requestAccess.enableCloseout && (
-              <div style={{ 
-                padding: '20px', 
-                background: 'white', 
-                borderRadius: '8px',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                marginTop: '16px'
-              }}>
-                <Text variant="medium" style={{ fontWeight: 600 }}>
-                  Closeout Component
-                </Text>
-              </div>
-            )}
-            
-            {/* Validation Summary */}
-            {formValidation.hasErrors && (
-              <MessageBar messageBarType={MessageBarType.error} isMultiline>
-                <Text variant="medium" style={{ fontWeight: 600 }}>
-                  Please correct the following errors:
-                </Text>
-                <Stack tokens={{ childrenGap: 4 }}>
-                  {formValidation.validationState.errors.map((error, index) => (
-                    <Text key={index} variant="small">• {error}</Text>
-                  ))}
-                </Stack>
-              </MessageBar>
-            )}
-            
-            {/* Save Error Display */}
-            {requestForm.saveError && (
-              <MessageBar 
-                messageBarType={MessageBarType.error} 
-                onDismiss={() => requestForm.clearErrors()}
-              >
-                <Text variant="medium" style={{ fontWeight: 600 }}>Save Error:</Text>
-                <Text variant="small">{requestForm.saveError}</Text>
-              </MessageBar>
-            )}
-            
-            {/* Form Actions */}
-            <Stack
-              horizontal
-              horizontalAlign="space-between"
-              verticalAlign="center"
-              style={{
-                padding: '16px 20px',
-                background: 'white',
-                borderRadius: '8px',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                marginTop: '16px'
-              }}
-            >
-              <Stack horizontal tokens={{ childrenGap: 12 }}>
-                {requestForm.requestAccess.formActions.showSaveAsDraft && (
-                  <IconButton
-                    iconProps={{ iconName: 'Save' }}
-                    text="Save Draft"
-                    onClick={handleSaveDraft}
-                    disabled={requestForm.isSaving || !isDirty}
-                  />
-                )}
-                
-                {requestForm.requestAccess.formActions.showSubmit && (
-                  <IconButton
-                    iconProps={{ iconName: 'Send' }}
-                    text="Submit Request"
-                    onClick={handleSubmit(handleSubmitRequest)}
-                    disabled={requestForm.isSaving}
-                    primary
-                  />
-                )}
-              </Stack>
-              
-              {/* Comments toggle button for existing requests */}
-              {requestForm.itemId && (
-                <Stack horizontal tokens={{ childrenGap: 12 }} verticalAlign="center">
-                  {isDirty && (
-                    <Text variant="small" style={{ color: 'var(--neutralSecondary)' }}>
-                      {requestForm.isSaving ? 'Saving...' : 'You have unsaved changes'}
-                    </Text>
-                  )}
-                  
-                  <IconButton
-                    iconProps={{ iconName: commentsExpanded ? 'ChromeClose' : 'Comment' }}
-                    text={commentsExpanded ? 'Close Comments' : 'Open Comments'}
-                    onClick={handleToggleComments}
-                    styles={{
-                      root: {
-                        backgroundColor: commentsExpanded ? 'var(--themePrimary)' : 'var(--neutralLighter)',
-                        color: commentsExpanded ? 'white' : 'var(--themePrimary)'
-                      },
-                      rootHovered: {
-                        backgroundColor: commentsExpanded ? 'var(--themeDark)' : 'var(--themeLight)',
-                      }
-                    }}
-                  />
-                </Stack>
-              )}
-              
-              {!requestForm.itemId && isDirty && (
-                <Text variant="small" style={{ color: 'var(--neutralSecondary)' }}>
-                  {requestForm.isSaving ? 'Saving...' : 'You have unsaved changes'}
-                </Text>
-              )}
-            </Stack>
-            
-          </form>
-        </div>
+          Additional Approvals
+        </Text>
 
-        {/* Right Column - Comments Panel (Desktop) */}
-        {requestForm.itemId && !isMobile && commentsExpanded && (
-          <div
-            style={{
-              flex: '0 0 calc(30% - 12px)',
-              position: 'sticky',
-              top: '20px',
-              maxHeight: 'calc(100vh - 40px)',
-              transition: 'all 0.3s ease'
-            }}
-          >
-            <Stack
-              style={{
-                background: 'white',
-                borderRadius: '8px',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                height: '600px',
-                overflow: 'hidden'
-              }}
-            >
-              {/* Comments Header */}
-              <Stack 
-                horizontal 
-                horizontalAlign="space-between" 
-                verticalAlign="center"
-                style={{
-                  padding: '16px 20px',
-                  borderBottom: '1px solid var(--neutralLight)',
-                  backgroundColor: 'var(--neutralLighterAlt)'
-                }}
-              >
-                <Stack horizontal tokens={{ childrenGap: 8 }} verticalAlign="center">
-                  <Icon iconName="Comment" style={{ color: 'var(--themePrimary)' }} />
-                  <Text variant="medium" style={{ fontWeight: 600 }}>
-                    Conversation
-                  </Text>
-                </Stack>
-                <IconButton
-                  iconProps={{ iconName: 'ChromeClose' }}
-                  title="Close Comments"
-                  onClick={handleToggleComments}
-                  styles={{
-                    root: { color: 'var(--neutralPrimary)' },
-                    rootHovered: { backgroundColor: 'var(--neutralLight)' }
-                  }}
-                />
-              </Stack>
-              
-              {/* Comments Content */}
-              <Stack 
-                style={{ 
-                  flex: 1, 
-                  padding: '16px 20px',
-                  overflowY: 'auto'
-                }}
-              >
-                <Text variant="small" style={{ color: 'var(--neutralSecondary)' }}>
-                  Comments will be loaded here using PnP List Item Comments component
-                </Text>
-              </Stack>
-            </Stack>
-          </div>
+        {/* Selected Approvals List */}
+        {selectedApprovals.filter(approval => approval !== 'communication').length > 0 && (
+          <Stack tokens={{ childrenGap: 12 }}>
+            {selectedApprovals
+              .filter(approval => approval !== 'communication')
+              .map(approvalKey => {
+                const approvalType = APPROVAL_TYPES.find(type => type.key === approvalKey);
+                if (!approvalType) return null;
+
+                return (
+                  <ApprovalCard
+                    key={approvalKey}
+                    approvalType={approvalType}
+                    control={control}
+                    errors={errors}
+                    onRemove={() => onRemoveApproval(approvalKey)}
+                    canEdit={canEdit}
+                    theme={theme}
+                  />
+                );
+              })}
+          </Stack>
         )}
 
-      </div>
-
-      {/* Mobile Comments Panel */}
-      {requestForm.itemId && isMobile && (
-        <Panel
-          isOpen={commentsExpanded}
-          onDismiss={handleToggleComments}
-          type={PanelType.medium}
-          headerText="Conversation"
-          hasCloseButton={true}
-          styles={{
-            main: {
-              top: '0 !important',
-              height: '100vh !important'
-            },
-            content: {
-              padding: 0
-            },
-            headerText: {
-              fontSize: '16px',
-              fontWeight: 600
-            }
-          }}
-        >
-          <Stack
+        {/* Add New Approval */}
+        {availableApprovalTypes.length > 0 && canEdit && (
+          <Stack 
             style={{
-              height: '100%',
-              padding: '20px'
+              padding: '16px',
+              border: `2px dashed ${theme.palette.neutralTertiary}`,
+              borderRadius: '8px',
+              backgroundColor: theme.palette.neutralLighterAlt
             }}
+            tokens={{ childrenGap: 12 }}
           >
-            <Text variant="small" style={{ color: 'var(--neutralSecondary)' }}>
-              Comments will be loaded here using PnP List Item Comments component
-            </Text>
+            <Stack horizontal tokens={{ childrenGap: 8 }} verticalAlign="center">
+              <Icon 
+                iconName="Add" 
+                style={{ color: theme.palette.themePrimary, fontSize: 16 }} 
+              />
+              <Text variant="medium" style={{ fontWeight: 600 }}>
+                Add Additional Approval
+              </Text>
+            </Stack>
+
+            <Stack horizontal tokens={{ childrenGap: 12 }} verticalAlign="end">
+              <Stack style={{ flex: 1 }}>
+                <Dropdown
+                  placeholder="Select approval type"
+                  options={availableApprovalTypes}
+                  selectedKey={selectedApprovalType}
+                  onChange={(ev, option) => onApprovalTypeChange(option?.key as string || '')}
+                />
+              </Stack>
+              <PrimaryButton
+                text="Add Approval"
+                iconProps={{ iconName: 'Add' }}
+                onClick={onAddApproval}
+                disabled={!selectedApprovalType}
+              />
+            </Stack>
+
+            {selectedApprovalType && (
+              <div style={{ 
+                padding: '12px', 
+                backgroundColor: 'white',
+                borderRadius: '4px',
+                border: `1px solid ${theme.palette.neutralLight}`
+              }}>
+                {(() => {
+                  const selectedType = availableApprovalTypes.find(opt => opt.key === selectedApprovalType);
+                  return selectedType?.data ? (
+                    <Stack horizontal tokens={{ childrenGap: 12 }} verticalAlign="center">
+                      <Icon 
+                        iconName={selectedType.data.icon} 
+                        style={{ color: theme.palette.themePrimary, fontSize: 16 }} 
+                      />
+                      <Stack>
+                        <Text variant="small" style={{ fontWeight: 600 }}>
+                          {selectedType.data.text}
+                        </Text>
+                        <Text variant="small" style={{ color: theme.palette.neutralSecondary }}>
+                          {selectedType.data.description}
+                        </Text>
+                      </Stack>
+                    </Stack>
+                  ) : null;
+                })()}
+              </div>
+            )}
           </Stack>
-        </Panel>
+        )}
+
+        {/* No more approvals available */}
+        {availableApprovalTypes.length === 0 && (
+          <Text variant="small" style={{ color: theme.palette.neutralSecondary, fontStyle: 'italic' }}>
+            All available approval types have been added
+          </Text>
+        )}
+      </Stack>
+
+    </Stack>
+  );
+});
+
+ApprovalsForm.displayName = 'ApprovalsForm';
+
+// Communication Approval Fields Component
+interface CommunicationApprovalFieldsProps {
+  control: Control<Request | NewRequest>;
+  errors: FieldErrors<Request | NewRequest>;
+  canEdit: boolean;
+  theme: any;
+}
+
+const CommunicationApprovalFields: React.FC<CommunicationApprovalFieldsProps> = React.memo(({
+  control,
+  errors,
+  canEdit,
+  theme
+}) => {
+  return (
+    <Stack 
+      tokens={{ childrenGap: 12 }}
+      style={{
+        padding: '16px',
+        backgroundColor: theme.palette.neutralLighterAlt,
+        borderRadius: '8px',
+        border: `1px solid ${theme.palette.neutralLight}`
+      }}
+    >
+      <FormItem>
+        <FormLabel isRequired>Communication Approver</FormLabel>
+        <FormValue>
+          <PnPPeoplePicker
+            // selectedItems={communicationApprover}
+            // updatePeople={(people) => setValue('CommunicationApprover', people)}
+            placeholder="Select the person who provided approval"
+            personSelectionLimit={1}
+            disabled={!canEdit}
+          />
+        </FormValue>
+        <FormError error={errors.CommunicationApprover?.message} />
+      </FormItem>
+
+      <FormItem>
+        <FormLabel isRequired>Approval Date</FormLabel>
+        <FormValue>
+          <DevExtremeDateBox
+            // value={communicationApprovalDate}
+            // onValueChanged={(value) => setValue('CommunicationApprovalDate', value)}
+            type="date"
+            max={new Date()}
+            disabled={!canEdit}
+          />
+        </FormValue>
+        <FormDescription>
+          When was the approval provided?
+        </FormDescription>
+        <FormError error={errors.CommunicationApprovalDate?.message} />
+      </FormItem>
+
+      <FormItem>
+        <FormLabel>Approval Documentation</FormLabel>
+        <FormValue>
+          <div style={{ 
+            padding: '16px', 
+            border: `1px dashed ${theme.palette.neutralTertiary}`, 
+            borderRadius: '4px',
+            textAlign: 'center',
+            backgroundColor: 'white',
+          }}>
+            <Icon 
+              iconName="CloudUpload" 
+              style={{ 
+                fontSize: 24, 
+                color: theme.palette.neutralSecondary,
+                marginBottom: 8 
+              }} 
+            />
+            <Text variant="small" style={{ color: theme.palette.neutralSecondary, display: 'block' }}>
+              Upload approval documentation (email, signed document, etc.)
+            </Text>
+          </div>
+        </FormValue>
+        <FormDescription>
+          Upload supporting documentation for this approval
+        </FormDescription>
+      </FormItem>
+    </Stack>
+  );
+});
+
+CommunicationApprovalFields.displayName = 'CommunicationApprovalFields';
+
+// Individual Approval Card Component
+interface ApprovalCardProps {
+  approvalType: any;
+  control: Control<Request | NewRequest>;
+  errors: FieldErrors<Request | NewRequest>;
+  onRemove: () => void;
+  canEdit: boolean;
+  theme: any;
+}
+
+const ApprovalCard: React.FC<ApprovalCardProps> = React.memo(({
+  approvalType,
+  control,
+  errors,
+  onRemove,
+  canEdit,
+  theme
+}) => {
+  return (
+    <div style={{
+      border: `1px solid ${theme.palette.neutralLight}`,
+      borderRadius: '8px',
+      backgroundColor: 'white'
+    }}>
+      {/* Card Header */}
+      <Stack
+        horizontal
+        horizontalAlign="space-between"
+        verticalAlign="center"
+        style={{
+          padding: '12px 16px',
+          backgroundColor: theme.palette.neutralLighterAlt,
+          borderBottom: `1px solid ${theme.palette.neutralLight}`
+        }}
+      >
+        <Stack horizontal tokens={{ childrenGap: 8 }} verticalAlign="center">
+          <Icon 
+            iconName={approvalType.icon} 
+            style={{ color: theme.palette.themePrimary, fontSize: 16 }} 
+          />
+          <Text variant="medium" style={{ fontWeight: 600 }}>
+            {approvalType.text}
+          </Text>
+        </Stack>
+        
+        {canEdit && (
+          <TooltipHost content="Remove this approval requirement">
+            <IconButton
+              iconProps={{ iconName: 'Delete' }}
+              onClick={onRemove}
+              styles={{
+                root: { color: theme.palette.redDark },
+                rootHovered: { backgroundColor: theme.palette.red, color: 'white' }
+              }}
+            />
+          </TooltipHost>
+        )}
+      </Stack>
+
+      {/* Card Content */}
+      <Stack tokens={{ childrenGap: 12 }} style={{ padding: '16px' }}>
+        
+        {/* Other Approval Title (if applicable) */}
+        {approvalType.key === 'other' && (
+          <FormItem>
+            <FormLabel isRequired>Approval Title</FormLabel>
+            <FormValue>
+              <DevExtremeTextBox
+                // value={otherApproverTitle}
+                // onValueChanged={(value) => setValue('OtherApproverTitle', value)}
+                placeholder="Enter custom approval title"
+                disabled={!canEdit}
+              />
+            </FormValue>
+            <FormError error={errors.OtherApproverTitle?.message} />
+          </FormItem>
+        )}
+
+        <FormItem>
+          <FormLabel isRequired>Approver</FormLabel>
+          <FormValue>
+            <PnPPeoplePicker
+              // Handle with field name from approvalType.fields.approverField
+              placeholder="Select the approver"
+              personSelectionLimit={1}
+              disabled={!canEdit}
+            />
+          </FormValue>
+          <FormError error={errors[approvalType.fields.approverField as keyof (Request | NewRequest)]?.message} />
+        </FormItem>
+
+        <FormItem>
+          <FormLabel isRequired>Approval Date</FormLabel>
+          <FormValue>
+            <DevExtremeDateBox
+              // Handle with field name from approvalType.fields.dateField
+              type="date"
+              max={new Date()}
+              disabled={!canEdit}
+            />
+          </FormValue>
+          <FormError error={errors[approvalType.fields.dateField as keyof (Request | NewRequest)]?.message} />
+        </FormItem>
+
+        <FormItem>
+          <FormLabel>Approval Documentation</FormLabel>
+          <FormValue>
+            <div style={{ 
+              padding: '12px', 
+              border: `1px dashed ${theme.palette.neutralTertiary}`, 
+              borderRadius: '4px',
+              textAlign: 'center',
+              backgroundColor: theme.palette.neutralLighterAlt,
+            }}>
+              <Icon 
+                iconName="CloudUpload" 
+                style={{ 
+                  fontSize: 20, 
+                  color: theme.palette.neutralSecondary,
+                  marginBottom: 4 
+                }} 
+              />
+              <Text variant="small" style={{ color: theme.palette.neutralSecondary, display: 'block' }}>
+                Upload approval documentation
+              </Text>
+            </div>
+          </FormValue>
+        </FormItem>
+      </Stack>
+    </div>
+  );
+});
+
+ApprovalCard.displayName = 'ApprovalCard';
+
+// Summary Mode Component
+interface ApprovalsSummaryProps {
+  selectedApprovals: string[];
+  control: Control<Request | NewRequest>;
+  theme: any;
+}
+
+const ApprovalsSummary: React.FC<ApprovalsSummaryProps> = React.memo(({
+  selectedApprovals,
+  control,
+  theme,
+}) => {
+  return (
+    <Stack tokens={{ childrenGap: 16 }}>
+      
+      {selectedApprovals.length > 0 ? (
+        selectedApprovals.map(approvalKey => {
+          if (approvalKey === 'communication') {
+            return (
+              <Stack key={approvalKey} tokens={{ childrenGap: 8 }}>
+                <Stack horizontal tokens={{ childrenGap: 8 }} verticalAlign="center">
+                  <Icon iconName="MegaphoneOutline" style={{ color: theme.palette.themePrimary }} />
+                  <Text variant="medium" style={{ fontWeight: 600 }}>
+                    Communication Approval
+                  </Text>
+                  <Icon iconName="CheckMark" style={{ color: theme.palette.green }} />
+                </Stack>
+                {/* Show approval details here */}
+                <Text variant="small" style={{ color: theme.palette.neutralSecondary, marginLeft: 32 }}>
+                  Approved by [Approver Name] on [Date]
+                </Text>
+              </Stack>
+            );
+          }
+
+          const approvalType = APPROVAL_TYPES.find(type => type.key === approvalKey);
+          if (!approvalType) return null;
+
+          return (
+            <Stack key={approvalKey} tokens={{ childrenGap: 8 }}>
+              <Stack horizontal tokens={{ childrenGap: 8 }} verticalAlign="center">
+                <Icon iconName={approvalType.icon} style={{ color: theme.palette.themePrimary }} />
+                <Text variant="medium" style={{ fontWeight: 600 }}>
+                  {approvalType.text}
+                </Text>
+                <Icon iconName="CheckMark" style={{ color: theme.palette.green }} />
+              </Stack>
+              {/* Show approval details here */}
+              <Text variant="small" style={{ color: theme.palette.neutralSecondary, marginLeft: 32 }}>
+                Approved by [Approver Name] on [Date]
+              </Text>
+            </Stack>
+          );
+        })
+      ) : (
+        <Stack horizontalAlign="center" tokens={{ childrenGap: 8 }}>
+          <Icon 
+            iconName="Warning" 
+            style={{ color: theme.palette.yellow, fontSize: 24 }} 
+          />
+          <Text variant="medium" style={{ fontWeight: 600 }}>
+            No approvals configured
+          </Text>
+          <Text variant="small" style={{ color: theme.palette.neutralSecondary }}>
+            At least one approval is required before submission
+          </Text>
+        </Stack>
       )}
 
     </Stack>
   );
-};
+});
+
+ApprovalsSummary.displayName = 'ApprovalsSummary';
+
+export default Approvals;
