@@ -11,15 +11,10 @@ import {
   useTheme,
   MessageBar,
   MessageBarType,
-  DefaultButton,
   PrimaryButton,
   Dropdown,
   IDropdownOption,
   Toggle,
-  DocumentCard,
-  DocumentCardTitle,
-  DocumentCardDetails,
-  DocumentCardActions,
 } from '@fluentui/react';
 import { Control, FieldErrors, useWatch } from 'react-hook-form';
 import { Request, NewRequest } from '../../models/Request';
@@ -43,7 +38,7 @@ interface ApprovalsProps {
   isSubmitted: boolean;
 }
 
-// Available approval types
+// Available approval types for manual addition
 const APPROVAL_TYPES = [
   {
     key: 'portfolio',
@@ -52,8 +47,7 @@ const APPROVAL_TYPES = [
     icon: 'Financial',
     fields: {
       dateField: 'PortfolioApprovalDate',
-      approverField: 'PortfolioApprover',
-      requiredField: 'RequirePortfolioApproval'
+      approverField: 'PortfolioApprover'
     }
   },
   {
@@ -63,8 +57,7 @@ const APPROVAL_TYPES = [
     icon: 'Research',
     fields: {
       dateField: 'ResearchAnalystApprovalDate',
-      approverField: 'ResearchAnalyst',
-      requiredField: 'RequireResearchAnalystApproval'
+      approverField: 'ResearchAnalyst'
     }
   },
   {
@@ -74,8 +67,7 @@ const APPROVAL_TYPES = [
     icon: 'ContactCard',
     fields: {
       dateField: 'SMEApprovalDate',
-      approverField: 'SME',
-      requiredField: 'RequireSMEApproval'
+      approverField: 'SME'
     }
   },
   {
@@ -85,8 +77,7 @@ const APPROVAL_TYPES = [
     icon: 'BarChart4',
     fields: {
       dateField: 'PerformanceReviewApprovalDate',
-      approverField: 'PerformanceReviewApprover',
-      requiredField: 'RequirePerformanceApproval'
+      approverField: 'PerformanceReviewApprover'
     }
   },
   {
@@ -97,8 +88,7 @@ const APPROVAL_TYPES = [
     fields: {
       titleField: 'OtherApproverTitle',
       dateField: 'OtherApprovalDate',
-      approverField: 'OtherApprover',
-      requiredField: 'RequireOtherApproval'
+      approverField: 'OtherApprover'
     }
   }
 ];
@@ -112,6 +102,7 @@ const Approvals: React.FC<ApprovalsProps> = ({
   const theme = useTheme();
   const [isEditMode, setIsEditMode] = useState(!isSubmitted);
   const [selectedApprovalType, setSelectedApprovalType] = useState<string>('');
+  const [activeApprovals, setActiveApprovals] = useState<string[]>([]);
 
   // Watch communication approval requirement
   const requireCommunicationApproval = useWatch({
@@ -119,49 +110,62 @@ const Approvals: React.FC<ApprovalsProps> = ({
     name: 'RequireCommunicationApproval'
   });
 
-  // Watch all approval requirements to track which are selected
-  const approvalRequirements = useWatch({
+  // Watch approval data to see which ones have data
+  const approvalData = useWatch({
     control,
     name: [
-      'RequireCommunicationApproval',
-      'RequirePortfolioApproval',
-      'RequireResearchAnalystApproval',
-      'RequireSMEApproval',
-      'RequirePerformanceApproval',
-      'RequireOtherApproval'
+      'CommunicationApprover',
+      'PortfolioApprover',
+      'ResearchAnalyst', 
+      'SME',
+      'PerformanceReviewApprover',
+      'OtherApprover'
     ]
   });
 
-  // Calculate selected approvals
-  const selectedApprovals = useMemo(() => {
-    const approvals = [];
+  // Calculate which approvals are active (have data or are required)
+  const activeApprovalsList = useMemo(() => {
+    const active = [];
     
+    // Communication approval if required
     if (requireCommunicationApproval) {
-      approvals.push('communication');
+      active.push('communication');
     }
     
-    APPROVAL_TYPES.forEach((type, index) => {
-      if (approvalRequirements && approvalRequirements[index + 1]) {
-        approvals.push(type.key);
+    // Check each approval type for existing data
+    if (approvalData) {
+      const [commApprover, portfolio, research, sme, performance, other] = approvalData;
+      
+      if (portfolio && portfolio.length > 0) active.push('portfolio');
+      if (research && research.length > 0) active.push('research');
+      if (sme && sme.length > 0) active.push('sme');
+      if (performance && performance.length > 0) active.push('performance');
+      if (other && other.length > 0) active.push('other');
+    }
+    
+    // Include manually added approvals
+    activeApprovals.forEach(approval => {
+      if (!active.includes(approval)) {
+        active.push(approval);
       }
     });
     
-    return approvals;
-  }, [requireCommunicationApproval, approvalRequirements]);
+    return active;
+  }, [requireCommunicationApproval, approvalData, activeApprovals]);
 
-  // Check if at least one approval is selected
-  const hasRequiredApprovals = selectedApprovals.length > 0;
+  // Check if at least one approval is configured
+  const hasRequiredApprovals = activeApprovalsList.length > 0;
 
-  // Available approval types for dropdown (exclude already selected)
+  // Available approval types for dropdown (exclude already active)
   const availableApprovalTypes: IDropdownOption[] = useMemo(() => {
     return APPROVAL_TYPES
-      .filter(type => !selectedApprovals.includes(type.key))
+      .filter(type => !activeApprovalsList.includes(type.key))
       .map(type => ({
         key: type.key,
         text: type.text,
         data: type
       }));
-  }, [selectedApprovals]);
+  }, [activeApprovalsList]);
 
   // Handlers
   const handleToggleEditMode = useCallback(() => {
@@ -170,19 +174,14 @@ const Approvals: React.FC<ApprovalsProps> = ({
 
   const handleAddApproval = useCallback(() => {
     if (selectedApprovalType) {
-      const approvalType = APPROVAL_TYPES.find(type => type.key === selectedApprovalType);
-      if (approvalType) {
-        // Set the requirement field to true
-        // This would be handled by the form control
-        console.log('Adding approval:', approvalType);
-        setSelectedApprovalType('');
-      }
+      setActiveApprovals(prev => [...prev, selectedApprovalType]);
+      setSelectedApprovalType('');
     }
   }, [selectedApprovalType]);
 
   const handleRemoveApproval = useCallback((approvalKey: string) => {
-    // Remove the approval by setting requirement to false
-    console.log('Removing approval:', approvalKey);
+    setActiveApprovals(prev => prev.filter(key => key !== approvalKey));
+    // Also clear the form data for this approval would be handled by form setValue
   }, []);
 
   // Only show if access is enabled
@@ -247,7 +246,7 @@ const Approvals: React.FC<ApprovalsProps> = ({
           <ApprovalsForm 
             control={control}
             errors={errors}
-            selectedApprovals={selectedApprovals}
+            activeApprovals={activeApprovalsList}
             availableApprovalTypes={availableApprovalTypes}
             selectedApprovalType={selectedApprovalType}
             onApprovalTypeChange={setSelectedApprovalType}
@@ -258,14 +257,14 @@ const Approvals: React.FC<ApprovalsProps> = ({
           />
         ) : (
           <ApprovalsSummary 
-            selectedApprovals={selectedApprovals}
+            activeApprovals={activeApprovalsList}
             control={control}
             theme={theme}
           />
         )}
         
         {/* Validation Message */}
-        {!hasRequiredApprovals && (
+        {!hasRequiredApprovals && isEditMode && (
           <MessageBar
             messageBarType={MessageBarType.warning}
             isMultiline={false}
@@ -288,7 +287,7 @@ const Approvals: React.FC<ApprovalsProps> = ({
 interface ApprovalsFormProps {
   control: Control<Request | NewRequest>;
   errors: FieldErrors<Request | NewRequest>;
-  selectedApprovals: string[];
+  activeApprovals: string[];
   availableApprovalTypes: IDropdownOption[];
   selectedApprovalType: string;
   onApprovalTypeChange: (value: string) => void;
@@ -301,7 +300,7 @@ interface ApprovalsFormProps {
 const ApprovalsForm: React.FC<ApprovalsFormProps> = React.memo(({
   control,
   errors,
-  selectedApprovals,
+  activeApprovals,
   availableApprovalTypes,
   selectedApprovalType,
   onApprovalTypeChange,
@@ -310,6 +309,11 @@ const ApprovalsForm: React.FC<ApprovalsFormProps> = React.memo(({
   canEdit,
   theme,
 }) => {
+  const requireCommunicationApproval = useWatch({
+    control,
+    name: 'RequireCommunicationApproval'
+  });
+
   return (
     <Stack tokens={{ childrenGap: 24 }}>
       
@@ -337,8 +341,7 @@ const ApprovalsForm: React.FC<ApprovalsFormProps> = React.memo(({
             <Toggle
               onText="Yes"
               offText="No"
-              // checked={requireCommunicationApproval}
-              // onChange={(ev, checked) => setValue('RequireCommunicationApproval', checked)}
+              checked={requireCommunicationApproval}
               disabled={!canEdit}
             />
           </FormValue>
@@ -347,7 +350,7 @@ const ApprovalsForm: React.FC<ApprovalsFormProps> = React.memo(({
           </FormDescription>
         </FormItem>
 
-        {selectedApprovals.includes('communication') && (
+        {requireCommunicationApproval && (
           <CommunicationApprovalFields
             control={control}
             errors={errors}
@@ -373,10 +376,14 @@ const ApprovalsForm: React.FC<ApprovalsFormProps> = React.memo(({
           Additional Approvals
         </Text>
 
-        {/* Selected Approvals List */}
-        {selectedApprovals.filter(approval => approval !== 'communication').length > 0 && (
+        <Text variant="small" style={{ color: theme.palette.neutralSecondary, fontStyle: 'italic' }}>
+          Add any additional approvals that have been obtained for this request
+        </Text>
+
+        {/* Active Approvals List */}
+        {activeApprovals.filter(approval => approval !== 'communication').length > 0 && (
           <Stack tokens={{ childrenGap: 12 }}>
-            {selectedApprovals
+            {activeApprovals
               .filter(approval => approval !== 'communication')
               .map(approvalKey => {
                 const approvalType = APPROVAL_TYPES.find(type => type.key === approvalKey);
@@ -417,6 +424,10 @@ const ApprovalsForm: React.FC<ApprovalsFormProps> = React.memo(({
                 Add Additional Approval
               </Text>
             </Stack>
+
+            <Text variant="small" style={{ color: theme.palette.neutralSecondary }}>
+              If you have obtained additional approvals for this request, you can add them here
+            </Text>
 
             <Stack horizontal tokens={{ childrenGap: 12 }} verticalAlign="end">
               <Stack style={{ flex: 1 }}>
@@ -467,10 +478,36 @@ const ApprovalsForm: React.FC<ApprovalsFormProps> = React.memo(({
         )}
 
         {/* No more approvals available */}
-        {availableApprovalTypes.length === 0 && (
+        {availableApprovalTypes.length === 0 && activeApprovals.filter(a => a !== 'communication').length > 0 && (
           <Text variant="small" style={{ color: theme.palette.neutralSecondary, fontStyle: 'italic' }}>
             All available approval types have been added
           </Text>
+        )}
+
+        {/* No additional approvals message */}
+        {activeApprovals.filter(approval => approval !== 'communication').length === 0 && (
+          <div style={{
+            padding: '20px',
+            textAlign: 'center',
+            backgroundColor: theme.palette.neutralLighterAlt,
+            borderRadius: '8px',
+            border: `1px solid ${theme.palette.neutralLight}`
+          }}>
+            <Icon 
+              iconName="DocumentApproval" 
+              style={{ 
+                fontSize: 32, 
+                color: theme.palette.neutralSecondary,
+                marginBottom: 8 
+              }} 
+            />
+            <Text variant="medium" style={{ fontWeight: 600, display: 'block', marginBottom: 4 }}>
+              No Additional Approvals Added
+            </Text>
+            <Text variant="small" style={{ color: theme.palette.neutralSecondary }}>
+              Use the section above to add any additional approvals you have obtained
+            </Text>
+          </div>
         )}
       </Stack>
 
@@ -508,8 +545,8 @@ const CommunicationApprovalFields: React.FC<CommunicationApprovalFieldsProps> = 
         <FormLabel isRequired>Communication Approver</FormLabel>
         <FormValue>
           <PnPPeoplePicker
-            // selectedItems={communicationApprover}
-            // updatePeople={(people) => setValue('CommunicationApprover', people)}
+            selectedItems={[]}
+            updatePeople={() => {}}
             placeholder="Select the person who provided approval"
             personSelectionLimit={1}
             disabled={!canEdit}
@@ -522,8 +559,8 @@ const CommunicationApprovalFields: React.FC<CommunicationApprovalFieldsProps> = 
         <FormLabel isRequired>Approval Date</FormLabel>
         <FormValue>
           <DevExtremeDateBox
-            // value={communicationApprovalDate}
-            // onValueChanged={(value) => setValue('CommunicationApprovalDate', value)}
+            value={null}
+            onValueChanged={() => {}}
             type="date"
             max={new Date()}
             disabled={!canEdit}
@@ -636,8 +673,8 @@ const ApprovalCard: React.FC<ApprovalCardProps> = React.memo(({
             <FormLabel isRequired>Approval Title</FormLabel>
             <FormValue>
               <DevExtremeTextBox
-                // value={otherApproverTitle}
-                // onValueChanged={(value) => setValue('OtherApproverTitle', value)}
+                value=""
+                onValueChanged={() => {}}
                 placeholder="Enter custom approval title"
                 disabled={!canEdit}
               />
@@ -650,7 +687,8 @@ const ApprovalCard: React.FC<ApprovalCardProps> = React.memo(({
           <FormLabel isRequired>Approver</FormLabel>
           <FormValue>
             <PnPPeoplePicker
-              // Handle with field name from approvalType.fields.approverField
+              selectedItems={[]}
+              updatePeople={() => {}}
               placeholder="Select the approver"
               personSelectionLimit={1}
               disabled={!canEdit}
@@ -663,7 +701,8 @@ const ApprovalCard: React.FC<ApprovalCardProps> = React.memo(({
           <FormLabel isRequired>Approval Date</FormLabel>
           <FormValue>
             <DevExtremeDateBox
-              // Handle with field name from approvalType.fields.dateField
+              value={null}
+              onValueChanged={() => {}}
               type="date"
               max={new Date()}
               disabled={!canEdit}
@@ -705,69 +744,149 @@ ApprovalCard.displayName = 'ApprovalCard';
 
 // Summary Mode Component
 interface ApprovalsSummaryProps {
-  selectedApprovals: string[];
+  activeApprovals: string[];
   control: Control<Request | NewRequest>;
   theme: any;
 }
 
 const ApprovalsSummary: React.FC<ApprovalsSummaryProps> = React.memo(({
-  selectedApprovals,
+  activeApprovals,
   control,
   theme,
 }) => {
+  const approvalData = useWatch({
+    control,
+    name: [
+      'CommunicationApprover',
+      'CommunicationApprovalDate',
+      'PortfolioApprover',
+      'PortfolioApprovalDate',
+      'ResearchAnalyst',
+      'ResearchAnalystApprovalDate',
+      'SME',
+      'SMEApprovalDate',
+      'PerformanceReviewApprover',
+      'PerformanceReviewApprovalDate',
+      'OtherApprover',
+      'OtherApprovalDate',
+      'OtherApproverTitle'
+    ]
+  });
+
+  const [
+    commApprover, commDate,
+    portfolioApprover, portfolioDate,
+    researchApprover, researchDate,
+    smeApprover, smeDate,
+    performanceApprover, performanceDate,
+    otherApprover, otherDate, otherTitle
+  ] = approvalData || [];
+
+  const getApprovalSummary = (approvalKey: string) => {
+    switch (approvalKey) {
+      case 'communication':
+        return {
+          title: 'Communication Approval',
+          icon: 'MegaphoneOutline',
+          approver: commApprover?.[0]?.text || 'Not specified',
+          date: commDate ? new Date(commDate).toLocaleDateString() : 'Not specified'
+        };
+      case 'portfolio':
+        return {
+          title: 'Portfolio Manager Approval',
+          icon: 'Financial',
+          approver: portfolioApprover?.[0]?.text || 'Not specified',
+          date: portfolioDate ? new Date(portfolioDate).toLocaleDateString() : 'Not specified'
+        };
+      case 'research':
+        return {
+          title: 'Research Analyst Approval',
+          icon: 'Research',
+          approver: researchApprover?.[0]?.text || 'Not specified',
+          date: researchDate ? new Date(researchDate).toLocaleDateString() : 'Not specified'
+        };
+      case 'sme':
+        return {
+          title: 'Subject Matter Expert Approval',
+          icon: 'ContactCard',
+          approver: smeApprover?.[0]?.text || 'Not specified',
+          date: smeDate ? new Date(smeDate).toLocaleDateString() : 'Not specified'
+        };
+      case 'performance':
+        return {
+          title: 'Performance Review Approval',
+          icon: 'BarChart4',
+          approver: performanceApprover?.[0]?.text || 'Not specified',
+          date: performanceDate ? new Date(performanceDate).toLocaleDateString() : 'Not specified'
+        };
+      case 'other':
+        return {
+          title: otherTitle || 'Other Approval',
+          icon: 'More',
+          approver: otherApprover?.[0]?.text || 'Not specified',
+          date: otherDate ? new Date(otherDate).toLocaleDateString() : 'Not specified'
+        };
+      default:
+        return null;
+    }
+  };
+
   return (
     <Stack tokens={{ childrenGap: 16 }}>
       
-      {selectedApprovals.length > 0 ? (
-        selectedApprovals.map(approvalKey => {
-          if (approvalKey === 'communication') {
-            return (
-              <Stack key={approvalKey} tokens={{ childrenGap: 8 }}>
-                <Stack horizontal tokens={{ childrenGap: 8 }} verticalAlign="center">
-                  <Icon iconName="MegaphoneOutline" style={{ color: theme.palette.themePrimary }} />
-                  <Text variant="medium" style={{ fontWeight: 600 }}>
-                    Communication Approval
-                  </Text>
-                  <Icon iconName="CheckMark" style={{ color: theme.palette.green }} />
-                </Stack>
-                {/* Show approval details here */}
-                <Text variant="small" style={{ color: theme.palette.neutralSecondary, marginLeft: 32 }}>
-                  Approved by [Approver Name] on [Date]
-                </Text>
-              </Stack>
-            );
-          }
-
-          const approvalType = APPROVAL_TYPES.find(type => type.key === approvalKey);
-          if (!approvalType) return null;
+      {activeApprovals.length > 0 ? (
+        activeApprovals.map(approvalKey => {
+          const approval = getApprovalSummary(approvalKey);
+          if (!approval) return null;
 
           return (
-            <Stack key={approvalKey} tokens={{ childrenGap: 8 }}>
-              <Stack horizontal tokens={{ childrenGap: 8 }} verticalAlign="center">
-                <Icon iconName={approvalType.icon} style={{ color: theme.palette.themePrimary }} />
-                <Text variant="medium" style={{ fontWeight: 600 }}>
-                  {approvalType.text}
-                </Text>
-                <Icon iconName="CheckMark" style={{ color: theme.palette.green }} />
+            <Stack 
+              key={approvalKey} 
+              tokens={{ childrenGap: 8 }}
+              style={{
+                padding: '16px',
+                backgroundColor: theme.palette.neutralLighterAlt,
+                borderRadius: '8px',
+                border: `1px solid ${theme.palette.neutralLight}`
+              }}
+            >
+              <Stack horizontal tokens={{ childrenGap: 12 }} verticalAlign="center">
+                <Icon 
+                  iconName={approval.icon} 
+                  style={{ color: theme.palette.themePrimary, fontSize: 20 }} 
+                />
+                <Stack style={{ flex: 1 }}>
+                  <Text variant="medium" style={{ fontWeight: 600 }}>
+                    {approval.title}
+                  </Text>
+                  <Stack horizontal tokens={{ childrenGap: 16 }}>
+                    <Text variant="small" style={{ color: theme.palette.neutralSecondary }}>
+                      <strong>Approver:</strong> {approval.approver}
+                    </Text>
+                    <Text variant="small" style={{ color: theme.palette.neutralSecondary }}>
+                      <strong>Date:</strong> {approval.date}
+                    </Text>
+                  </Stack>
+                </Stack>
+                <Icon 
+                  iconName="CheckMark" 
+                  style={{ color: theme.palette.green, fontSize: 16 }} 
+                />
               </Stack>
-              {/* Show approval details here */}
-              <Text variant="small" style={{ color: theme.palette.neutralSecondary, marginLeft: 32 }}>
-                Approved by [Approver Name] on [Date]
-              </Text>
             </Stack>
           );
         })
       ) : (
-        <Stack horizontalAlign="center" tokens={{ childrenGap: 8 }}>
+        <Stack horizontalAlign="center" tokens={{ childrenGap: 12 }} style={{ padding: '32px' }}>
           <Icon 
             iconName="Warning" 
-            style={{ color: theme.palette.yellow, fontSize: 24 }} 
+            style={{ color: theme.palette.yellow, fontSize: 32 }} 
           />
-          <Text variant="medium" style={{ fontWeight: 600 }}>
-            No approvals configured
+          <Text variant="large" style={{ fontWeight: 600 }}>
+            No Approvals Configured
           </Text>
-          <Text variant="small" style={{ color: theme.palette.neutralSecondary }}>
-            At least one approval is required before submission
+          <Text variant="medium" style={{ color: theme.palette.neutralSecondary, textAlign: 'center' }}>
+            At least one approval is required before this request can be submitted
           </Text>
         </Stack>
       )}
