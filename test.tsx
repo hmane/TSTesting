@@ -1,425 +1,780 @@
-// components/RequestForm/RequestTypeSelector.tsx
-import React, { useState } from 'react';
+// components/RequestForm/RequestInfo.tsx
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   Stack,
   Text,
-  PrimaryButton,
-  DefaultButton,
+  IconButton,
+  Separator,
+  Icon,
+  TooltipHost,
+  useTheme,
   MessageBar,
   MessageBarType,
-  Icon,
-  useTheme
 } from '@fluentui/react';
-import { WorkflowStepper, StepData } from '../WorkflowStepper';
+import { Control, FieldErrors, useWatch } from 'react-hook-form';
+import { Request, NewRequest } from '../../models/Request';
+import { RequestAccess } from '../../models/RequestAccess';
+import { Card, Header, Content } from '../Card';
+import {
+  FormItem,
+  FormLabel,
+  FormValue,
+  FormError,
+  FormDescription,
+  DevExtremeTextBox,
+  DevExtremeSelectBox,
+  DevExtremeDateBox,
+  DevExtremeTagBox,
+  PnPPeoplePicker,
+} from '../spForm';
+import { useRequestFormStore } from '../../stores/requestFormStore';
 
-interface RequestType {
-  id: string;
-  title: string;
-  description: string;
-  enabled: boolean;
-  comingSoon?: boolean;
-  icon?: string;
-  estimatedTime?: string;
+interface RequestInfoProps {
+  control: Control<Request | NewRequest>;
+  errors: FieldErrors<Request | NewRequest>;
+  requestAccess: RequestAccess;
+  isSubmitted: boolean;
 }
 
-interface RequestTypeSelectorProps {
-  onRequestTypeSelected: (requestType: string) => void;
-  onCancel?: () => void;
-}
+// Static options to prevent re-renders
+const SUBMISSION_TYPE_OPTIONS = [
+  { label: 'New', value: 'New' },
+  { label: 'Material Updates', value: 'Material Updates' },
+] as const;
 
-export const RequestTypeSelector: React.FC<RequestTypeSelectorProps> = ({
-  onRequestTypeSelected,
-  onCancel
+const REVIEW_AUDIENCE_OPTIONS = [
+  { label: 'Legal', value: 'Legal' },
+  { label: 'Compliance', value: 'Compliance' },
+  { label: 'Both', value: 'Both' },
+] as const;
+
+const DISTRIBUTION_METHOD_OPTIONS = [
+  { label: 'Email', value: 'Email' },
+  { label: 'Website', value: 'Website' },
+  { label: 'Print', value: 'Print' },
+  { label: 'Social Media', value: 'Social Media' },
+  { label: 'Presentation', value: 'Presentation' },
+  { label: 'Direct Mail', value: 'Direct Mail' },
+] as const;
+
+// Sample submission items - in real app, this would come from SharePoint list
+const SUBMISSION_ITEMS = [
+  { Title: 'White Papers', TurnAroundTimeInDays: 5 },
+  { Title: 'Marketing Brochures', TurnAroundTimeInDays: 3 },
+  { Title: 'Website Content', TurnAroundTimeInDays: 7 },
+  { Title: 'Social Media Posts', TurnAroundTimeInDays: 2 },
+  { Title: 'Research Reports', TurnAroundTimeInDays: 10 },
+  { Title: 'Email Campaigns', TurnAroundTimeInDays: 4 },
+  { Title: 'Presentations', TurnAroundTimeInDays: 6 },
+];
+
+const RequestInfo: React.FC<RequestInfoProps> = ({
+  control,
+  errors,
+  requestAccess,
+  isSubmitted,
 }) => {
   const theme = useTheme();
-  const [selectedRequestType, setSelectedRequestType] = useState<RequestType | null>(null);
-  const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
+  const [isEditMode, setIsEditMode] = useState(!isSubmitted);
+  const { currentRequest } = useRequestFormStore();
 
-  // Available request types
-  const requestTypes: RequestType[] = [
-    {
-      id: 'communication',
-      title: 'Communication Request',
-      description: 'Submit marketing materials, communications, and promotional content for legal and compliance review. Includes white papers, brochures, presentations, and digital content.',
-      enabled: true,
-      icon: 'MegaphoneOutline',
-      estimatedTime: '5-7 business days'
-    },
-    {
-      id: 'general-review',
-      title: 'General Review',
-      description: 'Submit general documents and materials for legal review that don\'t fall under specific communication or IMA categories.',
-      enabled: false,
-      comingSoon: true,
-      icon: 'DocumentSearch',
-      estimatedTime: '3-5 business days'
-    },
-    {
-      id: 'ima-review',
-      title: 'IMA Review',
-      description: 'Submit Investment Management Agreement documents and related materials for specialized legal review and compliance checking.',
-      enabled: false,
-      comingSoon: true,
-      icon: 'Financial',
-      estimatedTime: '7-10 business days'
-    }
-  ];
+  // Watch specific fields for rush calculation
+  const watchedValues = useWatch({
+    control,
+    name: ['TargetReturnDate', 'SubmissionItem'],
+  });
 
-  // Workflow steps to show the complete process
-  const getWorkflowSteps = (): StepData[] => [
-    {
-      id: 'draft',
-      title: 'Draft',
-      description1: 'Create request',
-      description2: 'Add details & documents',
-      status: 'pending'
-    },
-    {
-      id: 'legal-intake',
-      title: 'Legal Intake',
-      description1: 'Attorney assignment',
-      description2: 'Initial review',
-      status: 'pending'
-    },
-    {
-      id: 'assign-attorney',
-      title: 'Assign Attorney',
-      description1: 'Committee review',
-      description2: 'Attorney selection',
-      status: 'pending'
-    },
-    {
-      id: 'in-review',
-      title: 'In Review',
-      description1: 'Legal & compliance',
-      description2: 'Detailed analysis',
-      status: 'pending'
-    },
-    {
-      id: 'closeout',
-      title: 'Closeout',
-      description1: 'Final tracking',
-      description2: 'Documentation',
-      status: 'pending'
-    },
-    {
-      id: 'completed',
-      title: 'Completed',
-      description1: 'Ready for use',
-      description2: 'Process complete',
-      status: 'pending'
-    }
-  ];
+  // Calculate if request is rush
+  const isRushRequest = useMemo(() => {
+    const [targetDate, submissionItem] = watchedValues;
+    if (!targetDate || !submissionItem) return false;
 
-  // Handle item selection - only allow selection of enabled items
-  const handleItemClick = (item: RequestType) => {
-    if (item.enabled) {
-      setSelectedRequestType(prevSelected => 
-        prevSelected?.id === item.id ? prevSelected : item
-      );
-    }
-  };
+    const item = SUBMISSION_ITEMS.find(item => item.Title === submissionItem);
+    if (!item) return false;
 
-  // Handle continue
-  const handleContinue = () => {
-    if (selectedRequestType) {
-      onRequestTypeSelected(selectedRequestType.id);
-    }
-  };
+    const today = new Date();
+    const target = new Date(targetDate);
+    const diffTime = target.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-  // Render a single request type item
-  const renderRequestTypeItem = (item: RequestType) => {
-    const isSelected = selectedRequestType?.id === item.id;
-    const isHovered = hoveredItemId === item.id;
-    
-    // Determine background color based on state
-    let backgroundColor = theme.palette.white;
-    if (isSelected && item.enabled) {
-      backgroundColor = theme.palette.neutralLighter; // Selected background
-    } else if (isHovered && item.enabled) {
-      backgroundColor = theme.palette.neutralLighterAlt; // Hover background
-    }
-    
-    // Determine border color based on state
-    let borderColor = theme.palette.neutralLight;
-    let borderWidth = '1px';
-    if (isSelected && item.enabled) {
-      borderColor = theme.palette.neutralTertiary;
-      borderWidth = '2px';
-    } else if (isHovered && item.enabled) {
-      borderColor = theme.palette.neutralTertiary;
-    }
-    
-    // Determine shadow based on state
-    let boxShadow = '0 2px 4px rgba(0, 0, 0, 0.08)';
-    if (isHovered && item.enabled) {
-      boxShadow = '0 4px 8px rgba(0, 0, 0, 0.12)';
-    }
-    
-    return (
-      <Stack
-        key={item.id}
-        onClick={() => handleItemClick(item)}
-        onMouseEnter={() => item.enabled && setHoveredItemId(item.id)}
-        onMouseLeave={() => setHoveredItemId(null)}
-        style={{
-          padding: '20px',
-          margin: '8px 0',
-          border: `${borderWidth} solid ${borderColor}`,
-          borderRadius: '8px',
-          backgroundColor,
-          cursor: item.enabled ? 'pointer' : 'not-allowed',
-          opacity: item.enabled ? 1 : 0.6,
-          transition: 'all 0.2s ease',
-          position: 'relative',
-          boxShadow,
-          transform: isHovered && item.enabled ? 'translateY(-1px)' : 'translateY(0)'
-        }}
-        tokens={{ childrenGap: 12 }}
-      >
-        {/* Coming Soon Badge */}
-        {item.comingSoon && (
-          <div
-            style={{
-              position: 'absolute',
-              top: '12px',
-              right: '12px',
-              background: 'var(--yellow)',
-              color: 'var(--yellowDark)',
-              padding: '4px 8px',
-              borderRadius: '4px',
-              fontSize: '12px',
-              fontWeight: 600
-            }}
-          >
-            Coming Soon
-          </div>
-        )}
+    return diffDays < item.TurnAroundTimeInDays;
+  }, [watchedValues]);
 
-        {/* Header with Icon and Title */}
-        <Stack horizontal tokens={{ childrenGap: 12 }} verticalAlign="start">
-          <Icon
-            iconName={item.icon || 'Document'}
-            style={{
-              fontSize: '24px',
-              color: item.enabled ? theme.palette.neutralPrimary : theme.palette.neutralSecondary,
-              marginTop: '4px'
-            }}
-          />
-          
-          <Stack tokens={{ childrenGap: 8 }} style={{ flex: 1 }}>
-            <Text
-              variant="large"
-              style={{
-                fontWeight: 600,
-                color: item.enabled ? theme.palette.neutralPrimary : theme.palette.neutralSecondary
-              }}
-            >
-              {item.title}
-            </Text>
-            
-            {item.estimatedTime && (
-              <Text
-                variant="small"
-                style={{ 
-                  color: 'var(--neutralSecondary)',
-                  fontWeight: 500
-                }}
-              >
-                Typical turnaround: {item.estimatedTime}
-              </Text>
-            )}
-          </Stack>
-        </Stack>
+  // Memoized handlers
+  const handleToggleEditMode = useCallback(() => {
+    setIsEditMode(prev => !prev);
+  }, []);
 
-        {/* Description - aligned under the title */}
-        <Stack style={{ marginLeft: '36px' }}>
-          <Text
-            variant="medium"
-            style={{
-              color: item.enabled ? 'var(--neutralPrimary)' : 'var(--neutralSecondary)',
-              lineHeight: '1.4'
-            }}
-          >
-            {item.description}
-          </Text>
-        </Stack>
+  // Only show if access is enabled
+  if (!requestAccess.enableRequestInfo) {
+    return null;
+  }
 
-        {/* Selection Indicator */}
-        {isSelected && item.enabled && (
-          <Stack 
-            horizontal 
-            verticalAlign="center" 
-            tokens={{ childrenGap: 8 }}
-            style={{ marginLeft: '36px' }}
-          >
-            <Icon
-              iconName="CheckMark"
-              style={{ 
-                color: 'var(--neutralDark)', 
-                fontSize: '16px' 
-              }}
-            />
-            <Text
-              variant="medium"
-              style={{ 
-                color: 'var(--neutralDark)', 
-                fontWeight: 600 
-              }}
-            >
-              Selected
-            </Text>
-          </Stack>
-        )}
-      </Stack>
-    );
-  };
+  // Can edit if user has permissions and it's not completed
+  const canEdit = requestAccess.isCreator || requestAccess.isAdmin || requestAccess.isLegalAdmin;
 
   return (
-    <Stack 
-      tokens={{ childrenGap: 24 }} 
-      style={{ 
-        width: '100%', 
-        maxWidth: '1200px', 
-        margin: '0 auto', 
-        padding: '20px'
-      }}
+    <Card
+      id="request-info-card"
+      variant="default"
+      size="large"
+      allowExpand={true}
+      persist={true}
     >
-      
-      {/* Header */}
-      <Stack horizontalAlign="center" tokens={{ childrenGap: 16 }}>
-        <Text 
-          variant="xxLarge" 
-          style={{ 
-            fontWeight: 600, 
-            textAlign: 'center',
-            marginTop: '20px'
-          }}
-        >
-          Start a New Request
-        </Text>
-        <Text 
-          variant="large" 
-          style={{ 
-            color: 'var(--neutralSecondary)', 
-            textAlign: 'center', 
-            maxWidth: '600px'
-          }}
-        >
-          Choose the type of request you'd like to submit. Each request type follows a specific workflow designed for optimal review and approval.
-        </Text>
-      </Stack>
-
-      {/* Workflow Preview */}
-      <Stack tokens={{ childrenGap: 12 }}>
-        <Text variant="large" style={{ fontWeight: 600, textAlign: 'center' }}>
-          Review Process Overview
-        </Text>
-        <div
-          style={{
-            background: 'white',
-            padding: '20px',
-            borderRadius: '8px',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
-          }}
-        >
-          <WorkflowStepper
-            steps={getWorkflowSteps()}
-            mode="fullSteps"
-            minStepWidth={160}
-            selectedStepId="draft"
-          />
-        </div>
-        <Text variant="medium" style={{ color: 'var(--neutralSecondary)', textAlign: 'center' }}>
-          This is the standard workflow for all request types. Some steps may be skipped based on your request details.
-        </Text>
-      </Stack>
-
-      {/* Request Type Selection */}
-      <Stack tokens={{ childrenGap: 16 }}>
-        <Text variant="large" style={{ fontWeight: 600 }}>
-          Select Request Type
-        </Text>
-        
-        {/* Info Message */}
-        <MessageBar messageBarType={MessageBarType.info}>
-          <Text variant="medium">
-            <strong>Communication Request</strong> is currently available. Additional request types are coming soon and will provide specialized workflows for different document types.
-          </Text>
-        </MessageBar>
-
-        {/* Request Type Items - Card Container */}
-        <Stack
-          style={{
-            background: 'var(--neutralLighterAlt)',
-            borderRadius: '12px',
-            padding: '16px',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
-            border: '1px solid var(--neutralLight)'
-          }}
-          tokens={{ childrenGap: 8 }}
-        >
-          {requestTypes.map(item => renderRequestTypeItem(item))}
-        </Stack>
-      </Stack>
-
-      {/* Selection Summary */}
-      {selectedRequestType && (
-        <Stack
-          style={{
-            background: 'var(--neutralLighter)',
-            border: '1px solid var(--neutralLight)',
-            borderRadius: '8px',
-            padding: '20px'
-          }}
-          tokens={{ childrenGap: 12 }}
-        >
+      <Header>
+        <Stack horizontal horizontalAlign="space-between" verticalAlign="center">
           <Stack horizontal tokens={{ childrenGap: 8 }} verticalAlign="center">
             <Icon 
-              iconName="CheckMark" 
-              style={{ color: 'var(--neutralDark)' }} 
+              iconName="DocumentReply" 
+              style={{ color: theme.palette.themePrimary, fontSize: 16 }} 
             />
-            <Text variant="large" style={{ fontWeight: 600 }}>
-              Ready to Continue
+            <Text variant="medium" style={{ fontWeight: 600 }}>
+              Request Information
             </Text>
           </Stack>
-          <Text variant="medium">
-            You've selected <strong>{selectedRequestType.title}</strong>. 
-            Click Continue to start creating your request with the information and documents needed for review.
-          </Text>
-          <Text variant="small" style={{ color: 'var(--neutralSecondary)' }}>
-            Estimated processing time: {selectedRequestType.estimatedTime}
-          </Text>
+          
+          {/* Edit/View Toggle */}
+          {isSubmitted && canEdit && (
+            <TooltipHost content={isEditMode ? 'Switch to summary view' : 'Edit request information'}>
+              <IconButton
+                iconProps={{ iconName: isEditMode ? 'ReadingMode' : 'Edit' }}
+                title={isEditMode ? 'View Summary' : 'Edit Information'}
+                onClick={handleToggleEditMode}
+                styles={{
+                  root: { 
+                    color: theme.palette.themePrimary,
+                    height: 32,
+                    width: 32,
+                  },
+                  rootHovered: { 
+                    backgroundColor: theme.palette.themeLighter,
+                    color: theme.palette.themeDark,
+                  }
+                }}
+              />
+            </TooltipHost>
+          )}
         </Stack>
-      )}
-
-      {/* Action Buttons */}
-      <Stack horizontal horizontalAlign="center" tokens={{ childrenGap: 16 }}>
-        {onCancel && (
-          <DefaultButton
-            text="Cancel"
-            iconProps={{ iconName: 'Cancel' }}
-            onClick={onCancel}
+      </Header>
+      
+      <Content padding="spacious">
+        {isEditMode ? (
+          <RequestInfoForm 
+            control={control}
+            errors={errors}
+            isRushRequest={isRushRequest}
+            canEdit={canEdit}
+            theme={theme}
+          />
+        ) : (
+          <RequestInfoSummary 
+            currentRequest={currentRequest}
+            isRushRequest={isRushRequest}
+            theme={theme}
           />
         )}
-        <PrimaryButton
-          text="Continue"
-          iconProps={{ iconName: 'ChevronRight' }}
-          onClick={handleContinue}
-          disabled={!selectedRequestType}
-          style={{
-            minWidth: '120px'
+      </Content>
+    </Card>
+  );
+};
+
+// Edit Mode Component
+interface RequestInfoFormProps {
+  control: Control<Request | NewRequest>;
+  errors: FieldErrors<Request | NewRequest>;
+  isRushRequest: boolean;
+  canEdit: boolean;
+  theme: any;
+}
+
+const RequestInfoForm: React.FC<RequestInfoFormProps> = React.memo(({
+  control,
+  errors,
+  isRushRequest,
+  canEdit,
+  theme,
+}) => {
+  return (
+    <Stack tokens={{ childrenGap: 24 }}>
+      
+      {/* Basic Information Section */}
+      <Stack tokens={{ childrenGap: 16 }}>
+        <Text 
+          variant="medium" 
+          style={{ 
+            fontWeight: 600, 
+            color: theme.palette.themePrimary,
+            borderBottom: `1px solid ${theme.palette.neutralLighter}`,
+            paddingBottom: 8,
           }}
-        />
+        >
+          Basic Information
+        </Text>
+        
+        <FormItem>
+          <FormLabel isRequired>Request Title</FormLabel>
+          <FormValue>
+            <DevExtremeTextBox
+              name="RequestTitle"
+              control={control}
+              placeholder="Enter a descriptive title for your request"
+              disabled={!canEdit}
+            />
+          </FormValue>
+          <FormError error={errors.RequestTitle?.message} />
+        </FormItem>
+
+        <FormItem>
+          <FormLabel>Department</FormLabel>
+          <FormValue>
+            <DevExtremeTextBox
+              name="Department"
+              control={control}
+              disabled={true}
+              placeholder="Auto-populated from user profile"
+            />
+          </FormValue>
+          <FormDescription>
+            Department is automatically set from your user profile
+          </FormDescription>
+        </FormItem>
+
+        <FormItem>
+          <FormLabel isRequired>Request Type</FormLabel>
+          <FormValue>
+            <DevExtremeTextBox
+              name="RequestType"
+              control={control}
+              disabled={true}
+              placeholder="Selected during request creation"
+            />
+          </FormValue>
+          <FormDescription>
+            Request type was selected when creating this request
+          </FormDescription>
+        </FormItem>
+
+        <FormItem>
+          <FormLabel isRequired>Purpose</FormLabel>
+          <FormValue>
+            <DevExtremeTextBox
+              name="Purpose"
+              control={control}
+              mode="text"
+              height={100}
+              placeholder="Describe the purpose and intended use of this material"
+              disabled={!canEdit}
+            />
+          </FormValue>
+          <FormDescription>
+            Provide detailed information about how this material will be used
+          </FormDescription>
+          <FormError error={errors.Purpose?.message} />
+        </FormItem>
       </Stack>
 
-      {/* Help Text */}
-      <Stack horizontalAlign="center">
-        <Text variant="small" style={{ color: 'var(--neutralSecondary)', textAlign: 'center' }}>
-          Need help choosing the right request type? Contact the Legal team for guidance.
+      <Separator />
+
+      {/* Submission Details Section */}
+      <Stack tokens={{ childrenGap: 16 }}>
+        <Text 
+          variant="medium" 
+          style={{ 
+            fontWeight: 600, 
+            color: theme.palette.themePrimary,
+            borderBottom: `1px solid ${theme.palette.neutralLighter}`,
+            paddingBottom: 8,
+          }}
+        >
+          Submission Details
         </Text>
+
+        <FormItem>
+          <FormLabel isRequired>Submission Type</FormLabel>
+          <FormValue>
+            <DevExtremeSelectBox
+              name="SubmissionType"
+              control={control}
+              items={SUBMISSION_TYPE_OPTIONS}
+              placeholder="Select submission type"
+              disabled={!canEdit}
+            />
+          </FormValue>
+          <FormError error={errors.SubmissionType?.message} />
+        </FormItem>
+
+        <FormItem>
+          <FormLabel 
+            isRequired
+            infoText="This determines the standard turnaround time for your request"
+          >
+            Submission Item
+          </FormLabel>
+          <FormValue>
+            <DevExtremeSelectBox
+              name="SubmissionItem"
+              control={control}
+              items={SUBMISSION_ITEMS.map(item => ({
+                label: `${item.Title} (${item.TurnAroundTimeInDays} business days)`,
+                value: item.Title
+              }))}
+              placeholder="Select submission item type"
+              disabled={!canEdit}
+            />
+          </FormValue>
+          <FormError error={errors.SubmissionItem?.message} />
+        </FormItem>
+
+        <FormItem>
+          <FormLabel isRequired>Distribution Method</FormLabel>
+          <FormValue>
+            <DevExtremeTagBox
+              name="DistributionMethod"
+              control={control}
+              items={DISTRIBUTION_METHOD_OPTIONS}
+              placeholder="Select distribution methods"
+              disabled={!canEdit}
+              acceptCustomValue={false}
+            />
+          </FormValue>
+          <FormDescription>
+            Select all methods where this material will be distributed
+          </FormDescription>
+          <FormError error={errors.DistributionMethod?.message} />
+        </FormItem>
+      </Stack>
+
+      <Separator />
+
+      {/* Timeline Section */}
+      <Stack tokens={{ childrenGap: 16 }}>
+        <Text 
+          variant="medium" 
+          style={{ 
+            fontWeight: 600, 
+            color: theme.palette.themePrimary,
+            borderBottom: `1px solid ${theme.palette.neutralLighter}`,
+            paddingBottom: 8,
+          }}
+        >
+          Timeline & Dates
+        </Text>
+
+        <FormItem>
+          <FormLabel isRequired>Target Return Date</FormLabel>
+          <FormValue>
+            <DevExtremeDateBox
+              name="TargetReturnDate"
+              control={control}
+              type="date"
+              min={new Date()}
+              disabled={!canEdit}
+            />
+          </FormValue>
+          <FormDescription>
+            When do you need this material approved and ready for use?
+          </FormDescription>
+          <FormError error={errors.TargetReturnDate?.message} />
+        </FormItem>
+
+        {/* Rush Request Indicator */}
+        {isRushRequest && (
+          <MessageBar
+            messageBarType={MessageBarType.warning}
+            isMultiline={false}
+          >
+            <Stack horizontal tokens={{ childrenGap: 8 }} verticalAlign="center">
+              <Icon iconName="Warning" />
+              <Text variant="medium" style={{ fontWeight: 600 }}>
+                Rush Request Detected
+              </Text>
+            </Stack>
+          </MessageBar>
+        )}
+
+        {isRushRequest && (
+          <FormItem>
+            <FormLabel isRequired>Rush Rationale</FormLabel>
+            <FormValue>
+              <DevExtremeTextBox
+                name="RushRational"
+                control={control}
+                mode="text"
+                height={80}
+                placeholder="Explain why this request needs expedited processing"
+                disabled={!canEdit}
+              />
+            </FormValue>
+            <FormDescription>
+              Please provide a detailed explanation for the expedited timeline
+            </FormDescription>
+            <FormError error={errors.RushRational?.message} />
+          </FormItem>
+        )}
+        
+        <FormItem>
+          <FormLabel>Date of First Use</FormLabel>
+          <FormValue>
+            <DevExtremeDateBox
+              name="DateOfFirstUse"
+              control={control}
+              type="date"
+              min={new Date()}
+              disabled={!canEdit}
+            />
+          </FormValue>
+          <FormDescription>
+            When will this material first be used or published?
+          </FormDescription>
+          <FormError error={errors.DateOfFirstUse?.message} />
+        </FormItem>
+      </Stack>
+
+      <Separator />
+
+      {/* Review Settings Section */}
+      <Stack tokens={{ childrenGap: 16 }}>
+        <Text 
+          variant="medium" 
+          style={{ 
+            fontWeight: 600, 
+            color: theme.palette.themePrimary,
+            borderBottom: `1px solid ${theme.palette.neutralLighter}`,
+            paddingBottom: 8,
+          }}
+        >
+          Review & Collaboration
+        </Text>
+
+        <FormItem>
+          <FormLabel 
+            isRequired
+            infoText="Legal Admin can override this selection during intake"
+          >
+            Review Audience
+          </FormLabel>
+          <FormValue>
+            <DevExtremeSelectBox
+              name="ReviewAudience"
+              control={control}
+              items={REVIEW_AUDIENCE_OPTIONS}
+              placeholder="Select review audience"
+              disabled={!canEdit}
+            />
+          </FormValue>
+          <FormError error={errors.ReviewAudience?.message} />
+        </FormItem>
+
+        <FormItem>
+          <FormLabel>Additional Parties</FormLabel>
+          <FormValue>
+            <PnPPeoplePicker
+              name="AdditionalParty"
+              control={control}
+              context={window.spContext}
+              placeholder="Add stakeholders who should be notified"
+              personSelectionLimit={10}
+              disabled={!canEdit}
+            />
+          </FormValue>
+          <FormDescription>
+            These users will receive notifications and can view the request
+          </FormDescription>
+          <FormError error={errors.AdditionalParty?.message} />
+        </FormItem>
+
+        <FormItem>
+          <FormLabel>Prior Submissions</FormLabel>
+          <FormValue>
+            <div style={{ 
+              padding: '16px', 
+              border: `1px dashed ${theme.palette.neutralTertiary}`, 
+              borderRadius: '4px',
+              textAlign: 'center',
+              backgroundColor: theme.palette.neutralLighterAlt,
+            }}>
+              <Icon 
+                iconName="Search" 
+                style={{ 
+                  fontSize: 20, 
+                  color: theme.palette.neutralSecondary,
+                  marginBottom: 8 
+                }} 
+              />
+              <Text variant="small" style={{ color: theme.palette.neutralSecondary, display: 'block' }}>
+                Prior submission lookup will be implemented here
+              </Text>
+            </div>
+          </FormValue>
+          <FormDescription>
+            Link to related requests from your department
+          </FormDescription>
+        </FormItem>
+
+        <FormItem>
+          <FormLabel>Prior Submission Notes</FormLabel>
+          <FormValue>
+            <DevExtremeTextBox
+              name="PriorSubmissionNotes"
+              control={control}
+              mode="text"
+              height={80}
+              placeholder="Notes about related prior submissions"
+              disabled={!canEdit}
+            />
+          </FormValue>
+          <FormError error={errors.PriorSubmissionNotes?.message} />
+        </FormItem>
       </Stack>
 
     </Stack>
   );
-};
+});
+
+RequestInfoForm.displayName = 'RequestInfoForm';
+
+// Summary Mode Component
+interface RequestInfoSummaryProps {
+  currentRequest: Request | NewRequest | null;
+  isRushRequest: boolean;
+  theme: any;
+}
+
+const RequestInfoSummary: React.FC<RequestInfoSummaryProps> = React.memo(({
+  currentRequest,
+  isRushRequest,
+  theme,
+}) => {
+  if (!currentRequest) return null;
+
+  return (
+    <Stack tokens={{ childrenGap: 20 }}>
+      
+      {/* Basic Information Section */}
+      <Stack tokens={{ childrenGap: 12 }}>
+        <Text 
+          variant="medium" 
+          style={{ 
+            fontWeight: 600, 
+            color: theme.palette.themePrimary,
+            borderBottom: `1px solid ${theme.palette.neutralLighter}`,
+            paddingBottom: 8,
+          }}
+        >
+          Basic Information
+        </Text>
+        <Stack tokens={{ childrenGap: 8 }}>
+          <SummaryField 
+            label="Request Title" 
+            value={currentRequest.RequestTitle} 
+            theme={theme}
+          />
+          <SummaryField 
+            label="Department" 
+            value={currentRequest.Department} 
+            theme={theme}
+          />
+          <SummaryField 
+            label="Request Type" 
+            value={currentRequest.RequestType} 
+            theme={theme}
+          />
+          <SummaryField 
+            label="Purpose" 
+            value={currentRequest.Purpose} 
+            multiline 
+            theme={theme}
+          />
+        </Stack>
+      </Stack>
+
+      <Separator />
+
+      {/* Submission Details Section */}
+      <Stack tokens={{ childrenGap: 12 }}>
+        <Text 
+          variant="medium" 
+          style={{ 
+            fontWeight: 600, 
+            color: theme.palette.themePrimary,
+            borderBottom: `1px solid ${theme.palette.neutralLighter}`,
+            paddingBottom: 8,
+          }}
+        >
+          Submission Details
+        </Text>
+        <Stack tokens={{ childrenGap: 8 }}>
+          <SummaryField 
+            label="Submission Type" 
+            value={currentRequest.SubmissionType} 
+            theme={theme}
+          />
+          <SummaryField 
+            label="Submission Item" 
+            value={currentRequest.SubmissionItem} 
+            theme={theme}
+          />
+          <SummaryField 
+            label="Distribution Method" 
+            value={Array.isArray(currentRequest.DistributionMethod) 
+              ? currentRequest.DistributionMethod.join(', ')
+              : currentRequest.DistributionMethod} 
+            theme={theme}
+          />
+        </Stack>
+      </Stack>
+
+      <Separator />
+
+      {/* Timeline Section */}
+      <Stack tokens={{ childrenGap: 12 }}>
+        <Text 
+          variant="medium" 
+          style={{ 
+            fontWeight: 600, 
+            color: theme.palette.themePrimary,
+            borderBottom: `1px solid ${theme.palette.neutralLighter}`,
+            paddingBottom: 8,
+          }}
+        >
+          Timeline & Dates
+        </Text>
+        <Stack tokens={{ childrenGap: 8 }}>
+          <SummaryField 
+            label="Target Return Date" 
+            value={currentRequest.TargetReturnDate ? new Date(currentRequest.TargetReturnDate).toLocaleDateString() : undefined} 
+            theme={theme}
+          />
+          {isRushRequest && (
+            <SummaryField 
+              label="Rush Request" 
+              value="Yes" 
+              icon="Warning"
+              iconColor={theme.palette.yellow}
+              theme={theme}
+            />
+          )}
+          {currentRequest.RushRational && (
+            <SummaryField 
+              label="Rush Rationale" 
+              value={currentRequest.RushRational} 
+              multiline 
+              theme={theme}
+            />
+          )}
+          <SummaryField 
+            label="Date of First Use" 
+            value={currentRequest.DateOfFirstUse ? new Date(currentRequest.DateOfFirstUse).toLocaleDateString() : undefined} 
+            theme={theme}
+          />
+        </Stack>
+      </Stack>
+
+      <Separator />
+
+      {/* Review & Collaboration Section */}
+      <Stack tokens={{ childrenGap: 12 }}>
+        <Text 
+          variant="medium" 
+          style={{ 
+            fontWeight: 600, 
+            color: theme.palette.themePrimary,
+            borderBottom: `1px solid ${theme.palette.neutralLighter}`,
+            paddingBottom: 8,
+          }}
+        >
+          Review & Collaboration
+        </Text>
+        <Stack tokens={{ childrenGap: 8 }}>
+          <SummaryField 
+            label="Review Audience" 
+            value={currentRequest.ReviewAudience} 
+            theme={theme}
+          />
+          <SummaryField 
+            label="Additional Parties" 
+            value={currentRequest.AdditionalParty?.length ? `${currentRequest.AdditionalParty.length} people selected` : 'None'} 
+            theme={theme}
+          />
+          {currentRequest.PriorSubmissions && currentRequest.PriorSubmissions.length > 0 && (
+            <SummaryField 
+              label="Prior Submissions" 
+              value={`${currentRequest.PriorSubmissions.length} related requests`} 
+              theme={theme}
+            />
+          )}
+          {currentRequest.PriorSubmissionNotes && (
+            <SummaryField 
+              label="Prior Submission Notes" 
+              value={currentRequest.PriorSubmissionNotes} 
+              multiline 
+              theme={theme}
+            />
+          )}
+        </Stack>
+      </Stack>
+
+    </Stack>
+  );
+});
+
+RequestInfoSummary.displayName = 'RequestInfoSummary';
+
+// Summary field component
+interface SummaryFieldProps {
+  label: string;
+  value?: string | number;
+  multiline?: boolean;
+  icon?: string;
+  iconColor?: string;
+  theme: any;
+}
+
+const SummaryField: React.FC<SummaryFieldProps> = React.memo(({ 
+  label, 
+  value, 
+  multiline, 
+  icon, 
+  iconColor,
+  theme 
+}) => {
+  if (!value && value !== 0) return null;
+
+  return (
+    <Stack horizontal tokens={{ childrenGap: 12 }} verticalAlign="start">
+      <Text 
+        variant="small" 
+        style={{ 
+          minWidth: '160px', 
+          fontWeight: 500,
+          color: theme.palette.neutralSecondary
+        }}
+      >
+        {label}:
+      </Text>
+      <Stack horizontal tokens={{ childrenGap: 8 }} verticalAlign="center" style={{ flex: 1 }}>
+        {icon && (
+          <Icon 
+            iconName={icon} 
+            style={{ color: iconColor || theme.palette.neutralPrimary, fontSize: 14 }} 
+          />
+        )}
+        <Text 
+          variant="small"
+          style={{ 
+            color: theme.palette.neutralPrimary,
+            whiteSpace: multiline ? 'pre-wrap' : 'nowrap',
+            wordBreak: multiline ? 'break-word' : 'normal',
+            lineHeight: multiline ? 1.4 : 1.2,
+          }}
+        >
+          {value}
+        </Text>
+      </Stack>
+    </Stack>
+  );
+});
+
+SummaryField.displayName = 'SummaryField';
+
+export default RequestInfo;
