@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Stack } from '@fluentui/react';
 import { WorkflowStepper, StepData } from '../WorkflowStepper';
 import { RequestWorkflowStepperProps } from './types';
@@ -8,6 +8,28 @@ import {
   buildNewRequestSteps,
   buildExistingRequestSteps,
 } from './utils';
+
+/**
+ * Find the current step or first step if all completed
+ */
+function findDefaultSelectedStep(steps: StepData[]): string | undefined {
+  if (steps.length === 0) return undefined;
+
+  // Find the current step
+  const currentStep = steps.find(step => step.status === 'current');
+  if (currentStep) {
+    return currentStep.id;
+  }
+
+  // If all steps completed, return first step
+  const allCompleted = steps.every(step => step.status === 'completed');
+  if (allCompleted) {
+    return steps[0].id;
+  }
+
+  // Fallback to first step
+  return steps[0].id;
+}
 
 /**
  * RequestWorkflowStepper Component
@@ -23,9 +45,6 @@ export const RequestWorkflowStepper: React.FC<RequestWorkflowStepperProps> = ({
   selectedRequestType,
   className,
 }) => {
-  // State for selected step (only used in typeSelector context)
-  const [selectedStepId, setSelectedStepId] = useState<string | undefined>(undefined);
-
   // Determine request type based on context
   const requestType = useMemo(() => {
     if (context === 'typeSelector') {
@@ -63,6 +82,21 @@ export const RequestWorkflowStepper: React.FC<RequestWorkflowStepperProps> = ({
         return [];
     }
   }, [context, requestType, stepConfigs, request]);
+
+  // Auto-select the current step (or first if all completed)
+  const defaultSelectedStepId = useMemo(() => {
+    return findDefaultSelectedStep(steps);
+  }, [steps]);
+
+  // State for selected step (only used in typeSelector context)
+  const [selectedStepId, setSelectedStepId] = useState<string | undefined>(defaultSelectedStepId);
+
+  // Update selected step when steps change
+  useEffect(() => {
+    if (context === 'typeSelector' && defaultSelectedStepId) {
+      setSelectedStepId(defaultSelectedStepId);
+    }
+  }, [context, defaultSelectedStepId]);
 
   // Determine display mode based on context
   const mode = useMemo(() => {
