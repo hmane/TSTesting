@@ -1,0 +1,88 @@
+.legal-intake-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+
+    @media (max-width: 768px) {
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    .summary-field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+
+      label {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--neutralSecondary, #605e5c);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .summary-value {
+        font-size: 15px;
+        color: var(--neutralPrimary, #323130);
+        line-height: 1.5;
+      }
+    }
+  }
+
+  .notes-section {
+    padding-top: 16px;
+    border-top: 1px solid var(--neutralLight, #edebe9);
+  }
+}
+
+.legal-intake-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+
+  @media (max-width: 768px) {
+    gap: 24px;
+  }
+}
+
+.legal-intake-card {
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 600;
+
+    &.committee-badge {
+      background: var(--warningBackground, #fff4ce);
+      color: var(--warningIcon, #797673);
+      border: 1px solid var(--warningIcon, #797673);
+
+      i {
+        font-size: 14px;
+      }
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .legal-intake-card {
+    .status-badge {
+      font-size: 12px;
+      padding: 4px 10px;
+
+      &.committee-badge {
+        i {
+          font-size: 12px;
+        }
+      }
+    }
+  }
+}
