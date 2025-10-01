@@ -36,6 +36,40 @@
       white-space: nowrap;
       flex-shrink: 0;
     }
+
+    .rush-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: linear-gradient(135deg, #fff4ce 0%, #ffe7a0 100%);
+      border: 1px solid #d4a017;
+      border-radius: 16px;
+      cursor: help;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+
+      &:hover {
+        background: linear-gradient(135deg, #ffe7a0 0%, #ffd966 100%);
+        border-color: #b8860b;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(212, 160, 23, 0.2);
+      }
+
+      .rush-icon {
+        font-size: 14px;
+        color: #d4a017;
+        animation: subtle-pulse 2s ease-in-out infinite;
+      }
+
+      .rush-text {
+        font-size: 13px;
+        font-weight: 600;
+        color: #b8860b;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+    }
   }
 
   .header-actions {
@@ -66,6 +100,18 @@
         font-size: 12px;
         padding: 4px 12px;
       }
+
+      .rush-indicator {
+        padding: 5px 10px;
+
+        .rush-icon {
+          font-size: 12px;
+        }
+
+        .rush-text {
+          font-size: 11px;
+        }
+      }
     }
 
     .header-actions {
@@ -83,6 +129,83 @@
 
       .request-id-badge {
         margin-left: 44px;
+      }
+
+      .rush-indicator {
+        margin-left: 44px;
+      }
+    }
+  }
+}
+
+// Subtle pulse animation for rush icon
+@keyframes subtle-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.05);
+  }
+}
+
+// Rush tooltip styling
+.rush-tooltip-content {
+  padding: 12px;
+
+  .rush-tooltip-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--neutralLighter, #f3f2f1);
+
+    i {
+      font-size: 16px;
+      color: #d4a017;
+    }
+
+    strong {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--neutralPrimary, #323130);
+    }
+  }
+
+  .rush-tooltip-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    p {
+      margin: 0;
+      font-size: 13px;
+      color: var(--neutralSecondary, #605e5c);
+      line-height: 1.5;
+    }
+
+    .rush-detail {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 8px;
+      background: var(--neutralLighterAlt, #faf9f8);
+      border-radius: 4px;
+
+      .rush-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--neutralSecondary, #605e5c);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .rush-value {
+        font-size: 13px;
+        color: var(--neutralPrimary, #323130);
+        line-height: 1.4;
       }
     }
   }
