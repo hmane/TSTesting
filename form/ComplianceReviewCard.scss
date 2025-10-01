@@ -1,0 +1,63 @@
+.compliance-review-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+
+  @media (max-width: 768px) {
+    gap: 24px;
+  }
+}
+
+.compliance-review-card {
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 12px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: capitalize;
+
+    &.not-started {
+      background: var(--neutralLighter, #f3f2f1);
+      color: var(--neutralPrimary, #323130);
+      border: 1px solid var(--neutralTertiary, #a19f9d);
+    }
+
+    &.in-progress {
+      background: var(--themeLighterAlt, #eff6fc);
+      color: var(--themePrimary, #0078d4);
+      border: 1px solid var(--themePrimary, #0078d4);
+    }
+
+    &.waiting-on-submitter,
+    &.waiting-on-compliance-reviewer {
+      background: var(--warningBackground, #fff4ce);
+      color: var(--warningIcon, #797673);
+      border: 1px solid var(--warningIcon, #797673);
+    }
+
+    &.completed {
+      background: var(--successBackground, #dff6dd);
+      color: var(--successIcon, #107c10);
+      border: 1px solid var(--successIcon, #107c10);
+    }
+  }
+
+  .submit-hint {
+    margin-top: 12px;
+  }
+}
+
+@media (max-width: 768px) {
+  .compliance-review-card {
+    .status-badge {
+      font-size: 12px;
+      padding: 4px 10px;
+    }
+
+    .submit-hint {
+      margin-top: 8px;
+    }
+  }
+}
