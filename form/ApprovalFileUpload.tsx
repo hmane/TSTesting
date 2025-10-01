@@ -12,8 +12,7 @@ import {
   Text,
   TooltipHost,
   DirectionalHint,
-  Spinner,
-  SpinnerSize,
+  Link,
 } from '@fluentui/react';
 import { FileTypeIcon, IconType } from '@pnp/spfx-controls-react/lib/FileTypeIcon';
 import './ApprovalFileUpload.scss';
@@ -81,7 +80,9 @@ const ApprovalFileUpload: React.FC<IApprovalFileUploadProps> = ({
   const [versionFileUrl, setVersionFileUrl] = React.useState<string>('');
 
   const currentFiles = React.useMemo(() => {
-    const existing = existingFiles.filter(ef => !removedFiles.some(rf => rf.uniqueId === ef.uniqueId));
+    const existing = existingFiles.filter(
+      ef => !removedFiles.some(rf => rf.uniqueId === ef.uniqueId)
+    );
     return [...existing, ...addedFiles];
   }, [existingFiles, addedFiles, removedFiles]);
 
@@ -91,7 +92,7 @@ const ApprovalFileUpload: React.FC<IApprovalFileUploadProps> = ({
       removedFiles,
       currentFiles: currentFiles as (File | IExistingFile)[],
     });
-  }, [addedFiles, removedFiles, currentFiles]);
+  }, [addedFiles, removedFiles, currentFiles, onFilesChange]);
 
   const isExistingFile = (file: File | IExistingFile): file is IExistingFile => {
     return 'url' in file && 'uniqueId' in file;
@@ -102,7 +103,7 @@ const ApprovalFileUpload: React.FC<IApprovalFileUploadProps> = ({
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
   };
 
   const getFileExtension = (fileName: string): string => {
@@ -243,7 +244,9 @@ const ApprovalFileUpload: React.FC<IApprovalFileUploadProps> = ({
 
   const handleVersionClick = (e: React.MouseEvent, file: IExistingFile): void => {
     e.stopPropagation();
-    const versionUrl = `${siteUrl}/_layouts/15/Versions.aspx?list=${listId}&ID=${itemId}&FileName=${encodeURIComponent(file.name)}`;
+    const versionUrl = `${siteUrl}/_layouts/15/Versions.aspx?list=${listId}&ID=${itemId}&FileName=${encodeURIComponent(
+      file.name
+    )}`;
     setVersionFileUrl(versionUrl);
     setShowVersionModal(true);
   };
@@ -251,25 +254,36 @@ const ApprovalFileUpload: React.FC<IApprovalFileUploadProps> = ({
   const renderFileTooltip = (file: IExistingFile): JSX.Element => {
     return (
       <div className="file-tooltip-content">
-        <Text variant="small" block><strong>Created:</strong> {new Date(file.timeCreated).toLocaleString()}</Text>
-        {file.createdBy && <Text variant="small" block><strong>Created by:</strong> {file.createdBy}</Text>}
-        {file.timeLastModified && (
-          <Text variant="small" block><strong>Modified:</strong> {new Date(file.timeLastModified).toLocaleString()}</Text>
+        <Text variant="small" block>
+          <strong>Created:</strong> {new Date(file.timeCreated).toLocaleString()}
+        </Text>
+        {file.createdBy && (
+          <Text variant="small" block>
+            <strong>Created by:</strong> {file.createdBy}
+          </Text>
         )}
-        {file.modifiedBy && <Text variant="small" block><strong>Modified by:</strong> {file.modifiedBy}</Text>}
+        {file.timeLastModified && (
+          <Text variant="small" block>
+            <strong>Modified:</strong> {new Date(file.timeLastModified).toLocaleString()}
+          </Text>
+        )}
+        {file.modifiedBy && (
+          <Text variant="small" block>
+            <strong>Modified by:</strong> {file.modifiedBy}
+          </Text>
+        )}
         {file.version && (
           <Text variant="small" block>
             <strong>Version:</strong> {file.version}{' '}
-            
-              href="#"
-              onClick={(e) => {
+            <Link
+              onClick={e => {
                 e.preventDefault();
                 handleVersionClick(e as any, file);
               }}
               className="version-link"
             >
               (View history)
-            </a>
+            </Link>
           </Text>
         )}
       </div>
@@ -280,7 +294,6 @@ const ApprovalFileUpload: React.FC<IApprovalFileUploadProps> = ({
     const { file, isExisting } = item;
     const fileName = file.name;
     const fileSize = file.size;
-    const extension = getFileExtension(fileName);
 
     const fileElement = (
       <div
@@ -289,11 +302,7 @@ const ApprovalFileUpload: React.FC<IApprovalFileUploadProps> = ({
       >
         <div className="file-info">
           <div className="file-icon">
-            <FileTypeIcon
-              type={IconType.image}
-              path={fileName}
-              size={20}
-            />
+            <FileTypeIcon type={IconType.image} path={fileName} size={20} />
           </div>
           <div className="file-details">
             <Text
@@ -355,7 +364,9 @@ const ApprovalFileUpload: React.FC<IApprovalFileUploadProps> = ({
 
       <div
         ref={dropZoneRef}
-        className={`compact-drop-zone ${isDragging ? 'dragging' : ''} ${disabled ? 'disabled' : ''}`}
+        className={`compact-drop-zone ${isDragging ? 'dragging' : ''} ${
+          disabled ? 'disabled' : ''
+        }`}
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
         onDragOver={handleDragOver}
@@ -397,9 +408,7 @@ const ApprovalFileUpload: React.FC<IApprovalFileUploadProps> = ({
           <Text variant="mediumPlus" className="file-list-title">
             Uploaded Files ({fileItems.length})
           </Text>
-          <div className="file-items">
-            {fileItems.map(item => renderFileItem(item))}
-          </div>
+          <div className="file-items">{fileItems.map(item => renderFileItem(item))}</div>
         </div>
       )}
 
