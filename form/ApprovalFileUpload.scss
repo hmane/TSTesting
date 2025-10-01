@@ -1,0 +1,207 @@
+.approval-file-upload {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+
+  .compact-drop-zone {
+    padding: 16px;
+    border: 2px dashed var(--neutralLight, #edebe9);
+    border-radius: 6px;
+    background-color: var(--neutralLighterAlt, #faf9f8);
+    transition: all 0.2s ease;
+    cursor: pointer;
+
+    &:hover:not(.disabled) {
+      border-color: var(--themePrimary, #0078d4);
+      background-color: var(--neutralLighter, #f3f2f1);
+    }
+
+    &.dragging {
+      border-color: var(--themePrimary, #0078d4);
+      background-color: var(--themeLight, #c7e0f4);
+      border-style: solid;
+    }
+
+    &.disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      background-color: var(--neutralLight, #edebe9);
+    }
+
+    .drop-zone-text {
+      color: var(--neutralPrimary, #323130);
+      font-weight: 500;
+    }
+
+    .file-limit-text {
+      color: var(--neutralSecondary, #605e5c);
+      font-style: italic;
+    }
+  }
+
+  .file-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+
+    .file-list-title {
+      font-weight: 600;
+      color: var(--neutralPrimary, #323130);
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--neutralLight, #edebe9);
+    }
+
+    .file-items {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .file-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px;
+      background-color: var(--white, #ffffff);
+      border: 1px solid var(--neutralLight, #edebe9);
+      border-radius: 6px;
+      transition: all 0.2s ease;
+
+      &:hover {
+        border-color: var(--neutralTertiary, #a19f9d);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      }
+
+      &.existing-file {
+        background-color: var(--neutralLighterAlt, #faf9f8);
+      }
+
+      &.new-file {
+        background-color: var(--themeLighterAlt, #eff6fc);
+        border-color: var(--themeLight, #c7e0f4);
+      }
+
+      .file-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex: 1;
+        min-width: 0;
+
+        .file-icon {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          width: 32px;
+          height: 32px;
+        }
+
+        .file-details {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          flex: 1;
+          min-width: 0;
+
+          .file-name {
+            font-weight: 500;
+            color: var(--neutralPrimary, #323130);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+
+            &.clickable {
+              color: var(--themePrimary, #0078d4);
+              cursor: pointer;
+              text-decoration: none;
+
+              &:hover {
+                text-decoration: underline;
+              }
+            }
+          }
+
+          .file-size {
+            color: var(--neutralSecondary, #605e5c);
+            font-size: 12px;
+          }
+        }
+      }
+
+      .file-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+
+        .remove-file-btn {
+          color: var(--neutralSecondary, #605e5c);
+
+          &:hover {
+            color: var(--redDark, #a4262c);
+            background-color: var(--errorBackground, #fde7e9);
+          }
+
+          &:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+          }
+        }
+      }
+    }
+  }
+
+  .file-tooltip-content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px;
+    max-width: 300px;
+
+    .version-link {
+      color: var(--themePrimary, #0078d4);
+      text-decoration: none;
+      cursor: pointer;
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
+
+  @media (max-width: 768px) {
+    .compact-drop-zone {
+      padding: 12px;
+
+      .file-limit-text {
+        display: none;
+      }
+    }
+
+    .file-list {
+      .file-item {
+        padding: 10px;
+
+        .file-info {
+          gap: 8px;
+
+          .file-icon {
+            width: 28px;
+            height: 28px;
+          }
+
+          .file-details {
+            .file-name {
+              font-size: 13px;
+            }
+
+            .file-size {
+              font-size: 11px;
+            }
+          }
+        }
+      }
+    }
+  }
+}
