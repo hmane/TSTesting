@@ -1,0 +1,431 @@
+// Override PnP ListItemComments styles for better UI/UX
+.request-comments-column {
+  .comments-content {
+    // Override default PnP styles
+    .ms-CommentList {
+      padding: 0;
+      margin: 0;
+
+      // Comment item container
+      .ms-CommentList-item {
+        padding: 16px;
+        margin-bottom: 12px;
+        background: var(--white, #ffffff);
+        border: 1px solid var(--neutralLight, #edebe9);
+        border-radius: 8px;
+        transition: all 0.2s ease;
+
+        &:hover {
+          border-color: var(--neutralTertiary, #a19f9d);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        &:last-child {
+          margin-bottom: 0;
+        }
+
+        // Comment header (author and date)
+        .ms-CommentList-itemHeader {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          margin-bottom: 12px;
+          padding-bottom: 10px;
+          border-bottom: 1px solid var(--neutralLighter, #f3f2f1);
+
+          .ms-Persona {
+            .ms-Persona-coin {
+              width: 36px;
+              height: 36px;
+            }
+
+            .ms-Persona-initials {
+              font-size: 14px;
+            }
+
+            .ms-Persona-primaryText {
+              font-size: 15px;
+              font-weight: 600;
+              color: var(--neutralPrimary, #323130);
+            }
+
+            .ms-Persona-secondaryText {
+              font-size: 13px;
+              color: var(--neutralSecondary, #605e5c);
+            }
+          }
+        }
+
+        // Comment content
+        .ms-CommentList-itemContent {
+          padding-left: 48px;
+          font-size: 14px;
+          line-height: 1.6;
+          color: var(--neutralPrimary, #323130);
+          word-break: break-word;
+
+          p {
+            margin: 0 0 8px 0;
+
+            &:last-child {
+              margin-bottom: 0;
+            }
+          }
+
+          // Mentioned users styling
+          .ms-Mention {
+            color: var(--themePrimary, #0078d4);
+            font-weight: 600;
+            background: var(--themeLighterAlt, #eff6fc);
+            padding: 2px 6px;
+            border-radius: 3px;
+            text-decoration: none;
+
+            &:hover {
+              background: var(--themeLight, #c7e0f4);
+              text-decoration: underline;
+            }
+          }
+        }
+
+        // Comment actions (edit, delete, reply)
+        .ms-CommentList-itemActions {
+          padding-left: 48px;
+          margin-top: 12px;
+          display: flex;
+          gap: 12px;
+
+          button,
+          .ms-Button {
+            min-width: 0;
+            padding: 6px 12px;
+            height: 32px;
+            font-size: 13px;
+            border-radius: 4px;
+            background: transparent;
+            border: 1px solid var(--neutralLight, #edebe9);
+            color: var(--neutralPrimary, #323130);
+            transition: all 0.2s ease;
+
+            &:hover {
+              background: var(--neutralLighter, #f3f2f1);
+              border-color: var(--neutralTertiary, #a19f9d);
+            }
+
+            &:active {
+              transform: scale(0.98);
+            }
+
+            i {
+              font-size: 12px;
+            }
+          }
+        }
+
+        // Nested replies
+        .ms-CommentList-replies {
+          margin-top: 12px;
+          padding-left: 24px;
+          border-left: 2px solid var(--themeLighter, #deecf9);
+
+          .ms-CommentList-item {
+            padding: 12px;
+            margin-bottom: 8px;
+            background: var(--neutralLighterAlt, #faf9f8);
+
+            .ms-CommentList-itemContent {
+              padding-left: 40px;
+            }
+
+            .ms-CommentList-itemActions {
+              padding-left: 40px;
+            }
+          }
+        }
+      }
+    }
+
+    // Add comment section
+    .ms-CommentBox {
+      margin-top: 16px;
+      padding: 16px;
+      background: var(--neutralLighterAlt, #faf9f8);
+      border: 1px solid var(--neutralLight, #edebe9);
+      border-radius: 8px;
+
+      // Comment input textarea
+      .ms-TextField {
+        .ms-TextField-fieldGroup {
+          border: 1px solid var(--neutralTertiary, #a19f9d);
+          border-radius: 6px;
+          background: var(--white, #ffffff);
+          transition: all 0.2s ease;
+
+          &:hover {
+            border-color: var(--neutralSecondary, #605e5c);
+          }
+
+          &:focus-within {
+            border-color: var(--themePrimary, #0078d4);
+            box-shadow: 0 0 0 1px var(--themePrimary, #0078d4);
+          }
+
+          textarea {
+            padding: 12px;
+            font-size: 14px;
+            line-height: 1.6;
+            min-height: 80px;
+            resize: vertical;
+          }
+        }
+      }
+
+      // Action buttons (Submit, Cancel)
+      .ms-CommentBox-actions {
+        margin-top: 12px;
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+
+        button,
+        .ms-Button {
+          border-radius: 4px;
+          font-weight: 600;
+          transition: all 0.2s ease;
+
+          &.ms-Button--primary {
+            background: var(--themePrimary, #0078d4);
+            border-color: var(--themePrimary, #0078d4);
+
+            &:hover {
+              background: var(--themeDark, #005a9e);
+              border-color: var(--themeDark, #005a9e);
+            }
+          }
+
+          &:active {
+            transform: scale(0.98);
+          }
+        }
+      }
+
+      // People picker for mentions
+      .ms-PeoplePicker {
+        .ms-BasePicker-text {
+          border-radius: 6px;
+          border-color: var(--neutralTertiary, #a19f9d);
+
+          &:hover {
+            border-color: var(--neutralSecondary, #605e5c);
+          }
+
+          &:focus-within {
+            border-color: var(--themePrimary, #0078d4);
+          }
+        }
+      }
+    }
+
+    // Empty state
+    .ms-CommentList-empty {
+      padding: 40px 20px;
+      text-align: center;
+      color: var(--neutralSecondary, #605e5c);
+
+      i {
+        font-size: 48px;
+        color: var(--neutralTertiary, #a19f9d);
+        margin-bottom: 12px;
+        opacity: 0.5;
+      }
+
+      p {
+        margin: 0;
+        font-size: 15px;
+        line-height: 1.5;
+      }
+    }
+
+    // Loading state
+    .ms-Spinner {
+      padding: 40px 20px;
+    }
+  }
+
+  // Mobile responsive adjustments
+  @media (max-width: 768px) {
+    .comments-content {
+      .ms-CommentList {
+        .ms-CommentList-item {
+          padding: 12px;
+          margin-bottom: 10px;
+
+          .ms-CommentList-itemHeader {
+            gap: 10px;
+            margin-bottom: 10px;
+
+            .ms-Persona {
+              .ms-Persona-coin {
+                width: 32px;
+                height: 32px;
+              }
+
+              .ms-Persona-primaryText {
+                font-size: 14px;
+              }
+
+              .ms-Persona-secondaryText {
+                font-size: 12px;
+              }
+            }
+          }
+
+          .ms-CommentList-itemContent {
+            padding-left: 42px;
+            font-size: 13px;
+          }
+
+          .ms-CommentList-itemActions {
+            padding-left: 42px;
+            margin-top: 10px;
+            gap: 8px;
+
+            button,
+            .ms-Button {
+              padding: 4px 10px;
+              height: 28px;
+              font-size: 12px;
+            }
+          }
+
+          .ms-CommentList-replies {
+            padding-left: 16px;
+
+            .ms-CommentList-item {
+              padding: 10px;
+
+              .ms-CommentList-itemContent {
+                padding-left: 34px;
+              }
+
+              .ms-CommentList-itemActions {
+                padding-left: 34px;
+              }
+            }
+          }
+        }
+      }
+
+      .ms-CommentBox {
+        padding: 12px;
+
+        .ms-TextField {
+          .ms-TextField-fieldGroup {
+            textarea {
+              padding: 10px;
+              font-size: 13px;
+              min-height: 70px;
+            }
+          }
+        }
+
+        .ms-CommentBox-actions {
+          margin-top: 10px;
+          gap: 6px;
+
+          button,
+          .ms-Button {
+            font-size: 13px;
+            padding: 6px 12px;
+          }
+        }
+      }
+
+      .ms-CommentList-empty {
+        padding: 30px 16px;
+
+        i {
+          font-size: 40px;
+        }
+
+        p {
+          font-size: 14px;
+        }
+      }
+    }
+  }
+
+  @media (max-width: 480px) {
+    .comments-content {
+      .ms-CommentList {
+        .ms-CommentList-item {
+          .ms-CommentList-itemContent {
+            padding-left: 0;
+            margin-top: 8px;
+          }
+
+          .ms-CommentList-itemActions {
+            padding-left: 0;
+            flex-wrap: wrap;
+          }
+
+          .ms-CommentList-replies {
+            padding-left: 12px;
+
+            .ms-CommentList-item {
+              .ms-CommentList-itemContent {
+                padding-left: 0;
+              }
+
+              .ms-CommentList-itemActions {
+                padding-left: 0;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+// Dark mode support (optional)
+@media (prefers-color-scheme: dark) {
+  .request-comments-column {
+    .comments-content {
+      .ms-CommentList {
+        .ms-CommentList-item {
+          background: #292929;
+          border-color: #3b3b3b;
+
+          &:hover {
+            border-color: #505050;
+          }
+
+          .ms-CommentList-itemHeader {
+            border-bottom-color: #3b3b3b;
+          }
+
+          .ms-CommentList-replies {
+            border-left-color: #3b3b3b;
+
+            .ms-CommentList-item {
+              background: #1f1f1f;
+            }
+          }
+        }
+      }
+
+      .ms-CommentBox {
+        background: #292929;
+        border-color: #3b3b3b;
+
+        .ms-TextField {
+          .ms-TextField-fieldGroup {
+            background: #1f1f1f;
+            border-color: #505050;
+          }
+        }
+      }
+    }
+  }
+}
