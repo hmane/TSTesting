@@ -1,0 +1,130 @@
+.request-info-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+
+    @media (max-width: 768px) {
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    .summary-field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+
+      &.full-width {
+        grid-column: 1 / -1;
+      }
+
+      label {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--neutralSecondary, #605e5c);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .summary-value {
+        font-size: 15px;
+        color: var(--neutralPrimary, #323130);
+        line-height: 1.5;
+        word-break: break-word;
+
+        &.purpose-text {
+          white-space: pre-wrap;
+          line-height: 1.6;
+        }
+      }
+
+      .rush-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        background: var(--errorBackground, #fde7e9);
+        color: var(--errorText, #a80000);
+        border-radius: 12px;
+        font-size: 13px;
+        font-weight: 600;
+      }
+    }
+  }
+}
+
+.request-info-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.field-category {
+  margin-bottom: 0;
+
+  .category-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--neutralLight, #edebe9);
+
+    .category-icon {
+      font-size: 18px;
+      color: var(--themePrimary, #0078d4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .category-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--neutralPrimary, #323130);
+      margin: 0;
+    }
+  }
+
+  .category-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  .request-info-summary {
+    gap: 24px;
+
+    .field-category {
+      .category-header {
+        margin-bottom: 16px;
+
+        .category-icon {
+          font-size: 16px;
+        }
+
+        .category-title {
+          font-size: 15px;
+        }
+      }
+    }
+  }
+
+  .request-info-edit {
+    gap: 24px;
+
+    .field-category {
+      .category-header {
+        margin-bottom: 16px;
+      }
+
+      .category-fields {
+        gap: 16px;
+      }
+    }
+  }
+}
