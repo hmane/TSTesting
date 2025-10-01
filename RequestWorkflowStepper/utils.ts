@@ -1,26 +1,28 @@
 import { StepData, StepStatus } from '../WorkflowStepper';
-import { IRequest, RequestStatus, RequestType, StepConfig } from './types';
+import { AnyRequest, IRequest, RequestStatus, RequestType, StepConfig } from './types';
 
 /**
- * Format date to MM/dd/yyyy hh:mm a format
+ * Type guard to check if request is an existing request (has id)
  */
-export function formatDate(date: Date | string | undefined): string {
+export function isExistingRequest(request: AnyRequest): request is IRequest {
+  return 'id' in request && typeof request.id === 'number';
+}
+
+/**
+ * Type guard to check if request is a new request (no id)
+ */
+export function isNewRequest(request: AnyRequest): boolean {
+  return !isExistingRequest(request);
+}
+
+/**
+ * Format date using the date extension method
+ */
+export function formatDate(date: Date | undefined): string {
   if (!date) return '';
-
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
-
-  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-  const day = String(dateObj.getDate()).padStart(2, '0');
-  const year = dateObj.getFullYear();
-
-  let hours = dateObj.getHours();
-  const minutes = String(dateObj.getMinutes()).padStart(2, '0');
-  const ampm = hours >= 12 ? 'PM' : 'AM';
-
-  hours = hours % 12;
-  hours = hours ? hours : 12; // the hour '0' should be '12'
-
-  return `${month}/${day}/${year} ${hours}:${minutes} ${ampm}`;
+  
+  // Use the date extension format method
+  return date.format('MM/dd/yyyy hh:mm a');
 }
 
 /**
@@ -107,25 +109,45 @@ export function determineStepStatus(
 
 /**
  * Get description for a step based on request data and step status
+ * Only works for existing requests with tracking fields
  */
 export function getStepDescriptions(
   stepId: string,
   stepStatus: StepStatus,
-  request: IRequest
+  request: AnyRequest
 ): { description1: string; description2: string } {
+  // For new requests, use simple descriptions
+  if (isNewRequest(request)) {
+    if (stepStatus === 'current') {
+      return {
+        description1: 'Current step',
+        description2: 'Complete the form',
+      };
+    } else if (stepStatus === 'pending') {
+      return {
+        description1: 'Pending',
+        description2: 'Awaiting previous step',
+      };
+    }
+    return { description1: '', description2: '' };
+  }
+
+  // For existing requests, use detailed descriptions
+  const existingRequest = request as IRequest;
+
   // For cancelled status, show cancelled info
-  if (request.status === 'Cancelled' && stepStatus === 'error') {
+  if (existingRequest.status === 'Cancelled' && stepStatus === 'error') {
     return {
-      description1: request.cancelledBy?.title || 'Cancelled',
-      description2: formatDate(request.cancelledOn),
+      description1: existingRequest.cancelledBy?.title || 'Cancelled',
+      description2: formatDate(existingRequest.cancelledOn),
     };
   }
 
   // For on hold status with warning, show on hold info
-  if (request.status === 'On Hold' && stepStatus === 'warning') {
+  if (existingRequest.status === 'On Hold' && stepStatus === 'warning') {
     return {
-      description1: `On Hold by ${request.onHoldBy?.title || 'Unknown'}`,
-      description2: `Since ${formatDate(request.onHoldSince)}`,
+      description1: `On Hold by ${existingRequest.onHoldBy?.title || 'Unknown'}`,
+      description2: `Since ${formatDate(existingRequest.onHoldSince)}`,
     };
   }
 
@@ -142,8 +164,8 @@ export function getStepDescriptions(
     case 'draft':
       if (stepStatus === 'completed' || stepStatus === 'current') {
         return {
-          description1: request.createdBy?.title || 'Created',
-          description2: formatDate(request.created),
+          description1: existingRequest.createdBy?.title || 'Created',
+          description2: formatDate(existingRequest.created),
         };
       }
       break;
@@ -151,8 +173,8 @@ export function getStepDescriptions(
     case 'legal-intake':
       if (stepStatus === 'completed') {
         return {
-          description1: `Submitted by ${request.submittedBy?.title || 'Unknown'}`,
-          description2: formatDate(request.submittedOn),
+          description1: `Submitted by ${existingRequest.submittedBy?.title || 'Unknown'}`,
+          description2: formatDate(existingRequest.submittedOn),
         };
       } else if (stepStatus === 'current') {
         return {
@@ -165,12 +187,12 @@ export function getStepDescriptions(
     case 'in-review':
       if (stepStatus === 'completed') {
         return {
-          description1: `Reviewed by ${request.attorney?.title || 'Attorney'}`,
-          description2: formatDate(request.submittedForReviewOn),
+          description1: `Reviewed by ${existingRequest.attorney?.title || 'Attorney'}`,
+          description2: formatDate(existingRequest.submittedForReviewOn),
         };
       } else if (stepStatus === 'current') {
         return {
-          description1: `Assigned to ${request.attorney?.title || 'Attorney'}`,
+          description1: `Assigned to ${existingRequest.attorney?.title || 'Attorney'}`,
           description2: 'Review in progress',
         };
       }
@@ -179,8 +201,8 @@ export function getStepDescriptions(
     case 'closeout':
       if (stepStatus === 'completed') {
         return {
-          description1: `Closed by ${request.closeoutBy?.title || 'Unknown'}`,
-          description2: formatDate(request.closeoutOn),
+          description1: `Closed by ${existingRequest.closeoutBy?.title || 'Unknown'}`,
+          description2: formatDate(existingRequest.closeoutOn),
         };
       } else if (stepStatus === 'current') {
         return {
@@ -194,7 +216,7 @@ export function getStepDescriptions(
       if (stepStatus === 'completed' || stepStatus === 'current') {
         return {
           description1: 'Request completed',
-          description2: formatDate(request.closeoutOn),
+          description2: formatDate(existingRequest.closeoutOn),
         };
       }
       break;
@@ -249,14 +271,17 @@ export function buildNewRequestSteps(
 /**
  * Build step data for existing request context
  */
-export function buildExistingRequestSteps(request: IRequest, configs: StepConfig[]): StepData[] {
+export function buildExistingRequestSteps(request: AnyRequest, configs: StepConfig[]): StepData[] {
   const requestType = request.requestType;
   if (!requestType) return [];
+
+  // Default to Draft status for new requests
+  const requestStatus = request.status || 'Draft';
 
   const steps: StepData[] = configs.map(config => {
     const stepStatus = determineStepStatus(
       config.id,
-      request.status || 'Draft',
+      requestStatus,
       request.previousStatus,
       configs
     );
@@ -273,8 +298,8 @@ export function buildExistingRequestSteps(request: IRequest, configs: StepConfig
     };
   });
 
-  // Add cancelled step if status is cancelled
-  if (request.status === 'Cancelled') {
+  // Add cancelled step if status is cancelled (only for existing requests)
+  if (requestStatus === 'Cancelled' && isExistingRequest(request)) {
     steps.push({
       id: 'cancelled',
       title: 'Cancelled',
