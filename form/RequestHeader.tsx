@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Stack, Text } from '@fluentui/react';
+import { Stack, Text, TooltipHost, DirectionalHint } from '@fluentui/react';
 import { ManageAccessComponent } from '../ManageAccess';
 import { useRequestFormStore } from '../../stores/requestFormStore';
 import { SPContext } from '../../utilities/context';
@@ -49,6 +49,38 @@ const RequestHeader: React.FC = () => {
     }
   };
 
+  const formatRushTooltip = (): JSX.Element => {
+    return (
+      <div className="rush-tooltip-content">
+        <div className="rush-tooltip-header">
+          <i className="ms-Icon ms-Icon--LightningBolt" />
+          <strong>Rush Request</strong>
+        </div>
+        <div className="rush-tooltip-body">
+          <p>This request requires expedited review.</p>
+          {request.targetReturnDate && (
+            <div className="rush-detail">
+              <span className="rush-label">Target Date:</span>
+              <span className="rush-value">
+                {new Date(request.targetReturnDate).toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
+              </span>
+            </div>
+          )}
+          {request.rushRational && (
+            <div className="rush-detail">
+              <span className="rush-label">Reason:</span>
+              <span className="rush-value">{request.rushRational}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="request-header">
       <div className="request-type-title">
@@ -61,6 +93,27 @@ const RequestHeader: React.FC = () => {
             <div className="request-id-badge">
               {request.title || `CRR-${new Date().getFullYear()}-${request.id}`}
             </div>
+          )}
+          {request.isRushRequest && (
+            <TooltipHost
+              content={formatRushTooltip()}
+              directionalHint={DirectionalHint.bottomCenter}
+              styles={{
+                root: { display: 'inline-block' },
+              }}
+              tooltipProps={{
+                styles: {
+                  root: {
+                    maxWidth: 320,
+                  },
+                },
+              }}
+            >
+              <div className="rush-indicator">
+                <i className="ms-Icon ms-Icon--LightningBolt rush-icon" />
+                <span className="rush-text">Rush</span>
+              </div>
+            </TooltipHost>
           )}
         </Stack>
       </div>
