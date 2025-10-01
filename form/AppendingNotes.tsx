@@ -52,51 +52,49 @@ const AppendingNotes: React.FC<IAppendingNotesProps> = ({
   }, [itemId, listId, fieldName]);
 
   const loadPreviousNotes = async (): Promise<void> => {
-    if (!itemId) return;
+  if (!itemId) return;
 
-    setIsLoading(true);
-    setError(null);
+  setIsLoading(true);
+  setError(null);
 
-    try {
-      const versions = await SPContext.sp.web.lists
-        .getById(listId)
-        .items.getById(itemId)
-        .versions()
-        .select('VersionLabel', fieldName, 'Created', 'Editor/Title', 'Editor/EMail')
-        .expand('Editor')
-        .orderBy('Created', false)
-        .top(50)();
+  try {
+    // Get versions - no select/expand support
+    const versions = await SPContext.sp.web.lists
+      .getById(listId)
+      .items.getById(itemId)
+      .versions();
 
-      const notes: IAppendingNote[] = versions
-        .filter(v => v[fieldName] && v[fieldName].trim() !== '')
-        .map(v => ({
-          version: v.VersionLabel,
-          content: v[fieldName],
-          createdBy: v.Editor?.Title || 'Unknown User',
-          createdByEmail: v.Editor?.EMail,
-          createdDate: new Date(v.Created),
-        }));
+    const notes: IAppendingNote[] = versions
+      .filter(v => v[fieldName] && v[fieldName].trim() !== '')
+      .map(v => ({
+        version: v.VersionLabel,
+        content: v[fieldName],
+        createdBy: v.Editor?.Title || 'Unknown User',
+        createdByEmail: v.Editor?.EMail,
+        createdDate: new Date(v.Created),
+      }))
+      .reverse(); // Reverse to show newest first (versions come oldest to newest)
 
-      setPreviousNotes(notes);
+    setPreviousNotes(notes);
 
-      SPContext.logger.info('Previous notes loaded', {
-        fieldName,
-        itemId,
-        count: notes.length,
-      });
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load previous notes';
-      setError(errorMessage);
+    SPContext.logger.info('Previous notes loaded', {
+      fieldName,
+      itemId,
+      count: notes.length,
+    });
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : 'Failed to load previous notes';
+    setError(errorMessage);
 
-      SPContext.logger.error('Failed to load previous notes', err, {
-        fieldName,
-        itemId,
-        listId,
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    SPContext.logger.error('Failed to load previous notes', err, {
+      fieldName,
+      itemId,
+      listId,
+    });
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const formatDate = (date: Date): string => {
     const now = new Date();
