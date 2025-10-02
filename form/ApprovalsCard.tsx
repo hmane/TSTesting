@@ -22,7 +22,7 @@ import {
 } from '../../../components/spForm';
 import ApprovalFileUpload from '../../ApprovalFileUpload/ApprovalFileUpload';
 import { useRequestFormStore } from '../../../stores/requestFormStore';
-import { approvalsSchema } from '../../../schemas/approvalsSchema';
+import { saveAsDraftApprovalsSchema, submitApprovalsSchema } from '../../../schemas/approvalsSchema';
 import { SPContext } from '../../../utilities/context';
 import type { Request, NewRequest } from '../../../types/Request';
 import type { IFileChangeState } from '../../ApprovalFileUpload/ApprovalFileUpload';
@@ -49,7 +49,7 @@ const approvalOptions: IApprovalOption[] = [
   { key: 'other', label: 'Other Approval', icon: 'DocumentApproval' },
 ];
 
-const ApprovalsSummary: React.FC<{ request: Request }> = ({ request }) => {
+const ApprovalsSummary: React.FC<{ request: Request | NewRequest }> = ({ request }) => {
   const formatDate = (date: string | Date | undefined): string => {
     if (!date) return 'N/A';
     return new Date(date).toLocaleDateString();
@@ -179,12 +179,26 @@ const ApprovalsSummary: React.FC<{ request: Request }> = ({ request }) => {
   );
 };
 
-const ApprovalsEdit: React.FC<{
+interface IApprovalsEditProps {
   control: any;
   errors: any;
   setValue: any;
-}> = ({ control, errors, setValue }) => {
-  const { request, updateField, activeApprovals, addApproval, removeApproval } = useRequestFormStore();
+  request: Request | NewRequest;
+  activeApprovals: ApprovalType[];
+  onAddApproval: (type: ApprovalType) => void;
+  onRemoveApproval: (type: ApprovalType) => void;
+}
+
+const ApprovalsEdit: React.FC<IApprovalsEditProps> = ({
+  control,
+  errors,
+  setValue,
+  request,
+  activeApprovals,
+  onAddApproval,
+  onRemoveApproval,
+}) => {
+  const { updateField } = useRequestFormStore();
   const [fileStates, setFileStates] = React.useState<Map<string, IFileChangeState>>(new Map());
 
   const availableApprovals = React.useMemo(() => {
@@ -193,12 +207,12 @@ const ApprovalsEdit: React.FC<{
 
   const handleFieldChange = React.useCallback((fieldName: string, value: any) => {
     setValue(fieldName, value);
-    updateField(fieldName as keyof Request, value);
+    updateField(fieldName as keyof (Request | NewRequest), value);
   }, [setValue, updateField]);
 
-  const handleAddApproval = (approvalType: ApprovalType): void => {
+  const handleAddApproval = (approvalType: ApprovalType | null): void => {
     if (approvalType) {
-      addApproval(approvalType);
+      onAddApproval(approvalType);
 
       switch (approvalType) {
         case 'portfolioManager':
@@ -221,7 +235,7 @@ const ApprovalsEdit: React.FC<{
   };
 
   const handleRemoveApproval = (approvalType: ApprovalType): void => {
-    removeApproval(approvalType);
+    onRemoveApproval(approvalType);
 
     switch (approvalType) {
       case 'portfolioManager':
@@ -252,8 +266,11 @@ const ApprovalsEdit: React.FC<{
         break;
     }
 
-    fileStates.delete(approvalType);
-    setFileStates(new Map(fileStates));
+    setFileStates(prev => {
+      const newMap = new Map(prev);
+      newMap.delete(approvalType);
+      return newMap;
+    });
   };
 
   const handleFileChange = (approvalType: string, state: IFileChangeState): void => {
@@ -744,8 +761,23 @@ const ApprovalsEdit: React.FC<{
 };
 
 const ApprovalsCard: React.FC = () => {
-  const { request, isEditMode, setEditMode } = useRequestFormStore();
+  const { request, updateField } = useRequestFormStore();
+  const [isEditMode, setIsEditMode] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
+  const [activeApprovals, setActiveApprovals] = React.useState<ApprovalType[]>([]);
+
+  // Initialize active approvals from request
+  React.useEffect(() => {
+    if (request) {
+      const approvals: ApprovalType[] = [];
+      if (request.hasPortfolioManagerApproval) approvals.push('portfolioManager');
+      if (request.hasResearchAnalystApproval) approvals.push('researchAnalyst');
+      if (request.hasSMEApproval) approvals.push('sme');
+      if (request.hasPerformanceApproval) approvals.push('performance');
+      if (request.hasOtherApproval) approvals.push('other');
+      setActiveApprovals(approvals);
+    }
+  }, [request?.id]);
 
   const {
     control,
@@ -755,25 +787,35 @@ const ApprovalsCard: React.FC = () => {
     formState: { errors, isDirty },
   } = useForm<Request | NewRequest>({
     mode: 'onChange',
-    defaultValues: request,
-    resolver: zodResolver(approvalsSchema),
+    defaultValues: request || {},
+    resolver: zodResolver(saveAsDraftApprovalsSchema),
   });
 
   React.useEffect(() => {
-    reset(request);
-  }, [request.id, reset]);
+    if (request) {
+      reset(request);
+    }
+  }, [request?.id, reset]);
 
-  const canEdit = request.status === 'Draft' || !request.id;
+  const canEdit = request?.status === 'Draft' || !request?.id;
   const showSummary = !canEdit && !isEditMode;
+
+  const handleAddApproval = (type: ApprovalType): void => {
+    setActiveApprovals(prev => [...prev, type]);
+  };
+
+  const handleRemoveApproval = (type: ApprovalType): void => {
+    setActiveApprovals(prev => prev.filter(a => a !== type));
+  };
 
   const handleSave = async (data: Request | NewRequest): Promise<void> => {
     setIsSaving(true);
     try {
       SPContext.logger.success('Approvals saved', {
-        requestId: request.id,
+        requestId: request?.id,
       });
 
-      setEditMode(false);
+      setIsEditMode(false);
     } catch (error) {
       SPContext.logger.error('Failed to save approvals', error);
     } finally {
@@ -782,13 +824,19 @@ const ApprovalsCard: React.FC = () => {
   };
 
   const handleCancel = (): void => {
-    reset(request);
-    setEditMode(false);
+    if (request) {
+      reset(request);
+    }
+    setIsEditMode(false);
   };
 
   const handleEdit = (): void => {
-    setEditMode(true);
+    setIsEditMode(true);
   };
+
+  if (!request) {
+    return null;
+  }
 
   return (
     <Card id="approvals-card" variant="default" allowExpand={true}>
@@ -804,16 +852,19 @@ const ApprovalsCard: React.FC = () => {
           )}
         </Stack>
       </Header>
-
       <Content>
         {showSummary ? (
-          <ApprovalsSummary request={request as Request} />
+          <ApprovalsSummary request={request} />
         ) : (
           <form onSubmit={handleSubmit(handleSave)}>
             <ApprovalsEdit
               control={control}
               errors={errors}
               setValue={setValue}
+              request={request}
+              activeApprovals={activeApprovals}
+              onAddApproval={handleAddApproval}
+              onRemoveApproval={handleRemoveApproval}
             />
           </form>
         )}
