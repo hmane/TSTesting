@@ -115,51 +115,168 @@ function Write-Log {
     if (!$Library -and !$ContentType -and !$ItemID) { $logEntry += " $Message" }
     
     $logEntry | Out-File -FilePath $LogFile -Append -Encoding UTF8
-    Write-Host $logEntry
+}
+
+function Write-CAMLQueryLog {
+    param(
+        [string]$Library,
+        [string]$ContentType,
+        [string]$CAMLQuery,
+        [int]$ChunkNumber,
+        [int]$IdStart,
+        [int]$IdEnd
+    )
+    
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    
+    # Format CAML query for readability
+    $formattedCAML = $CAMLQuery `
+        -replace '<View>', "`n<View>`n  " `
+        -replace '<Query>', "<Query>`n    " `
+        -replace '<Where>', "<Where>`n      " `
+        -replace '<And>', "<And>`n        " `
+        -replace '</And>', "`n      </And>" `
+        -replace '<Geq>', "<Geq>`n          " `
+        -replace '</Geq>', "`n        </Geq>" `
+        -replace '<Lt>', "<Lt>`n          " `
+        -replace '</Lt>', "`n        </Lt>" `
+        -replace '<Eq>', "<Eq>`n          " `
+        -replace '</Eq>', "`n        </Eq>" `
+        -replace '<Contains>', "<Contains>`n          " `
+        -replace '</Contains>', "`n        </Contains>" `
+        -replace '<Or>', "<Or>`n        " `
+        -replace '</Or>', "`n      </Or>" `
+        -replace '<FieldRef', "`n            <FieldRef" `
+        -replace '<Value', "`n            <Value" `
+        -replace '</Where>', "`n    </Where>" `
+        -replace '</Query>', "`n  </Query>" `
+        -replace '<RowLimit>', "`n  <RowLimit>" `
+        -replace '</RowLimit>', "</RowLimit>`n" `
+        -replace '</View>', "</View>`n"
+    
+    $logEntry = @"
+
+[$timestamp] ========== CAML QUERY ==========
+Library: $Library
+ContentType: $ContentType
+Chunk: $ChunkNumber | ID Range: $IdStart - $($IdEnd - 1)
+$formattedCAML
+========================================
+
+"@
+    
+    $logEntry | Out-File -FilePath $LogFile -Append -Encoding UTF8
+}
+
+function Write-ConsoleHeader {
+    param([string]$Text, [string]$Color = "Cyan")
+    
+    $line = "=" * 80
+    Write-Host "`n$line" -ForegroundColor $Color
+    Write-Host $Text -ForegroundColor $Color
+    Write-Host "$line" -ForegroundColor $Color
+}
+
+function Write-ConsoleSubHeader {
+    param([string]$Text, [string]$Color = "Yellow")
+    
+    $line = "-" * 60
+    Write-Host "`n$line" -ForegroundColor $Color
+    Write-Host $Text -ForegroundColor $Color
+    Write-Host "$line" -ForegroundColor $Color
+}
+
+function Write-ConsoleSummary {
+    param(
+        [string]$Title,
+        [int]$Updated,
+        [int]$Skipped,
+        [int]$Errors,
+        [string]$Color = "Cyan"
+    )
+    
+    Write-Host "`n  $Title" -ForegroundColor $Color
+    Write-Host "    ✓ Updated : " -NoNewline -ForegroundColor Gray
+    Write-Host $Updated -ForegroundColor Green
+    Write-Host "    ○ Skipped : " -NoNewline -ForegroundColor Gray
+    Write-Host $Skipped -ForegroundColor Yellow
+    Write-Host "    ✗ Errors  : " -NoNewline -ForegroundColor Gray
+    Write-Host $Errors -ForegroundColor $(if($Errors -gt 0){'Red'}else{'Green'})
 }
 #endregion
 
 #region Script Start
+Write-ConsoleHeader "SHAREPOINT METADATA UPDATE SCRIPT" "Green"
+
 Write-Log -Message "========================================="
 Write-Log -Message "Script execution started"
 Write-Log -Message "========================================="
+Write-Log -Message "Configuration:"
+Write-Log -Message "  Site URL: $SiteUrl"
+Write-Log -Message "  Client ID: $ClientId"
 Write-Log -Message "Parameters:"
-Write-Log -Message "  LibraryNames: $($LibraryNames -join ', ')"
-Write-Log -Message "  ContentTypeNames: $($ContentTypeNames -join ', ')"
-Write-Log -Message "  ColumnName: $ColumnName"
-Write-Log -Message "  ColumnValues Count: $($ColumnValues.Count)"
-Write-Log -Message "  ModifiedBy: $(if($ModifiedBy){"$ModifiedBy"}else{'(not set - Editor will not change)'})"
-Write-Log -Message "  MaxUpdatesPerLibrary: $(if($MaxUpdatesPerLibrary -gt 0){"$MaxUpdatesPerLibrary"}else{'Unlimited'})"
-Write-Log -Message "  DryRun Mode: $($DryRun.IsPresent)"
-Write-Log -Message "  ChunkSize: $ChunkSize"
-Write-Log -Message "  IdBatchSize: $IdBatchSize"
-Write-Log -Message "  MaxIdEstimate: $MaxIdEstimate"
+Write-Log -Message "  Libraries: $($LibraryNames -join ', ')"
+Write-Log -Message "  Content Types: $($ContentTypeNames -join ', ')"
+Write-Log -Message "  Column Name: $ColumnName"
+Write-Log -Message "  Column Values: $($ColumnValues.Count) account(s) - [$($ColumnValues[0])...$($ColumnValues[-1])]"
+Write-Log -Message "  Modified By: $(if($ModifiedBy){"$ModifiedBy"}else{'(not set - Editor will not change)'})"
+Write-Log -Message "  Max Updates Per Library: $(if($MaxUpdatesPerLibrary -gt 0){"$MaxUpdatesPerLibrary"}else{'Unlimited'})"
+Write-Log -Message "  Dry Run Mode: $($DryRun.IsPresent)"
+Write-Log -Message "Settings:"
+Write-Log -Message "  Chunk Size: $ChunkSize"
+Write-Log -Message "  ID Batch Size: $IdBatchSize"
+Write-Log -Message "  Max ID Estimate: $MaxIdEstimate"
 Write-Log -Message "========================================="
+
+Write-Host "`nCONFIGURATION:" -ForegroundColor White
+Write-Host "  Site URL            : " -NoNewline -ForegroundColor Gray
+Write-Host $SiteUrl -ForegroundColor White
+Write-Host "  Libraries           : " -NoNewline -ForegroundColor Gray
+Write-Host "$($LibraryNames.Count) library(ies)" -ForegroundColor White
+Write-Host "  Content Types       : " -NoNewline -ForegroundColor Gray
+Write-Host "$($ContentTypeNames.Count) type(s)" -ForegroundColor White
+Write-Host "  Account Values      : " -NoNewline -ForegroundColor Gray
+Write-Host "$($ColumnValues.Count) account(s)" -ForegroundColor White
+Write-Host "  Modified By         : " -NoNewline -ForegroundColor Gray
+Write-Host $(if($ModifiedBy){$ModifiedBy}else{"(not changing Editor)"}) -ForegroundColor White
+Write-Host "  Max Per Library     : " -NoNewline -ForegroundColor Gray
+Write-Host $(if($MaxUpdatesPerLibrary -gt 0){$MaxUpdatesPerLibrary}else{"Unlimited"}) -ForegroundColor White
+Write-Host "  Mode                : " -NoNewline -ForegroundColor Gray
+Write-Host $(if($DryRun){"DRY RUN (no changes)"}else{"LIVE (making changes)"}) -ForegroundColor $(if($DryRun){"Yellow"}else{"Red"})
 
 # Validate parameters
 if ($ColumnValues.Count -eq 0) {
+    Write-Host "`n[ERROR] ColumnValues parameter is empty. Exiting." -ForegroundColor Red
     Write-Log -Message "ERROR: ColumnValues parameter is empty. Exiting."
     exit 1
 }
 
 if ($LibraryNames.Count -eq 0) {
+    Write-Host "`n[ERROR] LibraryNames parameter is empty. Exiting." -ForegroundColor Red
     Write-Log -Message "ERROR: LibraryNames parameter is empty. Exiting."
     exit 1
 }
 
 if ($ContentTypeNames.Count -eq 0) {
+    Write-Host "`n[ERROR] ContentTypeNames parameter is empty. Exiting." -ForegroundColor Red
     Write-Log -Message "ERROR: ContentTypeNames parameter is empty. Exiting."
     exit 1
 }
 #endregion
 
 #region Connect to SharePoint
+Write-Host "`n"
+Write-Host "Connecting to SharePoint..." -ForegroundColor Cyan
+Write-Log -Message "Attempting to connect to SharePoint: $SiteUrl"
+
 try {
-    Write-Log -Message "Connecting to SharePoint: $SiteUrl"
     Connect-PnPOnline -Url $SiteUrl -Interactive -ClientId $ClientId -ErrorAction Stop
+    Write-Host "✓ Successfully connected to SharePoint" -ForegroundColor Green
     Write-Log -Message "Successfully connected to SharePoint"
 }
 catch {
+    Write-Host "✗ FATAL ERROR: Failed to connect to SharePoint" -ForegroundColor Red
+    Write-Host "  Error: $($_.Exception.Message)" -ForegroundColor Red
     Write-Log -Message "FATAL ERROR: Failed to connect to SharePoint" -ErrorMessage $_.Exception.Message
     Write-Log -Message "Stack Trace: $($_.ScriptStackTrace)"
     exit 1
@@ -169,15 +286,21 @@ catch {
 #region Get User Object for ModifiedBy (if provided)
 $editorUser = $null
 if (![string]::IsNullOrWhiteSpace($ModifiedBy)) {
+    Write-Host "Retrieving user object for Modified By..." -ForegroundColor Cyan
+    Write-Log -Message "Retrieving user object for ModifiedBy: $ModifiedBy"
+    
     try {
-        Write-Log -Message "Retrieving user object for ModifiedBy: $ModifiedBy"
         $editorUser = Get-PnPUser -Identity $ModifiedBy -ErrorAction Stop
+        Write-Host "✓ User found: $($editorUser.Title) (ID: $($editorUser.Id))" -ForegroundColor Green
         Write-Log -Message "User object retrieved successfully: $($editorUser.Title) (ID: $($editorUser.Id))"
     }
     catch {
+        Write-Host "✗ ERROR: Failed to retrieve user: $ModifiedBy" -ForegroundColor Red
+        Write-Host "  Error: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "  Continuing without ModifiedBy - Editor field will not be changed" -ForegroundColor Yellow
         Write-Log -Message "ERROR: Failed to retrieve user for ModifiedBy: $ModifiedBy" -ErrorMessage $_.Exception.Message
         Write-Log -Message "Stack Trace: $($_.ScriptStackTrace)"
-        Write-Log -Message "Continuing without ModifiedBy updates - Editor field will not be changed"
+        Write-Log -Message "Continuing without ModifiedBy updates"
         $ModifiedBy = ""
         $editorUser = $null
     }
@@ -285,14 +408,16 @@ $currentLibraryIndex = 0
 $scriptTotalUpdated = 0
 $scriptTotalSkipped = 0
 $scriptTotalErrors = 0
+$scriptStartTime = Get-Date
 
 foreach ($libraryName in $LibraryNames) {
     $currentLibraryIndex++
-    Write-Host "`n========================================" -ForegroundColor Cyan
-    Write-Host "Processing Library: $libraryName ($currentLibraryIndex of $totalLibraries)" -ForegroundColor Cyan
-    Write-Host "========================================" -ForegroundColor Cyan
+    $libraryStartTime = Get-Date
     
-    Write-Log -Library $libraryName -Action "Started" -Message "Processing library"
+    Write-ConsoleHeader "LIBRARY: $libraryName ($currentLibraryIndex of $totalLibraries)" "Cyan"
+    Write-Log -Message "========================================="
+    Write-Log -Library $libraryName -Action "Started" -Message "Processing library ($currentLibraryIndex of $totalLibraries)"
+    Write-Log -Message "========================================="
     
     # Initialize library counter
     $updatedCountForLibrary = 0
@@ -301,11 +426,12 @@ foreach ($libraryName in $LibraryNames) {
     
     #region Get Library and Content Types
     try {
-        # Verify library exists (with double quotes)
+        Write-Host "  Verifying library exists..." -ForegroundColor Gray
         $library = Get-PnPList -Identity "$libraryName" -ErrorAction Stop
-        Write-Log -Library $libraryName -Action "Info" -Message "Library found successfully"
+        Write-Host "  ✓ Library verified" -ForegroundColor Green
+        Write-Log -Library $libraryName -Action "Info" -Message "Library found and verified"
         
-        # Get all content types in the library (with double quotes)
+        Write-Host "  Retrieving content types..." -ForegroundColor Gray
         $libraryContentTypes = Get-PnPContentType -List "$libraryName" -ErrorAction Stop
         
         # Match against ContentTypeNames parameter
@@ -314,17 +440,22 @@ foreach ($libraryName in $LibraryNames) {
         }
         
         if ($matchingContentTypes.Count -eq 0) {
-            Write-Log -Library $libraryName -Action "Warning" -Message "No matching content types found in library. Expected: $($ContentTypeNames -join ', ') | Found: $($libraryContentTypes.Name -join ', ')"
+            Write-Host "  ⚠ WARNING: No matching content types found" -ForegroundColor Yellow
+            Write-Host "    Expected: $($ContentTypeNames -join ', ')" -ForegroundColor Yellow
+            Write-Host "    Found: $($libraryContentTypes.Name -join ', ')" -ForegroundColor Yellow
+            Write-Log -Library $libraryName -Action "Warning" -Message "No matching content types found. Expected: $($ContentTypeNames -join ', ') | Found: $($libraryContentTypes.Name -join ', ')"
             continue
         }
         
-        Write-Host "  Found $($matchingContentTypes.Count) matching content types:" -ForegroundColor Green
+        Write-Host "  ✓ Found $($matchingContentTypes.Count) matching content type(s):" -ForegroundColor Green
         foreach ($ct in $matchingContentTypes) {
-            Write-Host "    - $($ct.Name)" -ForegroundColor Gray
+            Write-Host "    • $($ct.Name)" -ForegroundColor White
         }
-        Write-Log -Library $libraryName -Action "Info" -Message "Found content types: $($matchingContentTypes.Name -join ', ')"
+        Write-Log -Library $libraryName -Action "Info" -Message "Found $($matchingContentTypes.Count) matching content types: $($matchingContentTypes.Name -join ', ')"
     }
     catch {
+        Write-Host "  ✗ ERROR: Failed to retrieve library or content types" -ForegroundColor Red
+        Write-Host "    $($_.Exception.Message)" -ForegroundColor Red
         Write-Log -Library $libraryName -Action "Error" -Message "Failed to retrieve library or content types" -ErrorMessage "$($_.Exception.Message) | StackTrace: $($_.ScriptStackTrace)"
         $errorCountForLibrary++
         continue
@@ -336,9 +467,10 @@ foreach ($libraryName in $LibraryNames) {
     $currentContentTypeIndex = 0
     
     foreach ($contentType in $matchingContentTypes) {
-        # Check if max updates reached before processing next content type
+        # Check if max updates reached
         if ($MaxUpdatesPerLibrary -gt 0 -and $updatedCountForLibrary -ge $MaxUpdatesPerLibrary) {
-            Write-Host "`n  Max updates limit reached ($MaxUpdatesPerLibrary). Skipping remaining content types." -ForegroundColor Yellow
+            Write-Host "`n  ⚠ Max updates limit reached ($MaxUpdatesPerLibrary)" -ForegroundColor Yellow
+            Write-Host "    Skipping remaining content types" -ForegroundColor Yellow
             Write-Log -Library $libraryName -Action "MaxUpdatesReached" -Message "Limit of $MaxUpdatesPerLibrary updates reached. Skipping remaining content types."
             break
         }
@@ -347,20 +479,19 @@ foreach ($libraryName in $LibraryNames) {
         $contentTypeName = $contentType.Name
         $contentTypeId = $contentType.StringId
         
-        Write-Host "`n  ======================================" -ForegroundColor Magenta
-        Write-Host "  Content Type: $contentTypeName ($currentContentTypeIndex of $totalContentTypes)" -ForegroundColor Magenta
-        Write-Host "  ======================================" -ForegroundColor Magenta
-        Write-Log -Library $libraryName -ContentType $contentTypeName -Action "ContentTypeStart" -Message "Processing content type (ID: $contentTypeId)"
+        Write-ConsoleSubHeader "Content Type: $contentTypeName ($currentContentTypeIndex of $totalContentTypes)" "Magenta"
+        Write-Log -Message "-----------------------------------------"
+        Write-Log -Library $libraryName -ContentType $contentTypeName -Action "ContentTypeStart" -Message "Processing content type ($currentContentTypeIndex of $totalContentTypes) | ID: $contentTypeId"
         
         #region Chunk Account Values and Process
         $totalChunks = [Math]::Ceiling($ColumnValues.Count / $ChunkSize)
         $currentChunk = 0
         
         for ($i = 0; $i -lt $ColumnValues.Count; $i += $ChunkSize) {
-            # Check if max updates reached before processing next chunk
+            # Check if max updates reached
             if ($MaxUpdatesPerLibrary -gt 0 -and $updatedCountForLibrary -ge $MaxUpdatesPerLibrary) {
-                Write-Host "`n    Max updates limit reached ($MaxUpdatesPerLibrary). Skipping remaining chunks." -ForegroundColor Yellow
-                Write-Log -Library $libraryName -ContentType $contentTypeName -Action "MaxUpdatesReached" -Message "Limit of $MaxUpdatesPerLibrary updates reached. Skipping remaining chunks."
+                Write-Host "    ⚠ Max updates limit reached" -ForegroundColor Yellow
+                Write-Log -Library $libraryName -ContentType $contentTypeName -Action "MaxUpdatesReached" -Message "Limit reached. Skipping remaining chunks."
                 break
             }
             
@@ -368,12 +499,13 @@ foreach ($libraryName in $LibraryNames) {
             $endIndex = [Math]::Min($i + $ChunkSize - 1, $ColumnValues.Count - 1)
             $accountChunk = $ColumnValues[$i..$endIndex]
             
-            Write-Host "`n    ----------------------------------------" -ForegroundColor Yellow
-            Write-Host "    Processing chunk $currentChunk of $totalChunks" -ForegroundColor Yellow
-            Write-Host "    Accounts: $($accountChunk[0]) to $($accountChunk[-1]) ($($accountChunk.Count) values)" -ForegroundColor Yellow
-            Write-Host "    ----------------------------------------" -ForegroundColor Yellow
+            Write-Host "`n    ┌─ Chunk $currentChunk of $totalChunks ─────────────────────" -ForegroundColor Yellow
+            Write-Host "    │ Accounts: " -NoNewline -ForegroundColor Yellow
+            Write-Host "$($accountChunk[0]) ... $($accountChunk[-1]) " -NoNewline -ForegroundColor White
+            Write-Host "($($accountChunk.Count) values)" -ForegroundColor Gray
+            Write-Host "    └────────────────────────────────────────" -ForegroundColor Yellow
             
-            Write-Log -Library $libraryName -ContentType $contentTypeName -Action "ChunkStart" -Message "Processing chunk $currentChunk/$totalChunks with $($accountChunk.Count) account values: $($accountChunk -join ', ')"
+            Write-Log -Library $libraryName -ContentType $contentTypeName -Action "ChunkStart" -Message "Processing chunk $currentChunk of $totalChunks | Accounts: $($accountChunk -join ', ')"
             
             #region Process ID Ranges
             $allItems = @()
@@ -381,64 +513,73 @@ foreach ($libraryName in $LibraryNames) {
             $emptyRangeCount = 0
             
             for ($idStart = 1; $idStart -le $MaxIdEstimate; $idStart += $IdBatchSize) {
-                # Check if max updates reached before processing next ID range
+                # Check if max updates reached
                 if ($MaxUpdatesPerLibrary -gt 0 -and $updatedCountForLibrary -ge $MaxUpdatesPerLibrary) {
-                    Write-Host "`n      Max updates limit reached. Skipping remaining ID ranges." -ForegroundColor Yellow
-                    Write-Log -Library $libraryName -ContentType $contentTypeName -Action "MaxUpdatesReached" -Message "Limit reached. Skipping remaining ID ranges in chunk $currentChunk."
+                    Write-Host "      ⚠ Max updates limit reached" -ForegroundColor Yellow
+                    Write-Log -Library $libraryName -ContentType $contentTypeName -Action "MaxUpdatesReached" -Message "Limit reached. Skipping remaining ID ranges."
                     break
                 }
                 
                 $idEnd = $idStart + $IdBatchSize
                 $idRangeCount++
                 
-                Write-Host "      Processing ID range: $idStart to $($idEnd - 1) (Batch $idRangeCount)" -ForegroundColor Gray
+                Write-Host "      → ID Range $idRangeCount: " -NoNewline -ForegroundColor Gray
+                Write-Host "$idStart - $($idEnd - 1)" -NoNewline -ForegroundColor White
+                Write-Host " ... " -NoNewline -ForegroundColor Gray
                 
                 try {
-                    # Build CAML query with ID range and single content type
+                    # Build CAML query
                     $camlQuery = Build-CAMLQuery -ContentTypeId $contentTypeId -AccountChunk $accountChunk -FieldName $ColumnName -IdStart $idStart -IdEnd $idEnd
                     
-                    # Log CAML query for debugging
-                    Write-Log -Library $libraryName -ContentType $contentTypeName -Action "CAMLQuery" -Message "Chunk $currentChunk, ID Range $idStart-$($idEnd-1): $camlQuery"
+                    # Log formatted CAML query
+                    Write-CAMLQueryLog -Library $libraryName -ContentType $contentTypeName -CAMLQuery $camlQuery -ChunkNumber $currentChunk -IdStart $idStart -IdEnd $idEnd
                     
-                    Write-Host "        Executing CAML query..." -ForegroundColor Gray
-                    
-                    # Get items (with double quotes)
+                    # Execute query
                     $items = Get-PnPListItem -List "$libraryName" -Query $camlQuery -ErrorAction Stop
                     
                     if ($items.Count -gt 0) {
                         $allItems += $items
-                        $emptyRangeCount = 0  # Reset counter
-                        Write-Host "        Retrieved $($items.Count) items (Total so far: $($allItems.Count))" -ForegroundColor Green
-                        Write-Log -Library $libraryName -ContentType $contentTypeName -Action "QueryComplete" -Message "ID range $idStart-$($idEnd-1): Retrieved $($items.Count) items"
+                        $emptyRangeCount = 0
+                        Write-Host "$($items.Count) items found" -ForegroundColor Green
+                        Write-Host "        Total retrieved: $($allItems.Count)" -ForegroundColor Cyan
+                        Write-Log -Library $libraryName -ContentType $contentTypeName -Action "QueryComplete" -Message "ID range $idStart-$($idEnd-1): Retrieved $($items.Count) items | Running total: $($allItems.Count)"
                     }
                     else {
                         $emptyRangeCount++
-                        Write-Host "        No items found in this ID range" -ForegroundColor Gray
+                        Write-Host "No items" -ForegroundColor DarkGray
                         
-                        # If we've had 3 consecutive empty ranges, assume we've passed all items
                         if ($emptyRangeCount -ge 3) {
-                            Write-Host "        Three consecutive empty ranges detected. Assuming end of items." -ForegroundColor Gray
-                            Write-Log -Library $libraryName -ContentType $contentTypeName -Action "Info" -Message "Three consecutive empty ID ranges detected. Stopping ID range iteration."
+                            Write-Host "        (3 consecutive empty ranges - stopping ID iteration)" -ForegroundColor DarkGray
+                            Write-Log -Library $libraryName -ContentType $contentTypeName -Action "Info" -Message "Three consecutive empty ID ranges detected. Stopping iteration."
                             break
                         }
                     }
                 }
                 catch {
+                    Write-Host "ERROR" -ForegroundColor Red
+                    Write-Host "        $($_.Exception.Message)" -ForegroundColor Red
                     Write-Log -Library $libraryName -ContentType $contentTypeName -Action "Error" -Message "CAML query failed for chunk $currentChunk, ID range $idStart-$($idEnd-1)" -ErrorMessage "$($_.Exception.Message) | StackTrace: $($_.ScriptStackTrace)"
                     $errorCountForLibrary++
                 }
             }
             
-            Write-Host "`n      Total items retrieved for chunk $currentChunk: $($allItems.Count)" -ForegroundColor Green
-            Write-Log -Library $libraryName -ContentType $contentTypeName -Action "ChunkQueryComplete" -Message "Chunk $currentChunk complete: Retrieved $($allItems.Count) items across $idRangeCount ID range(s)"
+            Write-Host "`n      ═══ Chunk Query Complete ═══" -ForegroundColor Cyan
+            Write-Host "      Total items retrieved: " -NoNewline -ForegroundColor Gray
+            Write-Host $allItems.Count -ForegroundColor Cyan
+            Write-Host "      ID ranges processed: " -NoNewline -ForegroundColor Gray
+            Write-Host $idRangeCount -ForegroundColor Cyan
+            
+            Write-Log -Library $libraryName -ContentType $contentTypeName -Action "ChunkQueryComplete" -Message "Chunk $currentChunk query complete | Retrieved: $($allItems.Count) items | ID ranges: $idRangeCount"
             
             if ($allItems.Count -eq 0) {
-                Write-Host "      No items found for this chunk. Moving to next chunk." -ForegroundColor Gray
+                Write-Host "      No items to process in this chunk" -ForegroundColor DarkGray
                 continue
             }
             #endregion
             
             #region Process Each Item
+            Write-Host "`n      ┌─ Processing Items ─────────────────────" -ForegroundColor White
+            
             $itemCount = 0
             $chunkUpdated = 0
             $chunkSkipped = 0
@@ -447,8 +588,8 @@ foreach ($libraryName in $LibraryNames) {
             foreach ($item in $allItems) {
                 # Check max updates limit
                 if ($MaxUpdatesPerLibrary -gt 0 -and $updatedCountForLibrary -ge $MaxUpdatesPerLibrary) {
-                    Write-Host "        Max updates limit reached. Skipping remaining items in this chunk." -ForegroundColor Yellow
-                    Write-Log -Library $libraryName -ContentType $contentTypeName -Action "MaxUpdatesReached" -Message "Limit reached at $updatedCountForLibrary updates. Skipping remaining items in chunk $currentChunk."
+                    Write-Host "      │ ⚠ Max updates limit reached" -ForegroundColor Yellow
+                    Write-Log -Library $libraryName -ContentType $contentTypeName -Action "MaxUpdatesReached" -Message "Limit reached at $updatedCountForLibrary updates."
                     break
                 }
                 
@@ -457,10 +598,13 @@ foreach ($libraryName in $LibraryNames) {
                 try {
                     $itemId = $item.Id
                     
-                    # Progress indicator every 100 items
-                    if ($itemCount % 100 -eq 0) {
+                    # Progress indicator
+                    if ($itemCount % 50 -eq 0 -or $itemCount -eq $allItems.Count) {
                         $percentComplete = [Math]::Round(($itemCount / $allItems.Count) * 100, 1)
-                        Write-Host "        Processing item $itemCount of $($allItems.Count) ($percentComplete%)..." -ForegroundColor Gray
+                        Write-Host "      │ Progress: $itemCount / $($allItems.Count) ($percentComplete%) - " -NoNewline -ForegroundColor Gray
+                        Write-Host "Updated: $chunkUpdated" -NoNewline -ForegroundColor Green
+                        Write-Host " | Skipped: $chunkSkipped" -NoNewline -ForegroundColor Yellow
+                        Write-Host " | Errors: $chunkErrors" -ForegroundColor Red
                     }
                     
                     #region Verify Account Match
@@ -473,11 +617,10 @@ foreach ($libraryName in $LibraryNames) {
                         continue
                     }
                     
-                    # Check if any account number matches
                     $matchedAccounts = $itemAccountNumbers | Where-Object { $ColumnValues -contains $_ }
                     
                     if ($matchedAccounts.Count -eq 0) {
-                        Write-Log -Library $libraryName -ContentType $contentTypeName -ItemID $itemId -Action "Skipped" -AccountNumbers ($itemAccountNumbers -join ', ') -Message "No matching account values found"
+                        Write-Log -Library $libraryName -ContentType $contentTypeName -ItemID $itemId -Action "Skipped" -AccountNumbers ($itemAccountNumbers -join ', ') -Message "No matching account values"
                         $skippedCountForLibrary++
                         $chunkSkipped++
                         continue
@@ -488,27 +631,20 @@ foreach ($libraryName in $LibraryNames) {
                     
                     #region Perform Update
                     if ($DryRun) {
-                        Write-Log -Library $libraryName -ContentType $contentTypeName -ItemID $itemId -Action "DryRun" -AccountNumbers $matchedAccountsString -ModifiedByUser $ModifiedBy -Message "Would update item (Modified date would change)"
+                        Write-Log -Library $libraryName -ContentType $contentTypeName -ItemID $itemId -Action "DryRun" -AccountNumbers $matchedAccountsString -ModifiedByUser $ModifiedBy -Message "Would update item"
                         $updatedCountForLibrary++
                         $chunkUpdated++
                     }
                     else {
-                        # Perform update based on ModifiedBy parameter
                         if ([string]::IsNullOrWhiteSpace($ModifiedBy)) {
-                            # Update without changing Editor
-                            # Modified date will be automatically set to current time by Update()
                             $item.Update()
                             $item.Context.ExecuteQuery()
-                            
                             Write-Log -Library $libraryName -ContentType $contentTypeName -ItemID $itemId -Action "Updated" -AccountNumbers $matchedAccountsString -Message "Modified date updated, Editor unchanged"
                         }
                         else {
-                            # Update with new Editor
-                            # Modified date will be automatically set to current time by Update()
                             $item["Editor"] = $editorUser.Id
                             $item.Update()
                             $item.Context.ExecuteQuery()
-                            
                             Write-Log -Library $libraryName -ContentType $contentTypeName -ItemID $itemId -Action "Updated" -AccountNumbers $matchedAccountsString -ModifiedByUser $ModifiedBy
                         }
                         
@@ -518,21 +654,17 @@ foreach ($libraryName in $LibraryNames) {
                     #endregion
                 }
                 catch {
-                    $errorMessage = $_.Exception.Message
-                    $stackTrace = $_.ScriptStackTrace
-                    Write-Log -Library $libraryName -ContentType $contentTypeName -ItemID $itemId -Action "Error" -ErrorMessage "$errorMessage | StackTrace: $stackTrace"
+                    Write-Log -Library $libraryName -ContentType $contentTypeName -ItemID $itemId -Action "Error" -ErrorMessage "$($_.Exception.Message) | StackTrace: $($_.ScriptStackTrace)"
                     $errorCountForLibrary++
                     $chunkErrors++
                 }
             }
+            
+            Write-Host "      └────────────────────────────────────────" -ForegroundColor White
             #endregion
             
             # Chunk Summary
-            Write-Host "`n      Chunk $currentChunk Summary:" -ForegroundColor Cyan
-            Write-Host "        Updated: $chunkUpdated" -ForegroundColor Green
-            Write-Host "        Skipped: $chunkSkipped" -ForegroundColor Yellow
-            Write-Host "        Errors: $chunkErrors" -ForegroundColor Red
-            
+            Write-ConsoleSummary "Chunk $currentChunk Results:" $chunkUpdated $chunkSkipped $chunkErrors "White"
             Write-Log -Library $libraryName -ContentType $contentTypeName -Action "ChunkComplete" -Message "Chunk $currentChunk complete | Updated: $chunkUpdated | Skipped: $chunkSkipped | Errors: $chunkErrors"
         }
         #endregion
@@ -542,14 +674,17 @@ foreach ($libraryName in $LibraryNames) {
     #endregion
     
     # Library Summary
-    Write-Host "`n========================================" -ForegroundColor Cyan
-    Write-Host "Library '$libraryName' Complete:" -ForegroundColor Cyan
-    Write-Host "  Updated: $updatedCountForLibrary" -ForegroundColor Green
-    Write-Host "  Skipped: $skippedCountForLibrary" -ForegroundColor Yellow
-    Write-Host "  Errors: $errorCountForLibrary" -ForegroundColor Red
-    Write-Host "========================================" -ForegroundColor Cyan
+    $libraryEndTime = Get-Date
+    $libraryDuration = $libraryEndTime - $libraryStartTime
     
-    Write-Log -Library $libraryName -Action "Complete" -Message "Updated: $updatedCountForLibrary | Skipped: $skippedCountForLibrary | Errors: $errorCountForLibrary"
+    Write-ConsoleHeader "LIBRARY '$libraryName' COMPLETE" "Cyan"
+    Write-ConsoleSummary "Final Results:" $updatedCountForLibrary $skippedCountForLibrary $errorCountForLibrary "Cyan"
+    Write-Host "  Duration: " -NoNewline -ForegroundColor Gray
+    Write-Host "$($libraryDuration.Hours)h $($libraryDuration.Minutes)m $($libraryDuration.Seconds)s" -ForegroundColor White
+    
+    Write-Log -Message "========================================="
+    Write-Log -Library $libraryName -Action "Complete" -Message "Library complete | Updated: $updatedCountForLibrary | Skipped: $skippedCountForLibrary | Errors: $errorCountForLibrary | Duration: $($libraryDuration.ToString())"
+    Write-Log -Message "========================================="
     
     # Add to script totals
     $scriptTotalUpdated += $updatedCountForLibrary
@@ -559,25 +694,36 @@ foreach ($libraryName in $LibraryNames) {
 #endregion
 
 #region Script Complete
-Write-Host "`n========================================" -ForegroundColor Green
-Write-Host "SCRIPT EXECUTION COMPLETED" -ForegroundColor Green
-Write-Host "========================================" -ForegroundColor Green
-Write-Host "Total across all libraries:" -ForegroundColor Green
-Write-Host "  Updated: $scriptTotalUpdated" -ForegroundColor Green
-Write-Host "  Skipped: $scriptTotalSkipped" -ForegroundColor Yellow
-Write-Host "  Errors: $scriptTotalErrors" -ForegroundColor $(if($scriptTotalErrors -gt 0){'Red'}else{'Green'})
-Write-Host "========================================" -ForegroundColor Green
-Write-Host "Log file: $LogFile" -ForegroundColor Cyan
-Write-Host "========================================" -ForegroundColor Green
+$scriptEndTime = Get-Date
+$scriptDuration = $scriptEndTime - $scriptStartTime
+
+Write-ConsoleHeader "SCRIPT EXECUTION COMPLETED" "Green"
+
+Write-Host "`nFINAL SUMMARY:" -ForegroundColor White
+Write-Host "  Total Libraries Processed : " -NoNewline -ForegroundColor Gray
+Write-Host $totalLibraries -ForegroundColor White
+Write-ConsoleSummary "Overall Results:" $scriptTotalUpdated $scriptTotalSkipped $scriptTotalErrors "Green"
+
+Write-Host "`n  Total Duration    : " -NoNewline -ForegroundColor Gray
+Write-Host "$($scriptDuration.Hours)h $($scriptDuration.Minutes)m $($scriptDuration.Seconds)s" -ForegroundColor White
+Write-Host "  Log File          : " -NoNewline -ForegroundColor Gray
+Write-Host $LogFile -ForegroundColor Cyan
+
+Write-Host "`n" + ("=" * 80) -ForegroundColor Green
 
 Write-Log -Message "========================================="
-Write-Log -Message "Script execution completed"
-Write-Log -Message "Total Updated: $scriptTotalUpdated"
-Write-Log -Message "Total Skipped: $scriptTotalSkipped"
-Write-Log -Message "Total Errors: $scriptTotalErrors"
-Write-Log -Message "Log file: $LogFile"
+Write-Log -Message "SCRIPT EXECUTION COMPLETED"
+Write-Log -Message "========================================="
+Write-Log -Message "Final Summary:"
+Write-Log -Message "  Total Libraries: $totalLibraries"
+Write-Log -Message "  Total Updated: $scriptTotalUpdated"
+Write-Log -Message "  Total Skipped: $scriptTotalSkipped"
+Write-Log -Message "  Total Errors: $scriptTotalErrors"
+Write-Log -Message "  Duration: $($scriptDuration.ToString())"
+Write-Log -Message "  Log File: $LogFile"
 Write-Log -Message "========================================="
 
 Disconnect-PnPOnline
 Write-Log -Message "Disconnected from SharePoint"
+Write-Host "✓ Disconnected from SharePoint" -ForegroundColor Green
 #endregion
