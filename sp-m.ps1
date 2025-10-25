@@ -79,6 +79,11 @@ $ChunkSize = 10
 # ID range size for threshold avoidance (must be less than 5000)
 # Each query will fetch items in ID ranges (e.g., 1-4999, 5000-9999, etc.)
 $IdBatchSize = 4999
+
+# Maximum ID to process (safe high estimate to avoid querying for max ID which can hit threshold)
+# Adjust this if you have libraries with items exceeding this ID
+# Default: 500000 (sufficient for most libraries)
+$MaxIdEstimate = 500000
 #endregion
 
 #region Initialize Logging
@@ -128,6 +133,7 @@ Write-Log -Message "  MaxUpdatesPerLibrary: $(if($MaxUpdatesPerLibrary -gt 0){"$
 Write-Log -Message "  DryRun Mode: $($DryRun.IsPresent)"
 Write-Log -Message "  ChunkSize: $ChunkSize"
 Write-Log -Message "  IdBatchSize: $IdBatchSize"
+Write-Log -Message "  MaxIdEstimate: $MaxIdEstimate"
 Write-Log -Message "========================================="
 
 # Validate parameters
@@ -178,19 +184,18 @@ if (![string]::IsNullOrWhiteSpace($ModifiedBy)) {
 }
 #endregion
 
-#region Helper Function: Build CAML Query with ID Range
+#region Helper Function: Build CAML Query with ID Range and Single Content Type
 function Build-CAMLQuery {
     param(
-        [string[]]$ContentTypeIds,
+        [string]$ContentTypeId,
         [string[]]$AccountChunk,
         [string]$FieldName,
         [int]$IdStart,
         [int]$IdEnd
     )
     
-    # Build ContentType <In> clause
-    $ctValues = ($ContentTypeIds | ForEach-Object { "<Value Type='ContentTypeId'>$_</Value>" }) -join ""
-    $ctIn = "<In><FieldRef Name='ContentTypeId' /><Values>$ctValues</Values></In>"
+    # Build ContentType <Eq> clause (single content type)
+    $ctFilter = "<Eq><FieldRef Name='ContentTypeId' /><Value Type='ContentTypeId'>$ContentTypeId</Value></Eq>"
     
     # Build Account <Contains> with nested <Or> using Type='Text' for managed metadata labels
     if ($AccountChunk.Count -eq 1) {
@@ -213,7 +218,7 @@ function Build-CAMLQuery {
     $idFilter = "<And><Geq><FieldRef Name='ID' /><Value Type='Number'>$IdStart</Value></Geq><Lt><FieldRef Name='ID' /><Value Type='Number'>$IdEnd</Value></Lt></And>"
     
     # Combine all filters with nested <And>
-    $whereClause = "<And>$idFilter<And>$ctIn$accountFilter</And></And>"
+    $whereClause = "<And>$idFilter<And>$ctFilter$accountFilter</And></And>"
     
     # Build complete CAML query
     $caml = "<View><Query><Where>$whereClause</Where></Query><RowLimit>$IdBatchSize</RowLimit></View>"
@@ -313,22 +318,11 @@ foreach ($libraryName in $LibraryNames) {
             continue
         }
         
-        # Extract ContentType IDs
-        $contentTypeIds = $matchingContentTypes | ForEach-Object { $_.StringId }
-        
         Write-Host "  Found $($matchingContentTypes.Count) matching content types:" -ForegroundColor Green
         foreach ($ct in $matchingContentTypes) {
             Write-Host "    - $($ct.Name)" -ForegroundColor Gray
         }
         Write-Log -Library $libraryName -Action "Info" -Message "Found content types: $($matchingContentTypes.Name -join ', ')"
-        
-        # Get the maximum ID in the library to determine ID ranges
-        Write-Host "  Determining ID range for library..." -ForegroundColor Gray
-        $maxIdQuery = "<View><Query><OrderBy><FieldRef Name='ID' Ascending='FALSE' /></OrderBy></Query><RowLimit>1</RowLimit></View>"
-        $maxIdItem = Get-PnPListItem -List "$libraryName" -Query $maxIdQuery -ErrorAction Stop
-        $maxId = if ($maxIdItem) { $maxIdItem[0].Id } else { 0 }
-        Write-Log -Library $libraryName -Action "Info" -Message "Maximum ID in library: $maxId"
-        Write-Host "  Maximum ID in library: $maxId" -ForegroundColor Green
     }
     catch {
         Write-Log -Library $libraryName -Action "Error" -Message "Failed to retrieve library or content types" -ErrorMessage "$($_.Exception.Message) | StackTrace: $($_.ScriptStackTrace)"
@@ -337,179 +331,213 @@ foreach ($libraryName in $LibraryNames) {
     }
     #endregion
     
-    #region Chunk Account Values and Process
-    $totalChunks = [Math]::Ceiling($ColumnValues.Count / $ChunkSize)
-    $currentChunk = 0
+    #region Process Each Content Type (One at a Time)
+    $totalContentTypes = $matchingContentTypes.Count
+    $currentContentTypeIndex = 0
     
-    for ($i = 0; $i -lt $ColumnValues.Count; $i += $ChunkSize) {
-        # Check if max updates reached before processing next chunk
+    foreach ($contentType in $matchingContentTypes) {
+        # Check if max updates reached before processing next content type
         if ($MaxUpdatesPerLibrary -gt 0 -and $updatedCountForLibrary -ge $MaxUpdatesPerLibrary) {
-            Write-Host "`n  Max updates limit reached ($MaxUpdatesPerLibrary). Skipping remaining chunks." -ForegroundColor Yellow
-            Write-Log -Library $libraryName -Action "MaxUpdatesReached" -Message "Limit of $MaxUpdatesPerLibrary updates reached. Skipping remaining chunks."
+            Write-Host "`n  Max updates limit reached ($MaxUpdatesPerLibrary). Skipping remaining content types." -ForegroundColor Yellow
+            Write-Log -Library $libraryName -Action "MaxUpdatesReached" -Message "Limit of $MaxUpdatesPerLibrary updates reached. Skipping remaining content types."
             break
         }
         
-        $currentChunk++
-        $endIndex = [Math]::Min($i + $ChunkSize - 1, $ColumnValues.Count - 1)
-        $accountChunk = $ColumnValues[$i..$endIndex]
+        $currentContentTypeIndex++
+        $contentTypeName = $contentType.Name
+        $contentTypeId = $contentType.StringId
         
-        Write-Host "`n  ----------------------------------------" -ForegroundColor Yellow
-        Write-Host "  Processing chunk $currentChunk of $totalChunks" -ForegroundColor Yellow
-        Write-Host "  Accounts: $($accountChunk[0]) to $($accountChunk[-1]) ($($accountChunk.Count) values)" -ForegroundColor Yellow
-        Write-Host "  ----------------------------------------" -ForegroundColor Yellow
+        Write-Host "`n  ======================================" -ForegroundColor Magenta
+        Write-Host "  Content Type: $contentTypeName ($currentContentTypeIndex of $totalContentTypes)" -ForegroundColor Magenta
+        Write-Host "  ======================================" -ForegroundColor Magenta
+        Write-Log -Library $libraryName -ContentType $contentTypeName -Action "ContentTypeStart" -Message "Processing content type (ID: $contentTypeId)"
         
-        Write-Log -Library $libraryName -Action "ChunkStart" -Message "Processing chunk $currentChunk/$totalChunks with $($accountChunk.Count) account values: $($accountChunk -join ', ')"
+        #region Chunk Account Values and Process
+        $totalChunks = [Math]::Ceiling($ColumnValues.Count / $ChunkSize)
+        $currentChunk = 0
         
-        #region Process ID Ranges
-        $allItems = @()
-        $idRangeCount = 0
-        
-        for ($idStart = 1; $idStart -le $maxId; $idStart += $IdBatchSize) {
-            # Check if max updates reached before processing next ID range
+        for ($i = 0; $i -lt $ColumnValues.Count; $i += $ChunkSize) {
+            # Check if max updates reached before processing next chunk
             if ($MaxUpdatesPerLibrary -gt 0 -and $updatedCountForLibrary -ge $MaxUpdatesPerLibrary) {
-                Write-Host "`n    Max updates limit reached. Skipping remaining ID ranges." -ForegroundColor Yellow
-                Write-Log -Library $libraryName -Action "MaxUpdatesReached" -Message "Limit reached. Skipping remaining ID ranges in chunk $currentChunk."
+                Write-Host "`n    Max updates limit reached ($MaxUpdatesPerLibrary). Skipping remaining chunks." -ForegroundColor Yellow
+                Write-Log -Library $libraryName -ContentType $contentTypeName -Action "MaxUpdatesReached" -Message "Limit of $MaxUpdatesPerLibrary updates reached. Skipping remaining chunks."
                 break
             }
             
-            $idEnd = $idStart + $IdBatchSize
-            $idRangeCount++
+            $currentChunk++
+            $endIndex = [Math]::Min($i + $ChunkSize - 1, $ColumnValues.Count - 1)
+            $accountChunk = $ColumnValues[$i..$endIndex]
             
-            Write-Host "`n    Processing ID range: $idStart to $($idEnd - 1) (Batch $idRangeCount)" -ForegroundColor Gray
+            Write-Host "`n    ----------------------------------------" -ForegroundColor Yellow
+            Write-Host "    Processing chunk $currentChunk of $totalChunks" -ForegroundColor Yellow
+            Write-Host "    Accounts: $($accountChunk[0]) to $($accountChunk[-1]) ($($accountChunk.Count) values)" -ForegroundColor Yellow
+            Write-Host "    ----------------------------------------" -ForegroundColor Yellow
             
-            try {
-                # Build CAML query with ID range
-                $camlQuery = Build-CAMLQuery -ContentTypeIds $contentTypeIds -AccountChunk $accountChunk -FieldName $ColumnName -IdStart $idStart -IdEnd $idEnd
-                
-                # Log CAML query for debugging
-                Write-Log -Library $libraryName -Action "CAMLQuery" -Message "Chunk $currentChunk, ID Range $idStart-$($idEnd-1): $camlQuery"
-                
-                Write-Host "      Executing CAML query..." -ForegroundColor Gray
-                
-                # Get items (with double quotes)
-                $items = Get-PnPListItem -List "$libraryName" -Query $camlQuery -ErrorAction Stop
-                
-                if ($items.Count -gt 0) {
-                    $allItems += $items
-                    Write-Host "      Retrieved $($items.Count) items (Total so far: $($allItems.Count))" -ForegroundColor Green
-                    Write-Log -Library $libraryName -Action "QueryComplete" -Message "ID range $idStart-$($idEnd-1): Retrieved $($items.Count) items"
-                }
-                else {
-                    Write-Host "      No items found in this ID range" -ForegroundColor Gray
-                }
-            }
-            catch {
-                Write-Log -Library $libraryName -Action "Error" -Message "CAML query failed for chunk $currentChunk, ID range $idStart-$($idEnd-1)" -ErrorMessage "$($_.Exception.Message) | StackTrace: $($_.ScriptStackTrace)"
-                $errorCountForLibrary++
-            }
-        }
-        
-        Write-Host "`n    Total items retrieved for chunk $currentChunk: $($allItems.Count)" -ForegroundColor Green
-        Write-Log -Library $libraryName -Action "ChunkQueryComplete" -Message "Chunk $currentChunk complete: Retrieved $($allItems.Count) items across $idRangeCount ID range(s)"
-        
-        if ($allItems.Count -eq 0) {
-            Write-Host "    No items found for this chunk. Moving to next chunk." -ForegroundColor Gray
-            continue
-        }
-        #endregion
-        
-        #region Process Each Item
-        $itemCount = 0
-        $chunkUpdated = 0
-        $chunkSkipped = 0
-        $chunkErrors = 0
-        
-        foreach ($item in $allItems) {
-            # Check max updates limit
-            if ($MaxUpdatesPerLibrary -gt 0 -and $updatedCountForLibrary -ge $MaxUpdatesPerLibrary) {
-                Write-Host "      Max updates limit reached. Skipping remaining items in this chunk." -ForegroundColor Yellow
-                Write-Log -Library $libraryName -Action "MaxUpdatesReached" -Message "Limit reached at $updatedCountForLibrary updates. Skipping remaining items in chunk $currentChunk."
-                break
-            }
+            Write-Log -Library $libraryName -ContentType $contentTypeName -Action "ChunkStart" -Message "Processing chunk $currentChunk/$totalChunks with $($accountChunk.Count) account values: $($accountChunk -join ', ')"
             
-            $itemCount++
+            #region Process ID Ranges
+            $allItems = @()
+            $idRangeCount = 0
+            $emptyRangeCount = 0
             
-            try {
-                $itemId = $item.Id
-                $contentTypeName = $item["ContentType"].Name
-                
-                # Progress indicator every 100 items
-                if ($itemCount % 100 -eq 0) {
-                    $percentComplete = [Math]::Round(($itemCount / $allItems.Count) * 100, 1)
-                    Write-Host "      Processing item $itemCount of $($allItems.Count) ($percentComplete%)..." -ForegroundColor Gray
+            for ($idStart = 1; $idStart -le $MaxIdEstimate; $idStart += $IdBatchSize) {
+                # Check if max updates reached before processing next ID range
+                if ($MaxUpdatesPerLibrary -gt 0 -and $updatedCountForLibrary -ge $MaxUpdatesPerLibrary) {
+                    Write-Host "`n      Max updates limit reached. Skipping remaining ID ranges." -ForegroundColor Yellow
+                    Write-Log -Library $libraryName -ContentType $contentTypeName -Action "MaxUpdatesReached" -Message "Limit reached. Skipping remaining ID ranges in chunk $currentChunk."
+                    break
                 }
                 
-                #region Verify Account Match
-                $itemAccountNumbers = Get-AccountNumbersFromItem -Item $item -FieldName $ColumnName
+                $idEnd = $idStart + $IdBatchSize
+                $idRangeCount++
                 
-                if ($itemAccountNumbers.Count -eq 0) {
-                    Write-Log -Library $libraryName -ContentType $contentTypeName -ItemID $itemId -Action "Skipped" -Message "Field '$ColumnName' is empty or could not be read"
-                    $skippedCountForLibrary++
-                    $chunkSkipped++
-                    continue
-                }
+                Write-Host "      Processing ID range: $idStart to $($idEnd - 1) (Batch $idRangeCount)" -ForegroundColor Gray
                 
-                # Check if any account number matches
-                $matchedAccounts = $itemAccountNumbers | Where-Object { $ColumnValues -contains $_ }
-                
-                if ($matchedAccounts.Count -eq 0) {
-                    Write-Log -Library $libraryName -ContentType $contentTypeName -ItemID $itemId -Action "Skipped" -AccountNumbers ($itemAccountNumbers -join ', ') -Message "No matching account values found"
-                    $skippedCountForLibrary++
-                    $chunkSkipped++
-                    continue
-                }
-                
-                $matchedAccountsString = $matchedAccounts -join ', '
-                #endregion
-                
-                #region Perform Update
-                if ($DryRun) {
-                    Write-Log -Library $libraryName -ContentType $contentTypeName -ItemID $itemId -Action "DryRun" -AccountNumbers $matchedAccountsString -ModifiedByUser $ModifiedBy -Message "Would update item (Modified date would change)"
-                    $updatedCountForLibrary++
-                    $chunkUpdated++
-                }
-                else {
-                    # Perform update based on ModifiedBy parameter
-                    if ([string]::IsNullOrWhiteSpace($ModifiedBy)) {
-                        # Update without changing Editor
-                        # Modified date will be automatically set to current time by Update()
-                        $item.Update()
-                        $item.Context.ExecuteQuery()
-                        
-                        Write-Log -Library $libraryName -ContentType $contentTypeName -ItemID $itemId -Action "Updated" -AccountNumbers $matchedAccountsString -Message "Modified date updated, Editor unchanged"
+                try {
+                    # Build CAML query with ID range and single content type
+                    $camlQuery = Build-CAMLQuery -ContentTypeId $contentTypeId -AccountChunk $accountChunk -FieldName $ColumnName -IdStart $idStart -IdEnd $idEnd
+                    
+                    # Log CAML query for debugging
+                    Write-Log -Library $libraryName -ContentType $contentTypeName -Action "CAMLQuery" -Message "Chunk $currentChunk, ID Range $idStart-$($idEnd-1): $camlQuery"
+                    
+                    Write-Host "        Executing CAML query..." -ForegroundColor Gray
+                    
+                    # Get items (with double quotes)
+                    $items = Get-PnPListItem -List "$libraryName" -Query $camlQuery -ErrorAction Stop
+                    
+                    if ($items.Count -gt 0) {
+                        $allItems += $items
+                        $emptyRangeCount = 0  # Reset counter
+                        Write-Host "        Retrieved $($items.Count) items (Total so far: $($allItems.Count))" -ForegroundColor Green
+                        Write-Log -Library $libraryName -ContentType $contentTypeName -Action "QueryComplete" -Message "ID range $idStart-$($idEnd-1): Retrieved $($items.Count) items"
                     }
                     else {
-                        # Update with new Editor
-                        # Modified date will be automatically set to current time by Update()
-                        $item["Editor"] = $editorUser.Id
-                        $item.Update()
-                        $item.Context.ExecuteQuery()
+                        $emptyRangeCount++
+                        Write-Host "        No items found in this ID range" -ForegroundColor Gray
                         
-                        Write-Log -Library $libraryName -ContentType $contentTypeName -ItemID $itemId -Action "Updated" -AccountNumbers $matchedAccountsString -ModifiedByUser $ModifiedBy
+                        # If we've had 3 consecutive empty ranges, assume we've passed all items
+                        if ($emptyRangeCount -ge 3) {
+                            Write-Host "        Three consecutive empty ranges detected. Assuming end of items." -ForegroundColor Gray
+                            Write-Log -Library $libraryName -ContentType $contentTypeName -Action "Info" -Message "Three consecutive empty ID ranges detected. Stopping ID range iteration."
+                            break
+                        }
+                    }
+                }
+                catch {
+                    Write-Log -Library $libraryName -ContentType $contentTypeName -Action "Error" -Message "CAML query failed for chunk $currentChunk, ID range $idStart-$($idEnd-1)" -ErrorMessage "$($_.Exception.Message) | StackTrace: $($_.ScriptStackTrace)"
+                    $errorCountForLibrary++
+                }
+            }
+            
+            Write-Host "`n      Total items retrieved for chunk $currentChunk: $($allItems.Count)" -ForegroundColor Green
+            Write-Log -Library $libraryName -ContentType $contentTypeName -Action "ChunkQueryComplete" -Message "Chunk $currentChunk complete: Retrieved $($allItems.Count) items across $idRangeCount ID range(s)"
+            
+            if ($allItems.Count -eq 0) {
+                Write-Host "      No items found for this chunk. Moving to next chunk." -ForegroundColor Gray
+                continue
+            }
+            #endregion
+            
+            #region Process Each Item
+            $itemCount = 0
+            $chunkUpdated = 0
+            $chunkSkipped = 0
+            $chunkErrors = 0
+            
+            foreach ($item in $allItems) {
+                # Check max updates limit
+                if ($MaxUpdatesPerLibrary -gt 0 -and $updatedCountForLibrary -ge $MaxUpdatesPerLibrary) {
+                    Write-Host "        Max updates limit reached. Skipping remaining items in this chunk." -ForegroundColor Yellow
+                    Write-Log -Library $libraryName -ContentType $contentTypeName -Action "MaxUpdatesReached" -Message "Limit reached at $updatedCountForLibrary updates. Skipping remaining items in chunk $currentChunk."
+                    break
+                }
+                
+                $itemCount++
+                
+                try {
+                    $itemId = $item.Id
+                    
+                    # Progress indicator every 100 items
+                    if ($itemCount % 100 -eq 0) {
+                        $percentComplete = [Math]::Round(($itemCount / $allItems.Count) * 100, 1)
+                        Write-Host "        Processing item $itemCount of $($allItems.Count) ($percentComplete%)..." -ForegroundColor Gray
                     }
                     
-                    $updatedCountForLibrary++
-                    $chunkUpdated++
+                    #region Verify Account Match
+                    $itemAccountNumbers = Get-AccountNumbersFromItem -Item $item -FieldName $ColumnName
+                    
+                    if ($itemAccountNumbers.Count -eq 0) {
+                        Write-Log -Library $libraryName -ContentType $contentTypeName -ItemID $itemId -Action "Skipped" -Message "Field '$ColumnName' is empty or could not be read"
+                        $skippedCountForLibrary++
+                        $chunkSkipped++
+                        continue
+                    }
+                    
+                    # Check if any account number matches
+                    $matchedAccounts = $itemAccountNumbers | Where-Object { $ColumnValues -contains $_ }
+                    
+                    if ($matchedAccounts.Count -eq 0) {
+                        Write-Log -Library $libraryName -ContentType $contentTypeName -ItemID $itemId -Action "Skipped" -AccountNumbers ($itemAccountNumbers -join ', ') -Message "No matching account values found"
+                        $skippedCountForLibrary++
+                        $chunkSkipped++
+                        continue
+                    }
+                    
+                    $matchedAccountsString = $matchedAccounts -join ', '
+                    #endregion
+                    
+                    #region Perform Update
+                    if ($DryRun) {
+                        Write-Log -Library $libraryName -ContentType $contentTypeName -ItemID $itemId -Action "DryRun" -AccountNumbers $matchedAccountsString -ModifiedByUser $ModifiedBy -Message "Would update item (Modified date would change)"
+                        $updatedCountForLibrary++
+                        $chunkUpdated++
+                    }
+                    else {
+                        # Perform update based on ModifiedBy parameter
+                        if ([string]::IsNullOrWhiteSpace($ModifiedBy)) {
+                            # Update without changing Editor
+                            # Modified date will be automatically set to current time by Update()
+                            $item.Update()
+                            $item.Context.ExecuteQuery()
+                            
+                            Write-Log -Library $libraryName -ContentType $contentTypeName -ItemID $itemId -Action "Updated" -AccountNumbers $matchedAccountsString -Message "Modified date updated, Editor unchanged"
+                        }
+                        else {
+                            # Update with new Editor
+                            # Modified date will be automatically set to current time by Update()
+                            $item["Editor"] = $editorUser.Id
+                            $item.Update()
+                            $item.Context.ExecuteQuery()
+                            
+                            Write-Log -Library $libraryName -ContentType $contentTypeName -ItemID $itemId -Action "Updated" -AccountNumbers $matchedAccountsString -ModifiedByUser $ModifiedBy
+                        }
+                        
+                        $updatedCountForLibrary++
+                        $chunkUpdated++
+                    }
+                    #endregion
                 }
-                #endregion
+                catch {
+                    $errorMessage = $_.Exception.Message
+                    $stackTrace = $_.ScriptStackTrace
+                    Write-Log -Library $libraryName -ContentType $contentTypeName -ItemID $itemId -Action "Error" -ErrorMessage "$errorMessage | StackTrace: $stackTrace"
+                    $errorCountForLibrary++
+                    $chunkErrors++
+                }
             }
-            catch {
-                $errorMessage = $_.Exception.Message
-                $stackTrace = $_.ScriptStackTrace
-                Write-Log -Library $libraryName -ContentType $contentTypeName -ItemID $itemId -Action "Error" -ErrorMessage "$errorMessage | StackTrace: $stackTrace"
-                $errorCountForLibrary++
-                $chunkErrors++
-            }
+            #endregion
+            
+            # Chunk Summary
+            Write-Host "`n      Chunk $currentChunk Summary:" -ForegroundColor Cyan
+            Write-Host "        Updated: $chunkUpdated" -ForegroundColor Green
+            Write-Host "        Skipped: $chunkSkipped" -ForegroundColor Yellow
+            Write-Host "        Errors: $chunkErrors" -ForegroundColor Red
+            
+            Write-Log -Library $libraryName -ContentType $contentTypeName -Action "ChunkComplete" -Message "Chunk $currentChunk complete | Updated: $chunkUpdated | Skipped: $chunkSkipped | Errors: $chunkErrors"
         }
         #endregion
         
-        # Chunk Summary
-        Write-Host "`n    Chunk $currentChunk Summary:" -ForegroundColor Cyan
-        Write-Host "      Updated: $chunkUpdated" -ForegroundColor Green
-        Write-Host "      Skipped: $chunkSkipped" -ForegroundColor Yellow
-        Write-Host "      Errors: $chunkErrors" -ForegroundColor Red
-        
-        Write-Log -Library $libraryName -Action "ChunkComplete" -Message "Chunk $currentChunk complete | Updated: $chunkUpdated | Skipped: $chunkSkipped | Errors: $chunkErrors"
+        Write-Log -Library $libraryName -ContentType $contentTypeName -Action "ContentTypeComplete" -Message "Content type processing complete"
     }
     #endregion
     
