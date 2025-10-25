@@ -25,7 +25,7 @@
 .PARAMETER MaxUpdatesPerLibrary
     Maximum number of items to update per library. 0 or empty = unlimited (default: 0)
 
-.PARAMETER WhatIf
+.PARAMETER DryRun
     Dry run mode - logs what would be updated without making changes
 
 .EXAMPLE
@@ -42,7 +42,7 @@
     Date: 2025-10-24
 #>
 
-[CmdletBinding(SupportsShouldProcess)]
+[CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
     [string[]]$LibraryNames,
@@ -63,7 +63,7 @@ param(
     [int]$MaxUpdatesPerLibrary = 0,
     
     [Parameter(Mandatory = $false)]
-    [switch]$WhatIf
+    [switch]$DryRun
 )
 
 #region Configuration Variables
@@ -76,8 +76,9 @@ $TenantId = "00000000-0000-0000-0000-000000000000"
 # 10 = safer, more queries | 15 = fewer queries, deeper nesting | Max safe: ~20
 $ChunkSize = 10
 
-# CAML query page size
-$PageSize = 2000
+# CAML query row limit (must be below 5000 to avoid threshold issues)
+# Recommended: 2000-4999
+$RowLimit = 4999
 #endregion
 
 #region Initialize Logging
@@ -124,8 +125,9 @@ Write-Log -Message "  ColumnName: $ColumnName"
 Write-Log -Message "  ColumnValues Count: $($ColumnValues.Count)"
 Write-Log -Message "  ModifiedBy: $(if($ModifiedBy){"$ModifiedBy"}else{'(not set - Editor will not change)'})"
 Write-Log -Message "  MaxUpdatesPerLibrary: $(if($MaxUpdatesPerLibrary -gt 0){"$MaxUpdatesPerLibrary"}else{'Unlimited'})"
-Write-Log -Message "  WhatIf Mode: $($WhatIf.IsPresent)"
+Write-Log -Message "  DryRun Mode: $($DryRun.IsPresent)"
 Write-Log -Message "  ChunkSize: $ChunkSize"
+Write-Log -Message "  RowLimit: $RowLimit"
 Write-Log -Message "========================================="
 
 # Validate parameters
@@ -181,21 +183,22 @@ function Build-CAMLQuery {
     param(
         [string[]]$ContentTypeIds,
         [string[]]$AccountChunk,
-        [string]$FieldName
+        [string]$FieldName,
+        [int]$RowLimit
     )
     
     # Build ContentType <In> clause
     $ctValues = ($ContentTypeIds | ForEach-Object { "<Value Type='ContentTypeId'>$_</Value>" }) -join ""
     $ctIn = "<In><FieldRef Name='ContentTypeId' /><Values>$ctValues</Values></In>"
     
-    # Build Account <Contains> with nested <Or>
+    # Build Account <Contains> with nested <Or> using Type='Text' for managed metadata labels
     if ($AccountChunk.Count -eq 1) {
-        $accountFilter = "<Contains><FieldRef Name='$FieldName' /><Value Type='TaxonomyFieldTypeMulti'>$($AccountChunk[0])</Value></Contains>"
+        $accountFilter = "<Contains><FieldRef Name='$FieldName' /><Value Type='Text'>$($AccountChunk[0])</Value></Contains>"
     }
     else {
         $accountFilter = ""
         for ($i = $AccountChunk.Count - 1; $i -ge 0; $i--) {
-            $contains = "<Contains><FieldRef Name='$FieldName' /><Value Type='TaxonomyFieldTypeMulti'>$($AccountChunk[$i])</Value></Contains>"
+            $contains = "<Contains><FieldRef Name='$FieldName' /><Value Type='Text'>$($AccountChunk[$i])</Value></Contains>"
             if ($i -eq $AccountChunk.Count - 1) {
                 $accountFilter = $contains
             }
@@ -205,8 +208,8 @@ function Build-CAMLQuery {
         }
     }
     
-    # Combine with <And>
-    $caml = "<View><Query><Where><And>$ctIn$accountFilter</And></Where></Query></View>"
+    # Combine with <And> and add RowLimit
+    $caml = "<View><Query><Where><And>$ctIn$accountFilter</And></Where></Query><RowLimit>$RowLimit</RowLimit></View>"
     
     return $caml
 }
@@ -286,12 +289,12 @@ foreach ($libraryName in $LibraryNames) {
     
     #region Get Library and Content Types
     try {
-        # Verify library exists
-        $library = Get-PnPList -Identity $libraryName -ErrorAction Stop
+        # Verify library exists (with double quotes)
+        $library = Get-PnPList -Identity "$libraryName" -ErrorAction Stop
         Write-Log -Library $libraryName -Action "Info" -Message "Library found successfully"
         
-        # Get all content types in the library
-        $libraryContentTypes = Get-PnPContentType -List $libraryName -ErrorAction Stop
+        # Get all content types in the library (with double quotes)
+        $libraryContentTypes = Get-PnPContentType -List "$libraryName" -ErrorAction Stop
         
         # Match against ContentTypeNames parameter
         $matchingContentTypes = $libraryContentTypes | Where-Object { 
@@ -342,18 +345,45 @@ foreach ($libraryName in $LibraryNames) {
         
         Write-Log -Library $libraryName -Action "ChunkStart" -Message "Processing chunk $currentChunk/$totalChunks with $($accountChunk.Count) account values: $($accountChunk -join ', ')"
         
-        #region Build and Execute CAML Query
+        #region Build and Execute CAML Query with Pagination
         try {
-            $camlQuery = Build-CAMLQuery -ContentTypeIds $contentTypeIds -AccountChunk $accountChunk -FieldName $ColumnName
+            $camlQuery = Build-CAMLQuery -ContentTypeIds $contentTypeIds -AccountChunk $accountChunk -FieldName $ColumnName -RowLimit $RowLimit
             
-            Write-Host "    Executing CAML query..." -ForegroundColor Gray
-            Write-Log -Library $libraryName -Action "QueryExecute" -Message "Executing CAML query for chunk $currentChunk"
+            Write-Host "    Executing CAML query with pagination..." -ForegroundColor Gray
+            Write-Log -Library $libraryName -Action "QueryExecute" -Message "Executing CAML query for chunk $currentChunk with RowLimit=$RowLimit"
             
-            # Get items with pagination
-            $items = Get-PnPListItem -List $libraryName -Query $camlQuery -PageSize $PageSize -ErrorAction Stop
+            # Initialize variables for pagination
+            $allItems = @()
+            $position = $null
+            $pageCount = 0
             
-            Write-Host "    Retrieved $($items.Count) items" -ForegroundColor Green
-            Write-Log -Library $libraryName -Action "QueryComplete" -Message "Retrieved $($items.Count) items from chunk $currentChunk"
+            do {
+                $pageCount++
+                Write-Host "      Fetching page $pageCount..." -ForegroundColor Gray
+                
+                # Get items with pagination (with double quotes)
+                if ($position) {
+                    $listItems = Get-PnPListItem -List "$libraryName" -Query $camlQuery -PageSize $RowLimit -ListItemCollectionPosition $position -ErrorAction Stop
+                }
+                else {
+                    $listItems = Get-PnPListItem -List "$libraryName" -Query $camlQuery -PageSize $RowLimit -ErrorAction Stop
+                }
+                
+                # Add items to collection
+                if ($listItems) {
+                    $allItems += $listItems
+                    Write-Host "      Retrieved $($listItems.Count) items (Total so far: $($allItems.Count))" -ForegroundColor Gray
+                }
+                
+                # Get the position for next page
+                $position = $listItems.ListItemCollectionPosition
+                
+            } while ($position -ne $null)
+            
+            $items = $allItems
+            
+            Write-Host "    Total items retrieved: $($items.Count)" -ForegroundColor Green
+            Write-Log -Library $libraryName -Action "QueryComplete" -Message "Retrieved $($items.Count) items from chunk $currentChunk across $pageCount page(s)"
             
             if ($items.Count -eq 0) {
                 Write-Host "    No items found for this chunk. Moving to next chunk." -ForegroundColor Gray
@@ -417,8 +447,8 @@ foreach ($libraryName in $LibraryNames) {
                 #endregion
                 
                 #region Perform Update
-                if ($WhatIf) {
-                    Write-Log -Library $libraryName -ContentType $contentTypeName -ItemID $itemId -Action "WhatIf" -AccountNumbers $matchedAccountsString -ModifiedByUser $ModifiedBy -Message "Would update item (Modified date would change)"
+                if ($DryRun) {
+                    Write-Log -Library $libraryName -ContentType $contentTypeName -ItemID $itemId -Action "DryRun" -AccountNumbers $matchedAccountsString -ModifiedByUser $ModifiedBy -Message "Would update item (Modified date would change)"
                     $updatedCountForLibrary++
                     $chunkUpdated++
                 }
@@ -507,16 +537,3 @@ Write-Log -Message "========================================="
 Disconnect-PnPOnline
 Write-Log -Message "Disconnected from SharePoint"
 #endregion
-
-
-
-
-
-
-.\Update-SPOMetadata.ps1 `
-    -LibraryNames @("Documents") `
-    -ContentTypeNames @("Invoice") `
-    -ColumnName "AccountField" `
-    -ColumnValues @("1000","1001") `
-    -MaxUpdatesPerLibrary 10 `
-    -WhatIf
