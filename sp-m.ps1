@@ -67,18 +67,18 @@ param(
 )
 
 #region Configuration Variables
-# SharePoint site URL and tenant ID
+# SharePoint site URL and Client ID for PnP authentication
 $SiteUrl = "https://contoso.sharepoint.com/sites/YourSite"
-$TenantId = "00000000-0000-0000-0000-000000000000"
+$ClientId = "00000000-0000-0000-0000-000000000000"  # Azure AD App Registration Client ID
 
 # Chunk size for account values in CAML query
 # Recommended: 10-15 for optimal balance between query complexity and number of queries
 # 10 = safer, more queries | 15 = fewer queries, deeper nesting | Max safe: ~20
 $ChunkSize = 10
 
-# CAML query row limit (must be below 5000 to avoid threshold issues)
-# Recommended: 2000-4999
-$RowLimit = 4999
+# ID range size for threshold avoidance (must be less than 5000)
+# Each query will fetch items in ID ranges (e.g., 1-4999, 5000-9999, etc.)
+$IdBatchSize = 4999
 #endregion
 
 #region Initialize Logging
@@ -127,7 +127,7 @@ Write-Log -Message "  ModifiedBy: $(if($ModifiedBy){"$ModifiedBy"}else{'(not set
 Write-Log -Message "  MaxUpdatesPerLibrary: $(if($MaxUpdatesPerLibrary -gt 0){"$MaxUpdatesPerLibrary"}else{'Unlimited'})"
 Write-Log -Message "  DryRun Mode: $($DryRun.IsPresent)"
 Write-Log -Message "  ChunkSize: $ChunkSize"
-Write-Log -Message "  RowLimit: $RowLimit"
+Write-Log -Message "  IdBatchSize: $IdBatchSize"
 Write-Log -Message "========================================="
 
 # Validate parameters
@@ -150,7 +150,7 @@ if ($ContentTypeNames.Count -eq 0) {
 #region Connect to SharePoint
 try {
     Write-Log -Message "Connecting to SharePoint: $SiteUrl"
-    Connect-PnPOnline -Url $SiteUrl -Interactive -TenantId $TenantId -ErrorAction Stop
+    Connect-PnPOnline -Url $SiteUrl -Interactive -ClientId $ClientId -ErrorAction Stop
     Write-Log -Message "Successfully connected to SharePoint"
 }
 catch {
@@ -178,13 +178,14 @@ if (![string]::IsNullOrWhiteSpace($ModifiedBy)) {
 }
 #endregion
 
-#region Helper Function: Build CAML Query
+#region Helper Function: Build CAML Query with ID Range
 function Build-CAMLQuery {
     param(
         [string[]]$ContentTypeIds,
         [string[]]$AccountChunk,
         [string]$FieldName,
-        [int]$RowLimit
+        [int]$IdStart,
+        [int]$IdEnd
     )
     
     # Build ContentType <In> clause
@@ -208,8 +209,14 @@ function Build-CAMLQuery {
         }
     }
     
-    # Combine with <And> and add RowLimit
-    $caml = "<View><Query><Where><And>$ctIn$accountFilter</And></Where></Query><RowLimit>$RowLimit</RowLimit></View>"
+    # Build ID range filter
+    $idFilter = "<And><Geq><FieldRef Name='ID' /><Value Type='Number'>$IdStart</Value></Geq><Lt><FieldRef Name='ID' /><Value Type='Number'>$IdEnd</Value></Lt></And>"
+    
+    # Combine all filters with nested <And>
+    $whereClause = "<And>$idFilter<And>$ctIn$accountFilter</And></And>"
+    
+    # Build complete CAML query
+    $caml = "<View><Query><Where>$whereClause</Where></Query><RowLimit>$IdBatchSize</RowLimit></View>"
     
     return $caml
 }
@@ -314,6 +321,14 @@ foreach ($libraryName in $LibraryNames) {
             Write-Host "    - $($ct.Name)" -ForegroundColor Gray
         }
         Write-Log -Library $libraryName -Action "Info" -Message "Found content types: $($matchingContentTypes.Name -join ', ')"
+        
+        # Get the maximum ID in the library to determine ID ranges
+        Write-Host "  Determining ID range for library..." -ForegroundColor Gray
+        $maxIdQuery = "<View><Query><OrderBy><FieldRef Name='ID' Ascending='FALSE' /></OrderBy></Query><RowLimit>1</RowLimit></View>"
+        $maxIdItem = Get-PnPListItem -List "$libraryName" -Query $maxIdQuery -ErrorAction Stop
+        $maxId = if ($maxIdItem) { $maxIdItem[0].Id } else { 0 }
+        Write-Log -Library $libraryName -Action "Info" -Message "Maximum ID in library: $maxId"
+        Write-Host "  Maximum ID in library: $maxId" -ForegroundColor Green
     }
     catch {
         Write-Log -Library $libraryName -Action "Error" -Message "Failed to retrieve library or content types" -ErrorMessage "$($_.Exception.Message) | StackTrace: $($_.ScriptStackTrace)"
@@ -345,54 +360,55 @@ foreach ($libraryName in $LibraryNames) {
         
         Write-Log -Library $libraryName -Action "ChunkStart" -Message "Processing chunk $currentChunk/$totalChunks with $($accountChunk.Count) account values: $($accountChunk -join ', ')"
         
-        #region Build and Execute CAML Query with Pagination
-        try {
-            $camlQuery = Build-CAMLQuery -ContentTypeIds $contentTypeIds -AccountChunk $accountChunk -FieldName $ColumnName -RowLimit $RowLimit
+        #region Process ID Ranges
+        $allItems = @()
+        $idRangeCount = 0
+        
+        for ($idStart = 1; $idStart -le $maxId; $idStart += $IdBatchSize) {
+            # Check if max updates reached before processing next ID range
+            if ($MaxUpdatesPerLibrary -gt 0 -and $updatedCountForLibrary -ge $MaxUpdatesPerLibrary) {
+                Write-Host "`n    Max updates limit reached. Skipping remaining ID ranges." -ForegroundColor Yellow
+                Write-Log -Library $libraryName -Action "MaxUpdatesReached" -Message "Limit reached. Skipping remaining ID ranges in chunk $currentChunk."
+                break
+            }
             
-            Write-Host "    Executing CAML query with pagination..." -ForegroundColor Gray
-            Write-Log -Library $libraryName -Action "QueryExecute" -Message "Executing CAML query for chunk $currentChunk with RowLimit=$RowLimit"
+            $idEnd = $idStart + $IdBatchSize
+            $idRangeCount++
             
-            # Initialize variables for pagination
-            $allItems = @()
-            $position = $null
-            $pageCount = 0
+            Write-Host "`n    Processing ID range: $idStart to $($idEnd - 1) (Batch $idRangeCount)" -ForegroundColor Gray
             
-            do {
-                $pageCount++
-                Write-Host "      Fetching page $pageCount..." -ForegroundColor Gray
+            try {
+                # Build CAML query with ID range
+                $camlQuery = Build-CAMLQuery -ContentTypeIds $contentTypeIds -AccountChunk $accountChunk -FieldName $ColumnName -IdStart $idStart -IdEnd $idEnd
                 
-                # Get items with pagination (with double quotes)
-                if ($position) {
-                    $listItems = Get-PnPListItem -List "$libraryName" -Query $camlQuery -PageSize $RowLimit -ListItemCollectionPosition $position -ErrorAction Stop
+                # Log CAML query for debugging
+                Write-Log -Library $libraryName -Action "CAMLQuery" -Message "Chunk $currentChunk, ID Range $idStart-$($idEnd-1): $camlQuery"
+                
+                Write-Host "      Executing CAML query..." -ForegroundColor Gray
+                
+                # Get items (with double quotes)
+                $items = Get-PnPListItem -List "$libraryName" -Query $camlQuery -ErrorAction Stop
+                
+                if ($items.Count -gt 0) {
+                    $allItems += $items
+                    Write-Host "      Retrieved $($items.Count) items (Total so far: $($allItems.Count))" -ForegroundColor Green
+                    Write-Log -Library $libraryName -Action "QueryComplete" -Message "ID range $idStart-$($idEnd-1): Retrieved $($items.Count) items"
                 }
                 else {
-                    $listItems = Get-PnPListItem -List "$libraryName" -Query $camlQuery -PageSize $RowLimit -ErrorAction Stop
+                    Write-Host "      No items found in this ID range" -ForegroundColor Gray
                 }
-                
-                # Add items to collection
-                if ($listItems) {
-                    $allItems += $listItems
-                    Write-Host "      Retrieved $($listItems.Count) items (Total so far: $($allItems.Count))" -ForegroundColor Gray
-                }
-                
-                # Get the position for next page
-                $position = $listItems.ListItemCollectionPosition
-                
-            } while ($position -ne $null)
-            
-            $items = $allItems
-            
-            Write-Host "    Total items retrieved: $($items.Count)" -ForegroundColor Green
-            Write-Log -Library $libraryName -Action "QueryComplete" -Message "Retrieved $($items.Count) items from chunk $currentChunk across $pageCount page(s)"
-            
-            if ($items.Count -eq 0) {
-                Write-Host "    No items found for this chunk. Moving to next chunk." -ForegroundColor Gray
-                continue
+            }
+            catch {
+                Write-Log -Library $libraryName -Action "Error" -Message "CAML query failed for chunk $currentChunk, ID range $idStart-$($idEnd-1)" -ErrorMessage "$($_.Exception.Message) | StackTrace: $($_.ScriptStackTrace)"
+                $errorCountForLibrary++
             }
         }
-        catch {
-            Write-Log -Library $libraryName -Action "Error" -Message "CAML query failed for chunk $currentChunk" -ErrorMessage "$($_.Exception.Message) | StackTrace: $($_.ScriptStackTrace)"
-            $errorCountForLibrary++
+        
+        Write-Host "`n    Total items retrieved for chunk $currentChunk: $($allItems.Count)" -ForegroundColor Green
+        Write-Log -Library $libraryName -Action "ChunkQueryComplete" -Message "Chunk $currentChunk complete: Retrieved $($allItems.Count) items across $idRangeCount ID range(s)"
+        
+        if ($allItems.Count -eq 0) {
+            Write-Host "    No items found for this chunk. Moving to next chunk." -ForegroundColor Gray
             continue
         }
         #endregion
@@ -403,7 +419,7 @@ foreach ($libraryName in $LibraryNames) {
         $chunkSkipped = 0
         $chunkErrors = 0
         
-        foreach ($item in $items) {
+        foreach ($item in $allItems) {
             # Check max updates limit
             if ($MaxUpdatesPerLibrary -gt 0 -and $updatedCountForLibrary -ge $MaxUpdatesPerLibrary) {
                 Write-Host "      Max updates limit reached. Skipping remaining items in this chunk." -ForegroundColor Yellow
@@ -419,8 +435,8 @@ foreach ($libraryName in $LibraryNames) {
                 
                 # Progress indicator every 100 items
                 if ($itemCount % 100 -eq 0) {
-                    $percentComplete = [Math]::Round(($itemCount / $items.Count) * 100, 1)
-                    Write-Host "      Processing item $itemCount of $($items.Count) ($percentComplete%)..." -ForegroundColor Gray
+                    $percentComplete = [Math]::Round(($itemCount / $allItems.Count) * 100, 1)
+                    Write-Host "      Processing item $itemCount of $($allItems.Count) ($percentComplete%)..." -ForegroundColor Gray
                 }
                 
                 #region Verify Account Match
