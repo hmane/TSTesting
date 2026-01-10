@@ -39,6 +39,7 @@ function Set-NameFieldFirst {
         )
         
         $ChangesApplied = @()
+        $Ctx = Get-PnPContext
         
         #Region 1. Move "Name" field to first position
         $CTFields = Get-PnPProperty -ClientObject $CT -Property "FieldLinks"
@@ -52,7 +53,10 @@ function Set-NameFieldFirst {
             $ReorderedFields = @($NameFieldInternalName) + ($FieldNames | Where-Object { $_ -ne $NameFieldInternalName })
             
             try {
-                Set-PnPContentType -Identity $CT.Id.StringValue -List $ListTitle -FieldOrder $ReorderedFields
+                # Use CSOM to reorder fields
+                $CT.FieldLinks.Reorder($ReorderedFields)
+                $CT.Update($false)
+                $Ctx.ExecuteQuery()
                 $ChangesApplied += "Name field moved to first"
             }
             catch {
@@ -65,13 +69,16 @@ function Set-NameFieldFirst {
         #EndRegion
         
         #Region 2. Hide "Title" field if exists
-        $TitleField = $CTFields | Where-Object { $_.Name -eq "Title" }
+        $TitleFieldLink = $CTFields | Where-Object { $_.Name -eq "Title" }
         
-        if ($TitleField) {
+        if ($TitleFieldLink) {
             Write-Host "    Found 'Title' field. Setting to hidden..." -ForegroundColor Green
             
             try {
-                Set-PnPContentType -Identity $CT.Id.StringValue -List $ListTitle -UpdateChildren -FieldLinkAttribute @{Name = "Title"; Hidden = $true }
+                # Use CSOM to hide the field link
+                $TitleFieldLink.Hidden = $true
+                $CT.Update($false)
+                $Ctx.ExecuteQuery()
                 $ChangesApplied += "Title field hidden"
             }
             catch {
@@ -90,7 +97,10 @@ function Set-NameFieldFirst {
             Write-Host "    Found description: '$Description'. Clearing..." -ForegroundColor Green
             
             try {
-                Set-PnPContentType -Identity $CT.Id.StringValue -List $ListTitle -Description ""
+                # Use CSOM to clear description
+                $CT.Description = ""
+                $CT.Update($false)
+                $Ctx.ExecuteQuery()
                 $ChangesApplied += "Description cleared"
             }
             catch {
@@ -183,21 +193,3 @@ function Set-NameFieldFirst {
 #Region Execute the Function
 Set-NameFieldFirst -LibraryName $LibraryName -ContentTypeName $ContentTypeName -IncludeGenericLists:$IncludeGenericLists
 #EndRegion
-```
-
-**What the script now does for each content type:**
-
-| Check | Action |
-|-------|--------|
-| Has "Name" field (FileLeafRef) | Move to first position |
-| Has "Title" field | Set to hidden |
-| Has description | Clear it (set to blank) |
-
-**Sample output:**
-```
-Processing Library: Documents, Content Type: Project Document
-  Found Content Type: Project Document
-    Found 'Name' field. Moving to first position...
-    Found 'Title' field. Setting to hidden...
-    Found description: 'Use for project files'. Clearing...
-    Changes applied: Name field moved to first, Title field hidden, Description cleared
