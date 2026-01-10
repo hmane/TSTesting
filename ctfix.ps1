@@ -53,7 +53,6 @@ function Set-NameFieldFirst {
             $ReorderedFields = @($NameFieldInternalName) + ($FieldNames | Where-Object { $_ -ne $NameFieldInternalName })
             
             try {
-                # Use CSOM to reorder fields
                 $CT.FieldLinks.Reorder($ReorderedFields)
                 $CT.Update($false)
                 $Ctx.ExecuteQuery()
@@ -75,7 +74,6 @@ function Set-NameFieldFirst {
             Write-Host "    Found 'Title' field. Setting to hidden..." -ForegroundColor Green
             
             try {
-                # Use CSOM to hide the field link
                 $TitleFieldLink.Hidden = $true
                 $CT.Update($false)
                 $Ctx.ExecuteQuery()
@@ -97,7 +95,6 @@ function Set-NameFieldFirst {
             Write-Host "    Found description: '$Description'. Clearing..." -ForegroundColor Green
             
             try {
-                # Use CSOM to clear description
                 $CT.Description = ""
                 $CT.Update($false)
                 $Ctx.ExecuteQuery()
@@ -138,6 +135,13 @@ function Set-NameFieldFirst {
             return
         }
         
+        # Check if sealed
+        $Sealed = Get-PnPProperty -ClientObject $ContentType -Property "Sealed"
+        if ($Sealed) {
+            Write-Host "Error: Content Type '$ContentTypeName' is sealed and cannot be modified." -ForegroundColor Red
+            return
+        }
+        
         Write-Host "  Found Content Type: $($ContentType.Name)" -ForegroundColor Gray
         Update-ContentType -ListTitle $LibraryName -CT $ContentType
         return
@@ -160,7 +164,7 @@ function Set-NameFieldFirst {
     
     Write-Host "Found $($Lists.Count) libraries to process" -ForegroundColor Cyan
     
-    $Results = @{ Processed = 0; Updated = 0; Skipped = 0 }
+    $Results = @{ Processed = 0; Updated = 0; Skipped = 0; Sealed = 0 }
     
     foreach ($List in $Lists) {
         Write-Host "`nProcessing Library: $($List.Title)" -ForegroundColor Yellow
@@ -168,7 +172,16 @@ function Set-NameFieldFirst {
         $ContentTypes = Get-PnPContentType -List $List.Title
         
         foreach ($CT in $ContentTypes) {
+            # Skip hidden content types
             if ($CT.Hidden) { continue }
+            
+            # Skip sealed content types
+            $Sealed = Get-PnPProperty -ClientObject $CT -Property "Sealed"
+            if ($Sealed) {
+                Write-Host "  Skipping Content Type: $($CT.Name) (Sealed)" -ForegroundColor DarkYellow
+                $Results.Sealed++
+                continue
+            }
             
             Write-Host "  Checking Content Type: $($CT.Name)" -ForegroundColor Gray
             $Results.Processed++
@@ -186,6 +199,7 @@ function Set-NameFieldFirst {
     Write-Host "Total Processed: $($Results.Processed)" -ForegroundColor White
     Write-Host "Updated: $($Results.Updated)" -ForegroundColor Green
     Write-Host "Skipped (No changes needed): $($Results.Skipped)" -ForegroundColor DarkGray
+    Write-Host "Sealed (Ignored): $($Results.Sealed)" -ForegroundColor DarkYellow
     Write-Host "=============================" -ForegroundColor Cyan
     #EndRegion
 }
@@ -193,3 +207,29 @@ function Set-NameFieldFirst {
 #Region Execute the Function
 Set-NameFieldFirst -LibraryName $LibraryName -ContentTypeName $ContentTypeName -IncludeGenericLists:$IncludeGenericLists
 #EndRegion
+```
+
+**Changes made:**
+
+| Location | Change |
+|----------|--------|
+| Single mode | Added sealed check before processing, shows error if sealed |
+| All libraries mode | Added sealed check in loop, skips with message |
+| Summary | Added "Sealed (Ignored)" count |
+
+**Sample output:**
+```
+Processing Library: Documents
+  Skipping Content Type: Document (Sealed)
+  Skipping Content Type: Folder (Sealed)
+  Checking Content Type: Project Document
+    Found 'Name' field. Moving to first position...
+    Found 'Title' field. Setting to hidden...
+    Changes applied: Name field moved to first, Title field hidden
+
+========== Summary ==========
+Total Processed: 1
+Updated: 1
+Skipped (No changes needed): 0
+Sealed (Ignored): 2
+=============================
