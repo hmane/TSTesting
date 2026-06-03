@@ -1,25 +1,29 @@
-The fast-serve crash "Merging undefined is not supported" is because config/fast-serve/webpack.extend.js
-no longer exports `webpackConfig`. spfx-fast-serve does merge(generatedConfig, webpackConfig) BEFORE
-calling transformConfig, so `webpackConfig` must exist (an empty object is fine).
-
-Replace the ENTIRE contents of config/fast-serve/webpack.extend.js with exactly this:
+Replace the ENTIRE contents of config/fast-serve/webpack.extend.js with exactly this. The change from
+last time: locate @pnp/spfx-controls-react/lib via require.resolve (the previous hardcoded path was wrong
+because __dirname is the fast-serve folder, not the project root, so the rewrite never fired).
 
     const path = require('path');
     const webpack = require('webpack');
     const { applyToolkitWebpackFixes } = require('spfx-toolkit/build');
 
-    // Required by spfx-fast-serve: it runs merge(generatedConfig, webpackConfig) before transformConfig.
-    // If webpackConfig is undefined it throws "Merging undefined is not supported".
+    // Required by spfx-fast-serve (it merges this before transformConfig).
     const webpackConfig = {};
 
     const transformConfig = function (initialWebpackConfig) {
       const cfg = applyToolkitWebpackFixes(initialWebpackConfig, { consumerRoot: __dirname });
 
+      // Locate the ACTUAL @pnp/spfx-controls-react/lib by walking up from this config folder to the
+      // project's node_modules. Do NOT hardcode a relative path: __dirname here is the fast-serve dir.
+      const pnpLib = path.join(
+        path.dirname(require.resolve('@pnp/spfx-controls-react/package.json', { paths: [__dirname] })),
+        'lib'
+      );
+      console.log('[toolkit-fix] @pnp controls lib =', pnpLib); // verify this points at project node_modules
+
       // @pnp/spfx-controls-react 3.24+ ships `.module.scss.css` (real CSS). Rewrite its `.module.scss`
-      // imports to `.module.scss.css` and pin the loader chain inline with a leading "!!" so NO other
-      // configured rule (incl. fast-serve's own css-loader) also processes it -> avoids the double
-      // css-loader "Unknown word: import" error.
-      const pnpLib = path.resolve(__dirname, 'node_modules', '@pnp', 'spfx-controls-react', 'lib');
+      // imports to `.module.scss.css`, pinned to an inline loader chain (leading "!!") so NO other
+      // configured rule — including fast-serve's own css-loader — also processes it (that double pass is
+      // the "Unknown word: import" error).
       const cssQuery = JSON.stringify({ modules: { localIdentName: '[local]' } });
       cfg.plugins = cfg.plugins || [];
       cfg.plugins.push(
@@ -35,4 +39,5 @@ Replace the ENTIRE contents of config/fast-serve/webpack.extend.js with exactly 
 
     module.exports = { webpackConfig, transformConfig };
 
-Then run `npm run serve` again and report the full output.
+Run `npm run serve` and paste the output. Note the line that prints "[toolkit-fix] @pnp controls lib =" —
+it should point at C:\Projects\VECM\VendorManagementApp\node_modules\@pnp\spfx-controls-react\lib.
