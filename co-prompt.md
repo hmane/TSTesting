@@ -1,57 +1,24 @@
-Fix a fast-serve build error consuming @pnp/spfx-controls-react@3.24 in this SPFx app.
-Change ONLY config/fast-serve/webpack.extend.js. Do NOT touch gulpfile.js this round.
+Review the `sideEffects` array in this app's package.json. It should describe only THIS app's own
+side-effectful files, never dependencies in node_modules (a dependency's tree-shaking is governed by
+its OWN package.json `sideEffects`, so node_modules entries here are inert).
 
-== WHY ==
-@pnp/spfx-controls-react@3.24 ships `X.module.scss.css` (real CSS), and its controls do
-`import './X.module.scss'`. Two things must happen:
-(1) rewrite `./X.module.scss` -> `./X.module.scss.css` so it resolves;
-(2) ensure ONLY ONE css loader chain processes it. spfx-fast-serve injects its OWN css rule that
-also matches `.module.scss.css`; when two css rules stack, css-loader receives style-loader's JS and
-throws "Module build failed ... Unknown word: import". Excluding fast-serve's rule is unreliable
-(it's merged after our transform). So we rewrite the request to an INLINE loader chain prefixed with
-"!!", which tells webpack to ignore all configured rules for that request -> no double-processing.
+First confirm which file this is (the app's package.json vs a library's). Then:
 
-== ACTION ==
-Replace the ENTIRE contents of config/fast-serve/webpack.extend.js with exactly this:
+KEEP these (app's own side-effectful files):
+  - "**/*.css", "**/*.scss", "**/*.scss.js"   (style files — don't let them be tree-shaken)
+  - "**/src/utilities/Array.ts", "**/src/utilities/String.ts",
+    "**/lib/utilities/Array.js", "**/lib/utilities/String.js"
+    BUT FIRST verify these files actually have side effects (e.g. they extend Array.prototype /
+    String.prototype or run code on import). If they're just pure exports, they don't belong here
+    either. If they DO mutate prototypes, keep them — removing them could break runtime behavior.
 
-    const path = require('path');
-    const webpack = require('webpack');
-    const { applyToolkitWebpackFixes } = require('spfx-toolkit/build');
+REMOVE these (inert — they cannot affect how those dependencies are bundled):
+  - "**/node_modules/@pnp/**"
+  - "**/node_modules/spfx-toolkit/lib/..."  (any node_modules/spfx-toolkit entry)
+  - "**/node_modules/devextreme/dist/..."   (any node_modules/devextreme entry)
 
-    const transformConfig = function (initialWebpackConfig) {
-      const cfg = applyToolkitWebpackFixes(initialWebpackConfig, { consumerRoot: __dirname });
-
-      // @pnp/spfx-controls-react 3.24+ ships `.module.scss.css` (real CSS, no `.module.scss.js`).
-      // Rewrite its `.module.scss` imports to `.module.scss.css` and pin the loader chain inline.
-      // The leading "!!" disables ALL configured rules for this request, so spfx-fast-serve's own
-      // css rule cannot also process it (that double-processing is the "Unknown word: import" error).
-      const pnpLib = path.resolve(__dirname, 'node_modules', '@pnp', 'spfx-controls-react', 'lib');
-      const cssQuery = JSON.stringify({ modules: { localIdentName: '[local]' } });
-      cfg.plugins = cfg.plugins || [];
-      cfg.plugins.push(
-        new webpack.NormalModuleReplacementPlugin(/\.module\.scss$/, (resource) => {
-          if (resource.context && resource.context.startsWith(pnpLib)) {
-            resource.request = `!!style-loader!css-loader?${cssQuery}!${resource.request}.css`;
-          }
-        })
-      );
-
-      return cfg;
-    };
-
-    module.exports = { transformConfig };
-
-This intentionally removes the previous workaround (the `.js`/`.css` NormalModuleReplacement plugins,
-the `pnpScssExclude` exclude loop, and the pushed `{ test: /\.module\.scss\.css$/ ... }` rule) — the
-inline "!!" chain replaces all of it. If you were also consuming a separate `spfx-component-library`
-that needed a `.module.scss -> .js` rewrite, tell me before removing that specific plugin.
-
-== VERIFY ==
-- Delete temp/ and dist/ if present, then run `npm run serve`.
-- Expected: no "Can't resolve .module.scss" and no "Unknown word: import" errors; @pnp controls
-  (people picker, taxonomy picker, ManageAccess, field renderers) render styled.
-
-Do NOT add a `sideEffects` field to package.json. Show me the full new file and the serve result.
-If it STILL fails, add this line as the first statement inside transformConfig and share the file it writes:
-  require('fs').writeFileSync(require('path').join(__dirname,'merged-rules.json'),
-    JSON.stringify(initialWebpackConfig.module.rules,(k,v)=>v instanceof RegExp?v.toString():v,2));
+After editing, run `npm run serve` AND `gulp bundle --ship` (or `npm run build`) and confirm:
+  - no new build errors
+  - toolkit/PnP/DevExtreme styles still render
+  - the app's prototype-extending utilities still work at runtime
+Show me the before/after diff of the sideEffects array. Do NOT remove the kept entries.
