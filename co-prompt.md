@@ -1,24 +1,38 @@
-Review the `sideEffects` array in this app's package.json. It should describe only THIS app's own
-side-effectful files, never dependencies in node_modules (a dependency's tree-shaking is governed by
-its OWN package.json `sideEffects`, so node_modules entries here are inert).
+The fast-serve crash "Merging undefined is not supported" is because config/fast-serve/webpack.extend.js
+no longer exports `webpackConfig`. spfx-fast-serve does merge(generatedConfig, webpackConfig) BEFORE
+calling transformConfig, so `webpackConfig` must exist (an empty object is fine).
 
-First confirm which file this is (the app's package.json vs a library's). Then:
+Replace the ENTIRE contents of config/fast-serve/webpack.extend.js with exactly this:
 
-KEEP these (app's own side-effectful files):
-  - "**/*.css", "**/*.scss", "**/*.scss.js"   (style files — don't let them be tree-shaken)
-  - "**/src/utilities/Array.ts", "**/src/utilities/String.ts",
-    "**/lib/utilities/Array.js", "**/lib/utilities/String.js"
-    BUT FIRST verify these files actually have side effects (e.g. they extend Array.prototype /
-    String.prototype or run code on import). If they're just pure exports, they don't belong here
-    either. If they DO mutate prototypes, keep them — removing them could break runtime behavior.
+    const path = require('path');
+    const webpack = require('webpack');
+    const { applyToolkitWebpackFixes } = require('spfx-toolkit/build');
 
-REMOVE these (inert — they cannot affect how those dependencies are bundled):
-  - "**/node_modules/@pnp/**"
-  - "**/node_modules/spfx-toolkit/lib/..."  (any node_modules/spfx-toolkit entry)
-  - "**/node_modules/devextreme/dist/..."   (any node_modules/devextreme entry)
+    // Required by spfx-fast-serve: it runs merge(generatedConfig, webpackConfig) before transformConfig.
+    // If webpackConfig is undefined it throws "Merging undefined is not supported".
+    const webpackConfig = {};
 
-After editing, run `npm run serve` AND `gulp bundle --ship` (or `npm run build`) and confirm:
-  - no new build errors
-  - toolkit/PnP/DevExtreme styles still render
-  - the app's prototype-extending utilities still work at runtime
-Show me the before/after diff of the sideEffects array. Do NOT remove the kept entries.
+    const transformConfig = function (initialWebpackConfig) {
+      const cfg = applyToolkitWebpackFixes(initialWebpackConfig, { consumerRoot: __dirname });
+
+      // @pnp/spfx-controls-react 3.24+ ships `.module.scss.css` (real CSS). Rewrite its `.module.scss`
+      // imports to `.module.scss.css` and pin the loader chain inline with a leading "!!" so NO other
+      // configured rule (incl. fast-serve's own css-loader) also processes it -> avoids the double
+      // css-loader "Unknown word: import" error.
+      const pnpLib = path.resolve(__dirname, 'node_modules', '@pnp', 'spfx-controls-react', 'lib');
+      const cssQuery = JSON.stringify({ modules: { localIdentName: '[local]' } });
+      cfg.plugins = cfg.plugins || [];
+      cfg.plugins.push(
+        new webpack.NormalModuleReplacementPlugin(/\.module\.scss$/, (resource) => {
+          if (resource.context && resource.context.startsWith(pnpLib)) {
+            resource.request = `!!style-loader!css-loader?${cssQuery}!${resource.request}.css`;
+          }
+        })
+      );
+
+      return cfg;
+    };
+
+    module.exports = { webpackConfig, transformConfig };
+
+Then run `npm run serve` again and report the full output.
