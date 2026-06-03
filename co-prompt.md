@@ -1,50 +1,40 @@
-We need to fix a production/runtime issue in this SPFx solution that uses spfx-toolkit.
+We need to fix a deployed SPFx form customizer runtime failure:
 
-Problem:
-The deployed form customizer crashes after data loads with:
+Loading the script "https://relative-path.invalid/@microsoft/sp-lodash-subset.js" violates CSP
+Could not load <form-customizer> in require. Script error for "@microsoft/sp-lodash-subset"
 
-DevExtreme E1012 - Editing type 'selection' with the name 'default' is unsupported
+This is not a CSS/styling issue and not fast-serve-only. It happens in the deployed/release form customizer because the bundle declares @microsoft/sp-lodash-subset as an AMD external dependency, and the SharePoint list form host resolves it to relative-path.invalid.
 
-This is not the earlier fast-serve SCSS issue and not the @microsoft/sp-lodash-subset CSP issue. Web parts and field customizers work; only the form customizer fails.
+Tasks:
+1. Search source/config for any direct runtime import of @microsoft/sp-lodash-subset:
+   rg -n "@microsoft/sp-lodash-subset|@microsoft/sp-loader|SPComponentLoader|escape\\(" src package.json gulpfile.js config
 
-Likely cause:
-A DevExtreme SelectBox/TagBox/List path is being rendered in the form customizer, probably through spfx-toolkit fields such as SPLookupField/TagBox with showSelectionControls=true. DevExtreme creates an internal List using list_light, but the List selection decorator registration is missing in the optimized/deployed bundle. DevExtreme registers that via:
+2. If there is a direct import like:
+   import { escape } from '@microsoft/sp-lodash-subset';
+   remove it and replace with a local helper or native code. Do not import @microsoft/sp-lodash-subset anywhere in src.
 
-devextreme/ui/list/modules/selection
+3. Build the release bundle and verify whether the generated JS still contains @microsoft/sp-lodash-subset:
+   npm run release
+   rg -n "@microsoft/sp-lodash-subset" lib dist temp release
 
-Because DevExtreme marks many subpath packages as sideEffects=false, a side-effect-only static import may be dropped in production. We need an app-side runtime bootstrap that forces this module to execute before the form customizer renders.
+4. If the built bundle still contains @microsoft/sp-lodash-subset after source cleanup, identify which dependency pulls it in. Likely candidates:
+   - @pnp/spfx-controls-react
+   - an older local/file-linked spfx-toolkit build
+   - any component importing PnP controls
 
-Task:
-1. Find the form customizer entry point and/or its top-level React component.
-2. Add a local bootstrap file, for example:
-   src/runtime/ensureDevExtremeListSelection.ts
+5. If it comes from dependency code, add an app-local shim and force webpack to bundle it:
+   - create src/shims/spLodashSubsetShim.ts
+   - implement only the functions actually needed by the dependency, or use lodash equivalents
+   - update gulpfile webpack config with NormalModuleReplacementPlugin or alias for '@microsoft/sp-lodash-subset' to the compiled shim
+   - verify the final deployed bundle no longer has @microsoft/sp-lodash-subset in its AMD define dependency list.
 
-   It should be idempotent and use runtime require, not a side-effect-only import:
+6. Do not solve this with CSS imports, DevExtreme CSS, sideEffects changes, or fast-serve-only config. The success criterion is:
+   - deployed form customizer JS does not request https://relative-path.invalid/@microsoft/sp-lodash-subset.js
+   - form customizer loads in production
+   - web parts and field customizers still work
 
-   let ensured = false;
-
-   export function ensureDevExtremeListSelection(): void {
-     if (ensured) return;
-     // DevExtreme SelectBox/TagBox internal List selection decorator registration.
-     // Required for optimized SPFx form-customizer bundles.
-     require('devextreme/ui/list/modules/selection');
-     ensured = true;
-   }
-
-   If TypeScript complains about require, use:
-   declare const require: any;
-
-3. Call ensureDevExtremeListSelection() before rendering the form customizer UI, ideally at the top of the form customizer entry module before ReactDOM.render or before the root component mounts.
-
-4. If this form customizer uses DevExtreme controls, also confirm DevExtreme theme CSS is imported once globally:
-   import 'devextreme/dist/css/dx.light.css';
-
-5. Do not add broad webpack aliases, resolve.symlinks changes, or package.json sideEffects changes for this issue.
-6. Do not change gulpfile or fast-serve config for this production E1012 issue unless absolutely necessary.
-
-Verification:
-- Clean build the SPFx solution.
-- Run the same release/package/deploy path that reproduced the issue.
-- Confirm the form customizer no longer throws E1012.
-- Confirm web parts and field customizers still work.
-- Report exactly which files changed and why.
+Report:
+- exact source of the @microsoft/sp-lodash-subset dependency
+- files changed
+- release build result
+- whether the built bundle still references @microsoft/sp-lodash-subset
