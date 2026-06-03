@@ -1,39 +1,50 @@
-fast-serve can't resolve @pnp/spfx-controls-react@3.24's `./X.module.scss` (3.24 ships `.module.scss.css`;
-SPFx's normal build resolves it but fast-serve doesn't). Add ONLY a scss rewrite to webpack.extend.js.
-This is a fast-serve + @pnp quirk, NOT spfx-toolkit related. Do not add any aliasing/symlinks/sp-lodash config.
+We need to fix a production/runtime issue in this SPFx solution that uses spfx-toolkit.
 
-Replace the ENTIRE contents of config/fast-serve/webpack.extend.js with exactly:
+Problem:
+The deployed form customizer crashes after data loads with:
 
-    const path = require('path');
-    const webpack = require('webpack');
+DevExtreme E1012 - Editing type 'selection' with the name 'default' is unsupported
 
-    const webpackConfig = {};
+This is not the earlier fast-serve SCSS issue and not the @microsoft/sp-lodash-subset CSP issue. Web parts and field customizers work; only the form customizer fails.
 
-    const transformConfig = function (initialWebpackConfig) {
-      const cfg = initialWebpackConfig;
+Likely cause:
+A DevExtreme SelectBox/TagBox/List path is being rendered in the form customizer, probably through spfx-toolkit fields such as SPLookupField/TagBox with showSelectionControls=true. DevExtreme creates an internal List using list_light, but the List selection decorator registration is missing in the optimized/deployed bundle. DevExtreme registers that via:
 
-      // @pnp/spfx-controls-react 3.24+ ships `.module.scss.css` (real CSS); its controls import
-      // `./X.module.scss`. fast-serve's webpack can't resolve that to the shipped `.css`. Rewrite it,
-      // pinned to an inline loader chain (leading "!!") so fast-serve's own css-loader doesn't ALSO
-      // process it (double pass = "Unknown word: import").
-      const pnpLib = path.join(
-        path.dirname(require.resolve('@pnp/spfx-controls-react/package.json', { paths: [__dirname] })),
-        'lib'
-      );
-      const cssQuery = JSON.stringify({ modules: { localIdentName: '[local]' } });
-      cfg.plugins = cfg.plugins || [];
-      cfg.plugins.push(
-        new webpack.NormalModuleReplacementPlugin(/\.module\.scss$/, (resource) => {
-          if (resource.context && resource.context.startsWith(pnpLib)) {
-            resource.request = `!!style-loader!css-loader?${cssQuery}!${resource.request}.css`;
-          }
-        })
-      );
+devextreme/ui/list/modules/selection
 
-      return cfg;
-    };
+Because DevExtreme marks many subpath packages as sideEffects=false, a side-effect-only static import may be dropped in production. We need an app-side runtime bootstrap that forces this module to execute before the form customizer renders.
 
-    module.exports = { webpackConfig, transformConfig };
+Task:
+1. Find the form customizer entry point and/or its top-level React component.
+2. Add a local bootstrap file, for example:
+   src/runtime/ensureDevExtremeListSelection.ts
 
-Then run `npm run serve`. Expected: no "Can't resolve .module.scss" errors, all components load, @pnp
-controls render styled.
+   It should be idempotent and use runtime require, not a side-effect-only import:
+
+   let ensured = false;
+
+   export function ensureDevExtremeListSelection(): void {
+     if (ensured) return;
+     // DevExtreme SelectBox/TagBox internal List selection decorator registration.
+     // Required for optimized SPFx form-customizer bundles.
+     require('devextreme/ui/list/modules/selection');
+     ensured = true;
+   }
+
+   If TypeScript complains about require, use:
+   declare const require: any;
+
+3. Call ensureDevExtremeListSelection() before rendering the form customizer UI, ideally at the top of the form customizer entry module before ReactDOM.render or before the root component mounts.
+
+4. If this form customizer uses DevExtreme controls, also confirm DevExtreme theme CSS is imported once globally:
+   import 'devextreme/dist/css/dx.light.css';
+
+5. Do not add broad webpack aliases, resolve.symlinks changes, or package.json sideEffects changes for this issue.
+6. Do not change gulpfile or fast-serve config for this production E1012 issue unless absolutely necessary.
+
+Verification:
+- Clean build the SPFx solution.
+- Run the same release/package/deploy path that reproduced the issue.
+- Confirm the form customizer no longer throws E1012.
+- Confirm web parts and field customizers still work.
+- Report exactly which files changed and why.
