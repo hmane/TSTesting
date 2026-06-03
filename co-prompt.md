@@ -42,3 +42,76 @@ List PASS rows too (so I know they were checked). After the table, give a short 
 Apply fixes for rules 1, 2, and 6 from the audit only. Use exact import paths copied from
 node_modules/spfx-toolkit/docs/Importing-Components.md. Don't touch package.json sideEffects.
 Show me the diff per file; don't run any build.
+===================================
+
+
+
+
+
+
+Fix a fast-serve build error caused by @pnp/spfx-controls-react CSS double-processing when consuming the `spfx-toolkit` package via npm link.
+
+== SYMPTOM ==
+`npm run serve` fails with, for several @pnp controls (dragDropFiles, errorMessage, etc.):
+  ERROR in ./node_modules/@pnp/spfx-controls-react/lib/controls/.../X.module.scss.css
+  Module build failed (from .../spfx-fast-serve-helpers/node_modules/css-loader/dist/cjs.js):
+  SyntaxError ... Unknown word
+  > import API from "!.../style-loader/dist/runtime/injectStylesIntoStyleTag.js";
+
+== ROOT CAUSE ==
+1. This app has @pnp/spfx-controls-react@3.24.x, which ships `X.module.scss.css` (real CSS).
+   The spfx-toolkit package was built against @pnp/spfx-controls-react@3.22 (ships `X.module.scss.js`).
+2. `applyToolkitWebpackFixes` (from spfx-toolkit/build) aliases @pnp/spfx-controls-react to the app's
+   3.24 copy by default. That forces the toolkit's controls onto the app's 3.24 `.module.scss.css`.
+3. Two css rules then match `X.module.scss.css`: a custom rule we added AND spfx-fast-serve's own
+   injected css rule. They stack, so css-loader receives style-loader's JS output -> "Unknown word: import".
+4. Our custom exclude loop can't disable fast-serve's rule (it's merged after transformConfig runs).
+
+== FIX (do this; it removes the conflict at the source) ==
+Stop aliasing @pnp/spfx-controls-react. Let the toolkit use its OWN nested 3.22 copy, which the helper's
+built-in `.module.scss -> .module.scss.js` rewrite already handles. Then delete all the home-grown
+`.module.scss.css` rule surgery — it's no longer needed.
+
+STEP 1 — Replace the entire `transformConfig` in `config/fast-serve/webpack.extend.js` with:
+
+    const { applyToolkitWebpackFixes, DEFAULT_ALIAS_PEERS } = require('spfx-toolkit/build');
+
+    const transformConfig = function (initialWebpackConfig) {
+      return applyToolkitWebpackFixes(initialWebpackConfig, {
+        consumerRoot: __dirname,
+        // App has @pnp/spfx-controls-react 3.24 (.module.scss.css); toolkit built against 3.22
+        // (.module.scss.js). Aliasing forces the toolkit's controls onto the app's 3.24 copy and
+        // triggers .module.scss.css double-processing. Excluding it lets the toolkit use its nested
+        // 3.22 copy, which the helper's .module.scss -> .js rewrite handles.
+        aliasPeers: DEFAULT_ALIAS_PEERS.filter((p) => p !== '@pnp/spfx-controls-react'),
+      });
+    };
+
+    module.exports = { transformConfig };
+
+STEP 2 — In `config/fast-serve/webpack.extend.js`, DELETE everything related to the old workaround:
+  - the `componentLibPath` / `pnpControlsLibPath` constants
+  - both `NormalModuleReplacementPlugin(/\.module\.scss$/, ...)` pushes (the `.js` and `.css` ones)
+  - the `pnpScssExclude` / `probeFile` exclude loop over `module.rules`
+  - the pushed rule `{ test: /\.module\.scss\.css$/, include: @pnp/spfx-controls-react, use: [...] }`
+  Keep only the code shown in STEP 1.
+
+STEP 3 — In `gulpfile.js`, REMOVE the equivalent @pnp `.module.scss.css` workaround blocks applied to
+`generatedConfiguration`:
+  - the `pnpScssExclude` loop that adds excludes to `sp-css-loader` rules
+  - the `NormalModuleReplacementPlugin(/\.module\.scss$/, ...)` that appends `.css`
+  - the pushed `{ test: /\.module\.scss\.css$/, include: @pnp/spfx-controls-react, ... }` rule
+  Leave any UNRELATED config intact (e.g. devextreme/moment `IgnorePlugin` entries — keep those).
+  With the toolkit on its nested 3.22 copy, the stock SPFx sp-css-loader handles its control CSS.
+
+STEP 4 — Verify:
+  - Delete `temp/` and `dist/` build output if present.
+  - Run `npm run serve`. The `X.module.scss.css` "Unknown word" errors should be gone and @pnp
+    controls (people picker, taxonomy picker, ManageAccess) should render styled.
+
+Do NOT add a `sideEffects` field to package.json, and do NOT reintroduce the deleted webpack rules.
+Show me the diff for both files before/after and confirm the serve build is clean. If the error persists,
+add this one diagnostic line at the top of transformConfig and share `merged-rules.json`:
+
+    require('fs').writeFileSync(require('path').join(__dirname,'merged-rules.json'),
+      JSON.stringify(initialWebpackConfig.module.rules,(k,v)=>v instanceof RegExp?v.toString():v,2));
