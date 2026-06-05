@@ -1,32 +1,58 @@
-Before implementing any fix, reconcile the mismatch:
+We are changing the package’s public import contract.
 
-User originally saw @microsoft/sp-lodash-subset CSP failure in the Engagement Request form customizer. Your latest report says the fresh SHIP form customizer bundle is clean:
-- engagement-request-form-customizer_*.js
-- sp-lodash-subset occurrences: 0
-- AMD define has no @microsoft/sp-lodash-subset
+Because `spfx-toolkit` has a `package.json` `exports` map, Node and bundlers no longer allow consumers to import arbitrary files from the package just because they exist in `lib/`. Every supported public path must be listed in `exports`. That is why paths like `spfx-toolkit/lib/utilities/batchBuilder`, direct CSS imports, and `spfx-toolkit/package.json` were failing even though some of those files were present after build.
 
-But the browser screenshot showed a form customizer failure. Confirm whether the browser is loading the same fresh bundle you inspected.
+The first change exposes package metadata:
 
-Tasks:
-1. Identify the exact JS filename loaded in the browser error for the form customizer.
-2. Compare it to the fresh SHIP build filename on disk.
-3. Inspect the exact loaded/deployed file, not just the latest local build:
-   rg -n "@microsoft/sp-lodash-subset|relative-path.invalid" <that exact file>
-4. If the loaded form-customizer file is old/stale:
-   - report that the fix is deployment/cache/package-version related
-   - do not change source code yet
-   - recommend redeploying the fresh package, clearing CDN/browser cache, or bumping solution/component version as needed
-5. If the loaded form-customizer file is current and still contains @microsoft/sp-lodash-subset:
-   - trace the import chain inside that exact bundle
-   - identify whether it is from @pnp/spfx-controls-react, spfx-toolkit barrel imports, or app source
-   - only then propose a minimal source fix
+```json
+"./package.json": "./package.json"
+```
 
-Separately, you found SpotlightSearchWebPart has a real synchronous FileTypeIcon import chain:
-SpotlightSearch.tsx -> @pnp/spfx-controls-react/lib/FileTypeIcon -> @microsoft/sp-lodash-subset.
-Do not fix Spotlight as a substitute for the form-customizer bug. Fix Spotlight only after the form-customizer mismatch is explained.
+Why: some tooling calls `require.resolve("spfx-toolkit/package.json")`. Without this export, Node throws `ERR_PACKAGE_PATH_NOT_EXPORTED`.
 
-Report:
-- Is the form customizer currently clean or not?
-- Is the browser loading a stale form customizer asset?
-- What exact bundle contains @microsoft/sp-lodash-subset today?
-- What is the minimal fix for the actual currently loaded failing bundle?
+The second change restores a stable legacy deep import:
+
+```json
+"./lib/utilities/batchBuilder": {
+  "types": "./lib/utilities/batchBuilder/index.d.ts",
+  "import": "./lib/utilities/batchBuilder/index.js",
+  "require": "./lib/utilities/batchBuilder/index.js"
+}
+```
+
+Why: consumers already import `spfx-toolkit/lib/utilities/batchBuilder`. The existing wildcard export was not enough for this folder-style path because Node needs a concrete mapping to `index.js` and `index.d.ts`.
+
+The third change allows shipped CSS files to be imported directly:
+
+```json
+"./lib/*.css": "./lib/*.css"
+```
+
+Why: the build already copies CSS into `lib`, but the exports map blocked consumers from importing paths like:
+
+```ts
+import "spfx-toolkit/lib/components/VersionHistory/VersionHistory.css";
+```
+
+The fourth change prevents the build helper from treating `./package.json` as a directory-style proxy export:
+
+```js
+if (exportKey === '.' || exportKey === './package.json' || exportKey === './lib/*') {
+  return;
+}
+```
+
+Why: this repo generates compatibility proxy folders from export entries. `./package.json` is just a file export, so it should not get a generated proxy package.
+
+The regression test locks this down:
+
+```js
+assert.doesNotThrow(() => require.resolve("spfx-toolkit/package.json"));
+assert.doesNotThrow(() => require.resolve("spfx-toolkit/lib/utilities/batchBuilder"));
+assert.doesNotThrow(() => require.resolve("spfx-toolkit/lib/components/VersionHistory/VersionHistory.css"));
+assert.doesNotThrow(() => require.resolve("spfx-toolkit/utilities/context/pnpImports/core"));
+```
+
+Why: this catches future changes that accidentally remove or break these public paths.
+
+In short: we are not changing runtime behavior of the toolkit components. We are fixing what package paths consumers are allowed to resolve.
