@@ -1,180 +1,101 @@
-# Task: Fix SharePoint "duplicate header on scroll" + refactor global CSS loading
+# Task: Fix collapsible Card leaving a phantom band under the header when collapsed
 
-This is a two-part change spanning the **SP Search** SPFx solution and its sibling
-**spfx-toolkit** dependency. Do BOTH parts. Read the root-cause section first — do
-not re-diagnose from scratch, and do not "fix" it by changing CSS load order/bundling
-(that was already tried and is wrong).
+Symptom: in the SP Search **Filters** web part, collapsed filter-group cards show a
+small empty content band under the header instead of collapsing to just the header.
 
-## Root cause (authoritative — trust this)
-On a modern SharePoint page, the site header collapses to a compact sticky bar on
-scroll; the step that HIDES the full header fires on a CSS `transitionend` event.
+Do BOTH parts. Read the root cause first — do not re-diagnose, and do not chase it as
+a CSS-only / `:has()` / header-padding issue.
 
-`spfx-toolkit/lib/components/VersionHistory/VersionHistory.css` contains, inside an
-`@media (prefers-reduced-motion: reduce)` block, a **bare universal `*` selector**:
+## Root cause (authoritative)
+The spfx-toolkit `Card` component stamps the size config's `minHeight` as an **inline
+style on the card root** (`.spfx-card`). In `Card`'s `cardStyle` memo it spreads the
+WHOLE size object onto the root style:
 
-```css
-@media (prefers-reduced-motion: reduce) {
-  .version-card,
-  .field-change-row,
-  .version-details-comment,
-  .version-history-status,
-  * {                              /* ← BUG: unscoped universal */
-    animation: none !important;
-    transition: none !important;
-  }
-}
+```js
+const cardStyle = useMemo(() => {
+  const sizeConfig = SIZE_CONFIG[size];     // regular → { ..., minHeight: '56px', ... }
+  return { ...sizeConfig, /* ...theme, ...style */ };
+}, [...]);
 ```
 
-SPFx injects this **non-module** CSS as a **page-level `<style>`**. So when the user
-has OS "Reduce Motion" ON, this rule disables transitions/animations on the ENTIRE
-page — including SharePoint's own chrome. SharePoint's `transitionend` then never
-fires, the full header never hides, and you get a duplicated (full + compact) header
-on scroll. Where the file is `require()`'d does not matter — once any chunk loads it,
-it is global. The correct fix is to **scope the universal selector to the component's
-own subtree**.
+`SIZE_CONFIG.regular.minHeight` is `'56px'`, so the root gets inline `min-height: 56px`.
+Because it's an INLINE style on the root, it forces the whole card to ≥56px even when
+collapsed (header ≈48px + content 0 → padded up to 56px = the phantom band). No
+stylesheet rule beats an inline style without `!important`. The blind `...sizeConfig`
+spread is also sloppy (it dumps non-CSS keys like `headerPadding`/`contentPadding`,
+which React drops; only `minHeight`/`fontSize`/`width` actually leak).
 
----
+Two defects: (1) the root min-height must NOT apply to a collapsed collapsible card;
+(2) stop spreading the whole size object.
 
-## Part A — Fix the toolkit CSS (the actual bug)
+## Part A — Fix the toolkit Card (root cause)
 
-1. Locate the spfx-toolkit source. It is a sibling clone resolved via
-   `file:../spfx-toolkit` and `node_modules/spfx-toolkit` is a symlink to it.
-   - If you can edit the toolkit source: edit
-     `../spfx-toolkit/src/components/VersionHistory/VersionHistory.css`.
-   - Note `lib/` in the toolkit is **gitignored build output**; sp-search consumes
-     `lib/`. After editing `src/`, either run `npm run build` in the toolkit to
-     regenerate `lib/`, OR also apply the identical edit to
-     `../spfx-toolkit/lib/components/VersionHistory/VersionHistory.css` so the current
-     sp-search build picks it up immediately.
-   - If your org consumes spfx-toolkit as a **read-only published npm package**, apply
-     the same edit via `patch-package` (add a postinstall patch) instead.
+Locate spfx-toolkit. It is a sibling clone resolved via `file:../spfx-toolkit`, and
+`node_modules/spfx-toolkit` is a symlink to it; `lib/` there is **gitignored** build
+output (sp-search consumes `lib/`).
+- If you can edit the toolkit source: edit
+  `../spfx-toolkit/src/components/Card/components/Card.tsx`. Then run `npm run build`
+  in the toolkit to regenerate `lib/`, OR apply the identical change to
+  `../spfx-toolkit/lib/components/Card/components/Card.js` so the current sp-search
+  build picks it up immediately.
+- If your org consumes spfx-toolkit as a **read-only npm package**, apply the change
+  via `patch-package` instead.
 
-2. Replace the unscoped block with a **scoped** one (covers both popup and inline use):
+In the `cardStyle` memo, replace the `...sizeConfig` spread so the size min-height is
+applied ONLY when the card is expanded, and only real CSS props are set. Use the
+already-in-scope expanded flag (in this codebase it's `effectiveIsExpanded`, defined a
+few lines above as `isMaximized || isExpanded` — verify the exact name and add it to
+the memo's dependency array):
 
-```css
-@media (prefers-reduced-motion: reduce) {
-  /* Scoped to the VersionHistory subtree — a component stylesheet must NOT disable
-     motion globally. It is injected page-wide, so a bare `*` leaks into the host and
-     breaks motion-driven host behavior (e.g. SharePoint's scroll-collapse header
-     relies on transitionend to hide the full header; force-disabling transitions
-     page-wide leaves a duplicated header on scroll). */
-  .version-history-popup *,
-  .version-history * {
-    animation: none !important;
-    transition: none !important;
-  }
-}
+```js
+const cardStyle = useMemo(() => {
+  const sizeConfig = SIZE_CONFIG[size];
+  return {
+    fontSize: sizeConfig.fontSize,
+    ...(sizeConfig.width ? { width: sizeConfig.width } : {}),
+    // A collapsed collapsible card must be free to shrink to its header — only pin
+    // the size min-height while expanded. Previously `...sizeConfig` stamped e.g.
+    // 56px on collapsed cards, leaving a phantom band under the header.
+    ...(effectiveIsExpanded ? { minHeight: sizeConfig.minHeight } : {}),
+    ...(theme?.backgroundColor && { backgroundColor: theme.backgroundColor }),
+    ...(theme?.borderColor && { borderColor: theme.borderColor }),
+    ...(theme?.textColor && { color: theme.textColor }),
+    ...(highlightColor &&
+      isHighlighted && {
+        borderColor: highlightColor,
+        boxShadow: `0 0 0 2px ${highlightColor}33`,
+      }),
+    ...style,
+  };
+}, [size, effectiveIsExpanded, theme, highlightColor, isHighlighted, style]);
 ```
 
-3. **Audit the rest of the toolkit** for the same class of leak (other versions may
-   have more). Grep every `*.css` under `../spfx-toolkit/src/components/` (and the
-   `lib/` copies sp-search loads) for **page-global selectors inside any rule**, not
-   just reduced-motion: a bare `*`, `html`, or `body` selector, or `*::before` /
-   `*::after`. Any found in a vendored component stylesheet that gets injected globally
-   must be scoped to that component's root. Report each one you scope.
+Constraints: do not change `SIZE_CONFIG`; do not change expanded-card behavior
+(expanded cards must still get the size min-height); keep `fontSize`/`width` working.
 
----
+## Part B — Consumer override in sp-search (immediate, zero-risk)
 
-## Part B — Refactor sp-search to load heavy CSS lazily (defense-in-depth + perf)
+In `src/webparts/spSearchFilters/components/SpSearchFilters.module.scss`, inside the
+`.filterGroupCard` rule, add:
 
-Goal: no web part **entrypoint** requires global third-party CSS. DevExtreme and
-toolkit component CSS load only from the components that actually render those widgets.
-This keeps initial bundles smaller AND ensures vendored global CSS can't load on a page
-until the relevant widget mounts.
-
-1. **Delete** any shared eager loader (e.g. `src/styles/loadSpfxToolkitStyles.ts`) and
-   **create** `src/styles/loadDevExtremeStyles.ts`:
-
-```ts
-// DevExtreme ships global CSS. Load it only from components that render DevExtreme
-// widgets so plain search webparts do not inject page-level CSS.
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-require('devextreme/dist/css/dx.common.css');
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-require('devextreme/dist/css/dx.light.css');
-
-export const devExtremeStylesLoaded: boolean = true;
+```scss
+// The toolkit Card stamps the size min-height (e.g. 56px) as an inline style on the
+// root, which stops a collapsed group from shrinking to its header. Override it.
+// Expanded groups exceed this height, so they are unaffected.
+min-height: 0 !important;
 ```
 
-2. **Remove** all global CSS `require()`s and the old toolkit-styles import from every
-   web part **entrypoint** (`src/webparts/*/Sp*WebPart.ts`). Specifically remove the
-   `require('devextreme/dist/css/dx.common.css')` / `dx.light.css` lines and any
-   `import { spfxToolkitStylesLoaded } ...` + `_ensureStyles` lines. Verify with:
-   `grep -rn "dist/css/dx\.\|loadSpfxToolkitStyles" src/webparts/*/Sp*WebPart.ts`
-   → must return nothing.
+This works even before the toolkit rebuild and is harmless once Part A lands.
 
-3. **Add CSS at the component level** where the widget/toolkit component renders:
-
-   - **DevExtreme widget components** — add the side-effect import near the top and
-     reference it so it is not tree-shaken away:
-     ```ts
-     import { devExtremeStylesLoaded } from '../../../styles/loadDevExtremeStyles';
-     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-     const _ensureDevExtremeStyles = devExtremeStylesLoaded;
-     ```
-     Apply to every component that renders a DevExtreme widget. In this repo that is:
-     `spSearchResults/components/DataGridContent.tsx` (DataGrid),
-     `spSearchFilters/components/TagBoxFilter.tsx`,
-     `spSearchFilters/components/DateRangeFilter.tsx`,
-     `spSearchFilters/components/SliderFilter.tsx`,
-     `spSearchFilters/components/TaxonomyTreeFilter.tsx`,
-     `spSearchFilters/components/VisualFilterBuilder.tsx`,
-     `spSearchBox/components/QueryBuilder.tsx`.
-     (Discover the full set with `grep -rln "devextreme-react" src/webparts`.)
-
-   - **Toolkit component CSS** — require directly in the consuming component:
-     - `card.css` in `spSearchFilters/components/FilterGroup.tsx` (and any other
-       spfx-toolkit `Card` consumer):
-       `require('spfx-toolkit/lib/components/Card/card.css');`
-     - `UserPersona.css` in each `UserPersona` consumer
-       (`renderCell.tsx`, `ListLayout.tsx`, `ResultDetailPanel.tsx`,
-       `DocumentTitleHoverCard.tsx`).
-     - `VersionHistory.css` **lazily**, inside the dynamic-import thunk in
-       `spSearchResults/components/LazyVersionHistory.ts`, so it only loads when the
-       version-history panel opens:
-       ```ts
-       // eslint-disable-next-line @typescript-eslint/no-require-imports
-       require('spfx-toolkit/lib/components/VersionHistory/VersionHistory.css');
-       return import(/* webpackChunkName: 'VersionHistory' */ 'spfx-toolkit/lib/components/VersionHistory')
-         .then(m => ({ default: m.VersionHistory as unknown as React.ComponentType<Record<string, unknown>> }));
-       ```
-     (Discover toolkit CSS consumers with
-     `grep -rln "spfx-toolkit/lib/components" src/webparts`.)
-
-4. Every `require('...css')` needs `// eslint-disable-next-line @typescript-eslint/no-require-imports`
-   on the line above it.
-
----
-
-## Part C — Regression guardrail
-
-Add/update a test (`tests/a11y/reducedMotionScoping.test.ts`) that fails if a global
-leak is reintroduced. It must check BOTH:
-- sp-search `src/**/*.module.scss` — no `*,` / `*::before` / `*::after` as a selector
-  inside any `@media (prefers-reduced-motion: reduce)` block.
-- **the vendored toolkit CSS that ships to the page** — scan
-  `node_modules/spfx-toolkit/lib/**/*.css` and fail if any rule uses a bare `*`,
-  `html`, or `body` page-global selector (this is what would have caught the real bug).
-Keep the test dependency-free (use `fs`/`path` only).
-
-Also add a one-line entry to `docs/known-issues.md` (or the repo's changelog)
-recording the root cause and the scoping fix.
-
----
-
-## Verification (must all pass)
-1. `grep -rn "prefers-reduced-motion" ../spfx-toolkit/src ../spfx-toolkit/lib` and
-   confirm no block contains a bare `*`/`html`/`body` selector.
-2. `grep -rn "dist/css/dx\." src/webparts/*/Sp*WebPart.ts` → empty.
-3. `npm run build` (sp-search) succeeds.
-4. `npm test` succeeds, including the new reduced-motion guardrail.
-5. **Manual:** enable OS "Reduce Motion", deploy, open a page with a search web part,
-   scroll down — the SharePoint header must collapse to a single compact bar (no
-   duplicate). Open the result detail panel → Version History and confirm it still
-   renders styled.
+## Verification
+1. Build sp-search (`npm run build`) — succeeds.
+2. In the Filters web part, collapse a filter group → the card shrinks to just the
+   header (no empty band below it). Expand it → content shows normally.
+3. Confirm OTHER spfx-toolkit Card consumers (non-collapsible cards, accordion cards,
+   maximized cards) still render at their expected size — expanded cards must keep the
+   size min-height.
 
 ## Commit
-- In **spfx-toolkit**: commit the scoped `src/.../VersionHistory.css` change (and any
-  other selectors you scoped). `lib/` is gitignored — do not commit it; it is rebuilt.
-- In **sp-search**: commit the entrypoint cleanup, `loadDevExtremeStyles.ts`, the
-  component-level CSS requires, and the guardrail test, as one logical change.
+- spfx-toolkit: commit the `src/.../Card.tsx` change (`lib/` is gitignored — rebuilt,
+  not committed). If you used patch-package, commit the generated patch.
+- sp-search: commit the `.filterGroupCard { min-height: 0 !important }` override.
